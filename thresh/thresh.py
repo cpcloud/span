@@ -18,8 +18,10 @@ from ..xcorr import xcorr
 
 
 def bin_data(data, bins):
-    return np.hstack(np.histogram(data[:, j], bins)[0][1:, np.newaxis]
-                     for j in xrange(min(data.shape))).T
+    # assume the data are samples by channels
+    # data.T will be channels by samples thus it will iterate by channels
+    return np.hstack(np.histogram(channel, bins)[0][1:, np.newaxis]
+                     for channel in data.T)
 
 
 def median(a, axis=None):
@@ -280,7 +282,10 @@ def aggregate_plot(filenames, binsizes, ms=2.0, plot_type='scatter'):
 def load_data(filename):
     shanks = HDFStore(filename, mode='r')
     sh1 = shanks['sh1']
-    return sh1.values, shanks['fs'].values[0], sh1.keys(), 2e-5
+    thr = shanks['threshold'].values[0]
+    fs = shanks['fs'].values[0]
+    shanks.close()
+    return sh1.values, fs, sh1.index.values, thr
 
 
 def parse_args():
