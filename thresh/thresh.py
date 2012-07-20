@@ -10,16 +10,16 @@ import numpy as np
 import pylab as pl
 from pandas import HDFStore
 
+import theano
 import theano.tensor as T
-from theano import function
 
 from ..clear_refrac import thresh_and_clear
 from ..xcorr import xcorr
 
 
 def bin_data(data, bins):
-    return np.asarray(tuple(np.histogram(data[:, j], bins)[0][1:]
-                            for j in xrange(min(data.shape)))).T
+    return np.hstack(np.histogram(data[:, j], bins)[0][1:, np.newaxis]
+                     for j in xrange(min(data.shape))).T
 
 
 def median(a, axis=None):
@@ -32,8 +32,8 @@ def median(a, axis=None):
 
     ashape = T.shape(a)
     ashape_axis = ashape[axis]
-    index = ashape_axis / 2
-    if ashape_axis % 2 == 1:
+    index, isodd_div = divmod(ashape_axis, 2)
+    if isodd_div == 1:
         sorted_ind = sorted_[index:index + 1]
     else:
         sorted_ind = sorted_[index - 1:index + 1]
@@ -50,8 +50,8 @@ def make_threshold(data, threshes=None, sc=5.0, const=0.6745):
         dataset = T.dmatrix('dataset')
         median_func = median(T.abs_(dataset) / constant, axis=0)
         f = scale_factor * median_func
-        thresh_func = function([scale_factor, dataset, constant], f,
-                               mode='FAST_RUN')
+        thresh_func = theano.function([scale_factor, dataset, constant], f,
+                                      mode='FAST_RUN')
         threshes = thresh_func(sc, data, const)
     elif np.isscalar(threshes):
         threshes = np.repeat(threshes, minshape)
