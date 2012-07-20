@@ -255,10 +255,7 @@ def make_timescale_xcorrs(times, binsizes, elec_map, window_title):
         xcorr_bins(times, binsize, elec_map, window_title)
 
 
-def aggregate_plot(filenames, binsizes, ms=2.0, plot_type='scatter', **kwargs):
-    if plot_type == 'scatter':
-        assert not kwargs, \
-            'no keyword arguments are valid for plot_type == "scatter"'
+def aggregate_plot(filenames, binsizes, ms=2.0, plot_type='scatter'):
     if isinstance(filenames, basestring):
         filenames = filenames,
 
@@ -267,7 +264,7 @@ def aggregate_plot(filenames, binsizes, ms=2.0, plot_type='scatter', **kwargs):
     plot_types = {
         None: make_timescale_scatters,
         'scatter': make_timescale_scatters,
-        'xcorr': lambda *args, **kwargs: make_timescale_xcorrs(*args, **kwargs)
+        'xcorr': make_timescale_xcorrs
     }
 
     for filename in filenames:
@@ -277,7 +274,7 @@ def aggregate_plot(filenames, binsizes, ms=2.0, plot_type='scatter', **kwargs):
         clr = thresh_and_clear(data, threshes, win)
         times = spike_times(clr, fs)
         window_name = os.path.basename(os.path.dirname(filename))
-        plot_types[plot_type](times, binsizes, elec_map, window_name, **kwargs)
+        plot_types[plot_type](times, binsizes, elec_map, window_name)
 
 
 def load_data(filename):
