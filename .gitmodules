@@ -1,0 +1,3 @@
+[submodule "xcorr"]
+	path = xcorr
+	url = git@github.com:cpcloud/xcorr.git
