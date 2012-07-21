@@ -1,3 +1,6 @@
 [submodule "xcorr"]
 	path = xcorr
 	url = git@github.com:cpcloud/xcorr.git
+[submodule "sport"]
+	path = sport
+	url = git@github.com:cpcloud/sport.git
