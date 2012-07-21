@@ -13,24 +13,16 @@ class Bunch(dict):
     """
     def __init__(self, **kwargs):
         # check to make sure keys are valid identifiers
-        bad_keys, has_bad_keys = self.__check_keys(kwargs)
-        assert not has_bad_keys, 'invalid keys: {0}'.format(bad_keys)
-        super(Bunch, self).__init__(kwargs)
+        super(Bunch, self).__init__(**kwargs)
         self.__dict__ = self
 
-    def __check_keys(self, d):
-        bad_key_indices = has_valid_keys(d)
-        keys = d.keys()
-        bad_keys = tuple('%s at %i' % (keys[i], i) for i in bad_key_indices)
-        return bad_keys, bad_key_indices
-
     def __str__(self):
-        sid = hex(id(self))
-        m = ', '.join('{0}={1}'.format(k, self[k]) for k in self)
-        return '{0}{1}{2} at <{3}>'.format('Bunch(', m, ')', sid)
+        members = ', '.join('{0}={1}'.format(k, self.get(k)) for k in self)
+        return '{classname}({members})'.format(classname=self.__class__.__name__,
+                                                members=members)
 
     def __repr__(self):
-        return 'Bunch<%s>' % hex(id(self))
+        return '<Bunch object at {0}>'.format(hex(id(self)))
 
 
 def isidentifier(s):
