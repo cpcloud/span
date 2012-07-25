@@ -107,7 +107,7 @@ def spike_times(cleared, fs, const=1e3):
     """
     """
     c = const / fs
-    times = np.zeros(cleared.shape, dtype=np.uint32)
+    times = np.zeros(cleared.shape, dtype=np.uint64)
     for i in xrange(np.min(times.shape)):
         w, = np.where(cleared[:, i])
         times[w, i] = w * c
