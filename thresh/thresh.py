@@ -15,6 +15,7 @@ import theano.tensor as T
 
 from ..clear_refrac import thresh_and_clear
 from ..xcorr import xcorr
+from ..utils import astype
 
 
 def bin_data(data, bins):
@@ -56,11 +57,7 @@ def make_threshold(data, threshes=None, sc=5.0, const=0.6745):
                                       mode='FAST_RUN')
         threshes = thresh_func(sc, data, const)
     elif np.isscalar(threshes):
-        threshes = np.repeat(threshes, minshape)
-        try:
-            threshes = threshes.astype(data.dtype, copy=False)
-        except TypeError:
-            threshes = threshes.astype(data.dtype)
+        threshes = astype(np.repeat(threshes, minshape), data.dtype)
     elif pl.isvector(threshes):
         assert threshes.size == minshape
         if threshes.ndim > 1:
@@ -125,7 +122,7 @@ def spike_window(ms, fs, const=1e3):
 
     Returns
     -------
-    Conversion of milleseconds to samples
+    Conversion of milliseconds to samples
     """
     return int(np.floor(ms / const * fs))
 
@@ -133,11 +130,7 @@ def spike_window(ms, fs, const=1e3):
 def create_spikes(data, cleared):
     """
     """
-    try:
-        clr = cleared.astype(bool, copy=False)
-    except TypeError:
-        clr = cleared.astype(bool)
-    return np.ma.masked_array(data, np.logical_not(clr))
+    return np.ma.masked_array(data, np.logical_not(astype(cleared, bool)))
 
 
 def show_spikes(ch, data, spikes, n=10, m=0, win=2.0, fs=None, mp=None):
@@ -289,8 +282,7 @@ def load_data(filename):
 
 
 def parse_args():
-    import argparse
-    del argparse
+    pass
 
 
 def main():
