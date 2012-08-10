@@ -2,3 +2,4 @@
 *.so
 *.pyc
 build/
+*.html
