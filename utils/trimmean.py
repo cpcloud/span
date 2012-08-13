@@ -24,7 +24,8 @@ class TrimmerBase(object):
         return m, self.alltrimmed
 
     def trim_impl(self, x):
-        return x[self.k0 + 1:self.n - self.k0].mean(axis=0)
+        self.data = x[self.k0 + 1:self.n - self.k0]
+        return self.data.mean(axis=0)
 
     @property
     def k0(self):
@@ -134,14 +135,13 @@ def trimmean(x, percent, flag='round', axis=None):
     if perm:
         m = ipermute(m, perm)
         alltrimmed = ipermute(alltrimmed, perm)
-    trimmed_data = alltrimmed.copy()
     alltrimmed = np.logical_and(trimmed_data, np.logical_not(allmissing))
     if alltrimmed.any():
         if alltrimmed.all():
             warnings.warn('No data remain after trimming')
         else:
             warnings.warn('No data remain in some columns after trimming')
-    return m.squeeze(), trimmed_data
+    return m.squeeze(), trimmer.data
 
 
 if __name__ == '__main__':
