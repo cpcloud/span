@@ -98,7 +98,7 @@ def nans(shape, dtype=type(np.nan)):
     return a
 
 
-def trimmean(x, percent, flag='round', axis=None):
+def trimmean(x, percent, flag='floor', axis=None):
     x = np.asanyarray(x).copy()
     trimmers = {'round': RoundTrimmer, 'weighted': WeightedTrimmer,
                 'floor': UnweightedTrimmer}
