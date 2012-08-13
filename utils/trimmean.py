@@ -135,7 +135,7 @@ def trimmean(x, percent, flag='round', axis=None):
     if perm:
         m = ipermute(m, perm)
         alltrimmed = ipermute(alltrimmed, perm)
-    alltrimmed = np.logical_and(trimmed_data, np.logical_not(allmissing))
+    alltrimmed = np.logical_and(alltrimmed, np.logical_not(allmissing))
     if alltrimmed.any():
         if alltrimmed.all():
             warnings.warn('No data remain after trimming')
