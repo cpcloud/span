@@ -110,7 +110,7 @@ class TdtTankBase(object):
     date_re = re.compile(r'.*(\d{6}).*')
     header_ext = 'tsq'
     raw_ext = 'tev'
-    tsq_dtype = np.dtype(list(izip(TsqFields, TsqNumpyTypes)))
+    tsq_dtype = np.dtype(zip(TsqFields, TsqNumpyTypes))
 
     def __init__(self, tankname):
         super(TdtTankBase, self).__init__()
