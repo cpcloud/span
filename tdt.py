@@ -243,7 +243,6 @@ class PandasTank(TdtTankBase):
     def channel(self, i): return self.flatten(self.changroup.get_group(i))
     def threshold(self, thresh): return self.spikes > thresh
 
-    @cached_property
     def cleared(self, threshes, ms):
         threshed = self.threshold(threshes)
         window = span.thresh.spike_window(ms, self.spike_fs)
