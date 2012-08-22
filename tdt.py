@@ -118,7 +118,7 @@ class TdtTankBase(object):
     def __init__(self, tankname):
         super(TdtTankBase, self).__init__()
         self.tankname = tankname
-        self.animal_age = int(age_re.match(os.path.basename(tankname)).group(1))
+        self.animal_age = int(self.age_re.match(os.path.basename(tankname)).group(1))
 
         try:
             date = self.date_re.match(os.path.basename(self.tankname)).group(1)
