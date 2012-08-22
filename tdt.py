@@ -113,7 +113,7 @@ class TdtTankBase(object):
     header_ext = 'tsq'
     raw_ext = 'tev'
     tsq_dtype = np.dtype(zip(TsqFields, TsqNumpyTypes))
-    age_re = re.compile(r'.*[pP](\d{1,2}).*')
+    age_re = re.compile(r'.*[pP](\d+).*')
 
     def __init__(self, tankname):
         super(TdtTankBase, self).__init__()
