@@ -257,8 +257,9 @@ class PandasTank(TdtTankBase):
                             index=self.spikes.index)
 
     def firing_rate(self, threshes, ms):
-        cleared = self.cleared(threshes, ms)
-        return cleared.groupby('chan').sum() / self.times.max()
+        spike_times = span.thresh.spike_times(self.cleared(threshes, ms).values,
+                                              self.spike_fs)
+        return cleared.groupby(self.tsq.chan.name).sum().T.sum() / spike_times.max()
 
     def summary(self, func):
         assert any(imap(isinstance, (func, func), (basestring,
