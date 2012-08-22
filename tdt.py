@@ -113,10 +113,12 @@ class TdtTankBase(object):
     header_ext = 'tsq'
     raw_ext = 'tev'
     tsq_dtype = np.dtype(zip(TsqFields, TsqNumpyTypes))
+    age_re = re.compile(r'.*[pP](\d{1,2}).*')
 
     def __init__(self, tankname):
         super(TdtTankBase, self).__init__()
         self.tankname = tankname
+        self.animal_age = int(age_re.match(os.path.basename(tankname)).group(1))
 
         try:
             date = self.date_re.match(os.path.basename(self.tankname)).group(1)
@@ -127,7 +129,7 @@ class TdtTankBase(object):
             datetmp = os.sep.join(i + j for i, j in izip(date[::2],
                                                          date[1::2])).split(os.sep)
             month, day, year = imap(int, datetmp)
-        self.date = str(pd.datetime(year, month, day).date())
+        self.date = str(pd.datetime(year, month, day).date())    
 
     @abc.abstractmethod
     def _read_tev(self, event_name):
@@ -251,11 +253,16 @@ class PandasTank(TdtTankBase):
             tv = tv.astype(np.uint8, copy=False)
         except TypeError:
             tv = tv.astype(np.uint8)
-        return span.clear_refrac.clearref(tv, window)
+        return pd.DataFrame(span.clear_refrac.clearref(tv, window),
+                            index=self.spikes.index)
+
+    def firing_rate(self, threshes, ms):
+        cleared = self.cleared(threshes, ms)
+        return cleared.groupby('chan').sum() / self.times.max()
 
     def summary(self, func):
-        assert any(imap(isinstance, (func, func), 
-                        (basestring, types.FunctionType)))
+        assert any(imap(isinstance, (func, func), (basestring,
+                                                   types.FunctionType)))
         if hasattr(self.changroup, func):
             chan_func = getattr(self.changroup, func)
             chan_func_t = getattr(chan_func().T, func)
@@ -271,7 +278,7 @@ class PandasTank(TdtTankBase):
         try:
             return data.stack().reset_index(drop=True)
         except MemoryError:
-            raise MemoryError('out of memory')    
+            raise MemoryError('out of memory')
     
     @cached_property
     def changroup(self): return self.spikes.groupby(level=self.tsq.chan.name)
