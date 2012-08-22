@@ -19,6 +19,8 @@ import numpy as np
 import pandas as pd
 import scipy.stats as stats
 
+import span
+
 try:
     from matplotlib.cbook import Bunch
 except ImportError:
@@ -231,9 +233,26 @@ class PandasTank(TdtTankBase):
     def max(self): return self.summary('max')
     def min(self): return self.summary('min')
     
-    def binned(self, thresh, binsize): pass
+    def bin_data(self, binsize, spike_times):
+        if binsize != 1:
+            return span.thresh.thresh.bin_data(spike_times,
+                                               np.r_[:spike_times.max():binsize])
+        else:
+            return self.cleared
+    
     def channel(self, i): return self.flatten(self.changroup.get_group(i))
     def threshold(self, thresh): return self.spikes > thresh
+
+    @cached_property
+    def cleared(self, threshes, ms):
+        threshed = self.threshold(threshes)
+        window = span.thresh.spike_window(ms, self.spike_fs)
+        tv = threshed.values
+        try:
+            tv = tv.astype(np.uint8, copy=False)
+        except TypeError:
+            tv = tv.astype(np.uint8)
+        return span.clear_refrac.clearref(tv, window)
 
     def summary(self, func):
         assert any(imap(isinstance, (func, func), 
