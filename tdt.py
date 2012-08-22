@@ -219,7 +219,8 @@ class PandasTank(TdtTankBase):
 
     @property
     def values(self): return self.channels.values
-    def iterchannels(self): for _, v in self.channels.iteritems(): yield v
+    def iterchannels(self):
+        for _, v in self.channels.iteritems(): yield v
 
     __iter__ = iterchannels
 
