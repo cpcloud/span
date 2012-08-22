@@ -113,7 +113,7 @@ class TdtTankBase(object):
     tsq_dtype = np.dtype(list(izip(TsqFields, TsqNumpyTypes)))
 
     def __init__(self, tankname):
-        super(TdtTank, self).__init__()
+        super(TdtTankBase, self).__init__()
         self.tankname = tankname
 
         try:
@@ -134,7 +134,7 @@ class TdtTankBase(object):
     @thunkify
     def _read_tsq(self):
         raw_tsq = np.fromfile(self.tankname + os.extsep + self.header_ext,
-                              dtype=tsq_dtype)
+                              dtype=self.tsq_dtype)
         b = pd.DataFrame(raw_tsq)
         bchan = b.chan - 1
         try:
@@ -165,45 +165,17 @@ class TdtTankBase(object):
     def fs(self):
         return self.tsq.fs.unique()
 
-    @cached_property
-    def times(self):
-        return np.arange(self.channel(0).values.size) * 1e6 / self.fs.max()
-
-
-class SpikeSeries(pd.Series):
-    def __init__(self, *args, **kwargs):
-        super(SpikeSeries, self).__init__(*args, **kwargs)
-
-    def shank(self):
-        pass
-
-    def channel(self):
-        pass
-
-
-class SpikeDataFrame(pd.DataFrame):
-    def __init__(self, *args, **kwargs):
-        super(SpikeDataFrame, self).__init__(*args, **kwargs)
-
-    @cached_property
-    def channels(self):
-        pass
-
-    def iterchannels(self):
-        pass
-
-    def shanks(self):
-        pass
-
-    def units(self):
-        pass
-
-    def xcorr(self, plot=False):
-        pass
+    @property
+    def spike_fs(self):
+        return self.fs.max()
 
     @property
-    def values(self):
-        return self.channels.values
+    def lfp_fs(self):
+        return self.fs.min()
+
+    @cached_property
+    def times(self):
+        return np.arange(self.channel(0).values.size) * 1e6 / self.spike_fs
 
 
 class PandasTank(TdtTankBase):
