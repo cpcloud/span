@@ -5,6 +5,7 @@
 import os
 import sys
 import abc
+import glob
 import mmap
 import contextlib
 import types
@@ -18,8 +19,7 @@ from itertools import izip, imap
 import numpy as np
 import pandas as pd
 import scipy.stats as stats
-
-import span
+import pylab as pl
 
 try:
     from matplotlib.cbook import Bunch
@@ -29,12 +29,11 @@ except ImportError:
             super(Bunch, self).__init__(**kwargs)
             self.__dict__ = self
 
-        def __getstate__(self):
-            return self
+sys.path.append(os.path.expanduser(os.path.join('~', 'code', 'py')))
 
-        def __setstate__(self, state):
-            self.update(state)
-            self.__dict__ = self
+import span
+
+sys.path.pop(-1)
 
 
 TsqFields = ('size', 'type', 'name', 'chan', 'sortcode', 'timestamp', 'fp_loc',
@@ -46,12 +45,29 @@ ElectrodeMap = np.array([[1, 3, 2, 6],
                          [13, 12, 10, 9],
                          [14, 16, 11, 15]])
 
+EventTypes = pd.Series({
+    0x0: 'unknown',
+    0x101: 'strobe_on',
+    0x102: 'strobe_off',
+    0x201: 'scaler',
+    0x8101: 'stream',
+    0x8201: 'snip',
+    0x8801: 'mark'
+})
+
 ShankMap = np.array([0, 0, 0, 1, 1, 0, 1, 1, 2, 2, 3, 2, 2, 3, 3, 3])
+_MedialLateral = np.array([0, 0, 0, 0,
+                          0, 0, 0, 0,
+                          1, 1, 1, 1,
+                          1, 1, 1, 1])
+MedialLateral = np.zeros(_MedialLateral.shape, dtype='S7')
+MedialLateral[_MedialLateral == 0] = 'med'
+MedialLateral[_MedialLateral == 1] = 'lat'
 
 
 def name2num(name, base=256):
     """"Convert a string to a number"""
-    return (base ** np.arange(len(name))).dot(tuple(imap(ord, name)))
+    return (base ** np.arange(len(name))).dot(np.array(tuple(imap(ord, name))))
 
 
 def nans(size, dtype=np.float64):
@@ -62,15 +78,15 @@ def nans(size, dtype=np.float64):
 
 
 def thunkify(f):
-    """ """
+    """Perform `f` using a threaded thunk."""
     @functools.wraps(f)
     def thunked(*args, **kwargs):
-        """ """
+        """The thunked version of `f`"""
         wait_event = threading.Event()
         result = [None]
         exc = [False, None]
         def worker():
-            """ """
+            """The worker thread with which to run `f`"""
             try:
                 result[0] = f(*args, **kwargs)
             except Exception as e:
@@ -79,7 +95,7 @@ def thunkify(f):
             finally:
                 wait_event.set()
         def thunk():
-            """ """
+            """The actual thunk."""
             wait_event.wait()
             if exc[0]:
                 raise exc[1][0], exc[1][1], exc[1][2]
@@ -107,9 +123,11 @@ def cached_property(f):
 
 class TdtTankBase(object):
     __metaclass__ = abc.ABCMeta
+
     fields = TsqFields
     np_types = TsqNumpyTypes
     date_re = re.compile(r'.*(\d{6}).*')
+    site_re = re.compile(r'.*s(?:ite)?(?:\s|_)*(\d+)')
     header_ext = 'tsq'
     raw_ext = 'tev'
     tsq_dtype = np.dtype(zip(TsqFields, TsqNumpyTypes))
@@ -129,7 +147,13 @@ class TdtTankBase(object):
             datetmp = os.sep.join(i + j for i, j in izip(date[::2],
                                                          date[1::2])).split(os.sep)
             month, day, year = imap(int, datetmp)
-        self.date = str(pd.datetime(year, month, day).date())    
+        self._date = pd.datetime(year=year + 2000, month=month, day=day).date()
+        site_match = self.site_re.match(os.path.basename(tankname))
+        self.site = int(site_match.group(1))
+
+    @property
+    def date(self):
+        return str(self._date)
 
     @abc.abstractmethod
     def _read_tev(self, event_name):
@@ -140,14 +164,13 @@ class TdtTankBase(object):
         raw_tsq = np.fromfile(self.tankname + os.extsep + self.header_ext,
                               dtype=self.tsq_dtype)
         b = pd.DataFrame(raw_tsq)
-        bchan = b.chan - 1
-        try:
-            bchan = bchan.astype(np.float64, copy=False)
-        except TypeError:
-            bchan = bchan.astype(np.float64)
-        bchan[bchan == -1] = np.nan
-        shank_series = pd.Series(ShankMap, name='shank')
-        return b.join(shank_series[bchan].reset_index(drop=True))
+        b.chan = b.chan.astype(np.float64)
+        b.chan[b.chan - 1 == -1] = np.nan
+        shank = pd.Series(ShankMap, name='shank')
+        shank = shank[b.chan].reset_index(drop=True)
+        side = pd.Series(MedialLateral, name='side')
+        side = side[b.chan].reset_index(drop=True)
+        return b.join(shank).join(side)
 
     @cached_property
     def nchans(self):
@@ -161,25 +184,224 @@ class TdtTankBase(object):
     def spikes(self):
         return self._read_tev('Spik')()
 
-    @cached_property
-    def lfps(self):
-        return self._read_tev('LFPs')()
+    # @cached_property
+    # def lfps(self):
+    #     return self._read_tev('LFPs')()
+
+    # @property
+    # def fs(self):
+    #     return self.tsq.fs.unique()
 
     @cached_property
-    def fs(self):
-        return self.tsq.fs.unique()
-
-    @property
     def spike_fs(self):
         return self.fs.max()
 
+    # @cached_property
+    # def lfp_fs(self):
+    #     return self.fs.min()
+
+    # @cached_property
+    # def times(self):
+    #     raw_times = pd.Series(np.arange(self.channel(0).values.size))
+    #     return raw_times.mul(1e6).div(self.spike_fs)
+
+
+
+class SpikeDataFrameAbstractBase(pd.DataFrame):
+    __metaclass__ = abc.ABCMeta
+
+    @abc.abstractproperty
+    def fs(self):
+        pass
+
+
+class SpikeDataFrameBase(SpikeDataFrameAbstractBase):
+    @cached_property
+    def channels(self):
+        channels = self.channel_group.apply(self.flatten).T
+        channels.columns = channels.columns.astype(int)
+        return channels
+
+    def channel(self, i): return self.flatten(self.channel_group.get_group(i))
+
     @property
-    def lfp_fs(self):
-        return self.fs.min()
+    def raw(self): return self.channels.values
+
+    def iterchannels(self):
+        for _, channel in self.channels.iteritems(): yield channel
+
+    __iter__ = iterchannels
+
+    def flatten(self, data):
+        try:
+            return data.stack().reset_index(drop=True)
+        except MemoryError:
+            raise MemoryError('out of memory')
 
     @cached_property
-    def times(self):
-        return np.arange(self.channel(0).values.size) * 1e6 / self.spike_fs
+    def channel_group(self):
+        return self.groupby(level=self.meta.chan.name)
+
+    @cached_property
+    def shank_group(self):
+        return self.groupby(level=self.meta.shank.name)
+
+    @cached_property
+    def side_group(self):
+        return self.groupby(level=self.meta.side.name)
+
+    @cached_property
+    def fs(self):
+        return self.meta.fs.unique().max()
+
+    def mean(self): return self.summary('mean')
+    def var(self): return self.channels.var()
+    def std(self): return self.channels.std()
+    def mad(self): return self.channels.mad()
+    def sem(self): return pd.Series(stats.sem(self.raw, axis=0))
+    def median(self): return self.summary('median')
+    def sum(self): return self.summary('sum')
+    def max(self): return self.summary('max')
+    def min(self): return self.summary('min')
+    def bin(self, *args, **kwargs): return pd.cut(*args, **kwargs)
+
+    def summary(self, func):
+        stringbase = basestring if sys.version_info.major < 3 else str
+        func_is_valid = any(imap(isinstance, (func, func),
+                                 (stringbase, types.FunctionType)))
+        assert func_is_valid, "'func' must be a string or function"
+        if hasattr(self.channel_group, func):
+            chan_func = getattr(self.channel_group, func)
+            chan_func_t = getattr(chan_func().T, func)
+            return chan_func_t()
+        elif hasattr(self.channel_group, func.__name__):
+            return self.summary(func.__name__)
+        else:
+            f = lambda x: func(self.flatten(x))
+        return self.channel_group.apply(f)
+
+
+def cast(a, to_type):
+    if hasattr(a, 'dtype'):
+        if a.dtype == to_type:
+            return a
+    try:
+        return a.astype(to_type, copy=False)
+    except TypeError:
+        return a.astype(to_type)
+
+
+class SpikeDataFrame(SpikeDataFrameBase):
+    def __init__(self, spikes, meta=None, *args, **kwargs):
+        super(SpikeDataFrame, self).__init__(spikes, *args, **kwargs)
+        try:
+            self.meta = spikes.meta
+        except AttributeError:
+            self.meta = meta
+            if self.meta is None:
+                raise ValueError('"meta" argument cannot be none')
+
+    def bin_times(self, threshes, ms=2, bin_size=1000):
+        spike_times = self.spike_times(threshes, ms)
+        bins = np.r_[:spike_times[-1]:bin_size]
+        return self.bin(spike_times, bins)
+
+    def refrac_window(self, ms=2, conv_factor=1e3):
+        secs = ms / conv_factor
+        samples = np.floor(secs * self.fs)
+        try:
+            samples = samples.astype(int, copy=False)
+        except TypeError:
+            samples = samples.astype(int)
+        return samples
+
+    def spike_times(self, threshes, ms=2, conv_factor=1e3):
+        pass
+
+    def cleared(self, threshes, ms=2):
+        clr = self.threshold(threshes)
+        window = self.refrac_window(ms)
+        if clr.shape[0] < clr.shape[1]:
+            clr = clr.T
+        span.clear_refrac.clearref_out(clr.values.view(np.uint8), window)
+        return clr
+
+    def astype(self, dtype):
+        return self._constructor(self._data, self.meta, index=self.index,
+                                 columns=self.columns, dtype=dtype, copy=False)
+
+    def make_new(self, data, dtype=None):
+        if dtype is None:
+            assert hasattr(data, 'dtype'), 'data has no "dtype" attribute'
+            dtype = data.dtype
+        return self._constructor(data, self.meta, index=self.index,
+                                 columns=self.columns, dtype=dtype, copy=False)
+
+    @property
+    def _constructor(self):
+        def construct(*args, **kwargs):
+            args = list(args)
+            if len(args) == 2:
+                meta = args.pop(1)
+            if 'meta' not in kwargs or kwargs['meta'] is None or meta is None:
+                kwargs['meta'] = self.meta
+            return type(self)(*args, **kwargs)
+        return construct
+
+    def plot_thresh_range(self, low, high=None, n=50, refrac_period=2):
+        """Compute the total number of spikes across all channels for an evenly
+        spaced range of threshold values. Also plot the resulting curve:
+        number of spikes vs. threshold as well as the discrete difference of the
+        spike counts, to look for discontinuities.
+
+        Parameters
+        ----------
+        low : int
+        high : int, optional
+        n : int, optional
+        refrac_period int, optional
+        """
+        if high is None:
+            low, high = 0, low
+
+        value_range = np.linspace(low, high, n)
+        total_spikes = np.zeros(value_range.shape, dtype=np.int64)
+        for i, value in enumerate(value_range):
+            total_spikes[i] = self.cleared(value, refrac_period).sum().sum()
+        fig = pl.figure()
+
+        ax1 = fig.add_subplot(211)
+        ax1.plot(value_range, total_spikes)
+        ax1.set_xlabel('Threshold')
+        ax1.set_ylabel('Spike Count')
+        ax1.set_title('Spike Count vs. Threshold')
+        ax1.axis('tight')
+
+        ax2 = fig.add_subplot(212)
+        ax2.plot(value_range[1:], np.diff(total_spikes))
+        ax2.set_xlabel('Threshold')
+        ax2.set_ylabel(r'$\mathrm{d}/\mathrm{d}x$ Spike Count')
+        ax2.set_title('$\mathrm{d}/\mathrm{d}x$ Spike Count vs. Threshold')
+        ax2.axis('tight')
+
+    # def firing_rate(self, threshes, ms):
+    #     cleared = self.cleared(threshes, ms)
+    #     spike_times = span.thresh.spike_times(cleared.values, self.spike_fs)
+    #     return cleared.sum().div(spike_times.max() / 1e3)
+
+    def threshold(self, thresh):
+        return self.gt(thresh)
+
+
+class SparseSpikeDataFrame(SpikeDataFrameBase):
+    def __init__(self, spikes, meta=None, *args, **kwargs):
+        super(SparseSpikeDataFrame, self).__init__(spikes, *args, **kwargs)
+        try:
+            self.meta = spikes.meta
+        except AttributeError:
+            self.meta = meta
+            if self.meta is None:
+                raise ValueError('"meta" argument cannot be none')
 
 
 class PandasTank(TdtTankBase):
@@ -195,98 +417,23 @@ class PandasTank(TdtTankBase):
                  (np.int32, 1, np.int32),
                  (np.int16, 2, np.int16),
                  (np.int8, 4, np.int8))
-        first_row = np.argmax(row == 1)
+        first_row = (row == 1).argmax()
         fmt = self.tsq.format[first_row]
         chans = self.tsq.chan[row] - 1
         fp_loc = self.tsq.fp_loc[row]
         nsamples = (self.tsq.size[first_row] - 10) * table[fmt][1]
-        dt = np.dtype(table[fmt][2])
-        dtype = dt.type
+        dtype = np.dtype(table[fmt][2]).type
         spikes = np.empty((fp_loc.size, nsamples), dtype=dtype)
-        tev_name = '%s%s%s' % (self.tankname, os.extsep, self.raw_ext) 
+        tev_name = self.tankname + os.extsep + self.raw_ext
         with open(tev_name, 'rb') as tev:
             with contextlib.closing(mmap.mmap(tev.fileno(), 0,
                                               access=mmap.ACCESS_READ)) as tev:
                 for i, offset in enumerate(fp_loc):
                     spikes[i] = np.frombuffer(tev, dtype, nsamples, offset)
         shanks = self.tsq.shank[row]
-        index = pd.MultiIndex.from_arrays((shanks, chans))
-        return pd.DataFrame(spikes, index=index, dtype=dtype)
-
-    @cached_property
-    def channels(self): return self.changroup.apply(self.flatten).T
-
-    @cached_property
-    def shanks(self): return NotImplemented
-
-    @property
-    def values(self): return self.channels.values
-    def iterchannels(self):
-        for _, v in self.channels.iteritems(): yield v
-
-    __iter__ = iterchannels
-
-    def mean(self): return self.summary('mean')
-    def var(self): return self.channels.var()
-    def std(self): return self.channels.std()
-    def sem(self): return pd.Series(stats.sem(self.values, axis=0))
-    def median(self): return self.summary('median')
-    def sum(self): return self.summary('sum')
-    def max(self): return self.summary('max')
-    def min(self): return self.summary('min')
-    
-    def bin_data(self, binsize, spike_times):
-        if binsize != 1:
-            return span.thresh.thresh.bin_data(spike_times,
-                                               np.r_[:spike_times.max():binsize])
-        else:
-            return self.cleared
-    
-    def channel(self, i): return self.flatten(self.changroup.get_group(i))
-    def threshold(self, thresh): return self.spikes > thresh
-
-    def cleared(self, threshes, ms):
-        threshed = self.threshold(threshes)
-        window = span.thresh.spike_window(ms, self.spike_fs)
-        tv = threshed.values
-        try:
-            tv = tv.astype(np.uint8, copy=False)
-        except TypeError:
-            tv = tv.astype(np.uint8)
-        return pd.DataFrame(span.clear_refrac.clearref(tv, window),
-                            index=self.spikes.index)
-
-    def firing_rate(self, threshes, ms):
-        cleared = self.cleared(threshes, ms)
-        spike_times = span.thresh.spike_times(cleared.values, self.spike_fs)
-        chan_name = self.tsq.chan.name
-        return cleared.groupby(level=chan_name).sum().T.sum() / spike_times.max()
-
-    def summary(self, func):
-        assert any(imap(isinstance, (func, func), (basestring,
-                                                   types.FunctionType)))
-        if hasattr(self.changroup, func):
-            chan_func = getattr(self.changroup, func)
-            chan_func_t = getattr(chan_func().T, func)
-            return chan_func_t()
-        elif hasattr(self.changroup, func.__name__):
-            return self.summary(func.__name__)
-        else:
-            f = lambda x: func(self.flatten(x))
-        
-        return self.changroup.apply(f)
-
-    def flatten(self, data):
-        try:
-            return data.stack().reset_index(drop=True)
-        except MemoryError:
-            raise MemoryError('out of memory')
-    
-    @cached_property
-    def changroup(self): return self.spikes.groupby(level=self.tsq.chan.name)
-
-    @cached_property
-    def shankgroup(self): return self.spikes.groupby(level=self.tsq.shank.name)
+        side = self.tsq.side[row]
+        index = pd.MultiIndex.from_arrays((shanks, chans, side))
+        return SpikeDataFrame(spikes, meta=self.tsq, index=index, dtype=dtype)
 
 
 def dirsize(d):
@@ -298,25 +445,73 @@ def dirsize(d):
         elif os.path.isdir(path):
             s += dirsize(path)
     return s
-    
 
-if __name__ == '__main__':
-    import cProfile as profile
-    import pstats
-    import tempfile
-    import glob
-    fn = '/home/phillip/xcorr_data/Spont_Spikes_091210_p17rat_s4_657umV/Spont_Spikes_091210_p17rat_s4_657umV'
-    globs = os.path.expanduser(os.path.join('~', 'xcorr_data'))
+
+def get_tank_names(path=os.path.expanduser(os.path.join('~', 'xcorr_data'))):
+    globs = path
     fns = glob.glob(os.path.join(globs, '*'))
     fns = np.array([f for f in fns if os.path.isdir(f)])
     tevs = glob.glob(os.path.join(globs, '**', '*%stev' % os.extsep))
     tevsize = np.asanyarray(list(imap(os.path.getsize, tevs)))
     inds = np.argsort(tevsize)
     fns = np.fliplr(fns[inds][np.newaxis]).squeeze().tolist()
+    return fns
+
+
+def profile_spikes():
+    import cProfile as profile
+    import pstats
+    import tempfile
+
+    fns = get_tank_names()
+
     for f in fns[-1:]:
         fn = os.path.join(f, os.path.basename(f))
         with tempfile.NamedTemporaryFile(mode='w+') as stats_file:
             stats_fn = stats_file.name
-            profile.run('s = PandasTank("%s"); sp = s.spikes' % fn, stats_fn)
+            profile.run('sp = PandasTank("%s").spikes' % fn, stats_fn)
             p = pstats.Stats(stats_fn)
+            try:
+                del sp
+            except NameError:
+                pass
         p.strip_dirs().sort_stats('time').print_stats(0.05)
+    return fns
+
+
+def side_sums(n=None):
+    fns = get_tank_names()
+    if n is None:
+        n = len(fns)
+    fig = pl.figure()
+    nplot = int(np.ceil(np.sqrt(n)))
+    kind = 'bar'
+    fmt = r'$t=%.4f,\,\,p=%.4f$, age == P%i'
+    for i, fn in enumerate(fns[:n], start=1):
+        p = os.path.join(fn, os.path.basename(fn))
+        ax = fig.add_subplot(nplot, nplot, i)
+        try:
+            pt = PandasTank(p)
+            s = pt.spikes.cleared(3e-5).side_group.sum()
+            v = s.values
+            t, p = stats.ttest_ind(v[0], v[1])
+            s.T.sum().plot(ax=ax, kind=kind)
+            ax.set_title(fmt % (t, p, pt.animal_age), fontsize='tiny')
+        except ValueError:
+            pass
+    fig.suptitle('Side-wise Spike Counts', fontsize='large')
+    fig.tight_layout()
+    pl.show()
+
+
+if __name__ == '__main__':
+    fns = profile_spikes()
+    # n = None
+    # try:
+    #     n = int(sys.argv[1])
+    # except:
+    #     pass
+    # else:
+    #     if n <= 0:
+    #         raise ValueError('invalid value for n: %i, must be > 0' % n)
+    # side_sums(n)
