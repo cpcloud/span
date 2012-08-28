@@ -1,3 +1,3 @@
-from tdt import PandasTank
+from tdt import *
 
 __all__ = 'PandasTank', 'ElectrodeMap'
