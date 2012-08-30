@@ -98,8 +98,6 @@ def rounded(x, n, percent, size):
     x, n, percent, size = imap(np.asanyarray, (x, n, percent, size))
     k = n * percent / 200.0
     k0 = np.round(k - np.finfo(k.dtype).eps).astype(int)
-    print 'n == {}, k == {}, k0 == {}'.format(n, k, k0)
-    print 'from {} to {}'.format(k0, n - k0)
     if n and n > 0 and k0 < n / 2.0:
         m = x[k0:n - k0].mean(axis=0)
         alltrimmed = False
