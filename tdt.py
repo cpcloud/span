@@ -18,8 +18,9 @@ from itertools import izip, imap
 
 import numpy as np
 import pandas as pd
-import scipy.stats as stats
-import pylab as pl
+import pylab
+
+from scipy.stats import sem, ttest_ind
 
 try:
     from matplotlib.cbook import Bunch
@@ -63,6 +64,10 @@ _MedialLateral = np.array([0, 0, 0, 0,
 MedialLateral = np.zeros(_MedialLateral.shape, dtype='S7')
 MedialLateral[_MedialLateral == 0] = 'med'
 MedialLateral[_MedialLateral == 1] = 'lat'
+
+ChannelIndexer = pd.DataFrame({'channel': ElectrodeMap.ravel() - 1,
+                               'shank': ShankMap,
+                               'medlat': MedialLateral})
 
 
 def name2num(name, base=256):
@@ -184,31 +189,55 @@ class TdtTankBase(object):
     def spikes(self):
         return self._read_tev('Spik')()
 
-    # @cached_property
-    # def lfps(self):
-    #     return self._read_tev('LFPs')()
-
-    # @property
-    # def fs(self):
-    #     return self.tsq.fs.unique()
-
     @cached_property
     def spike_fs(self):
         return self.fs.max()
 
-    # @cached_property
-    # def lfp_fs(self):
-    #     return self.fs.min()
+    
+class PandasTank(TdtTankBase):
+    def __init__(self, tankname):
+        super(PandasTank, self).__init__(tankname)
 
-    # @cached_property
-    # def times(self):
-    #     raw_times = pd.Series(np.arange(self.channel(0).values.size))
-    #     return raw_times.mul(1e6).div(self.spike_fs)
-
-
+    @thunkify
+    def _read_tev(self, event_name):
+        """ """
+        name = name2num(event_name)
+        row = name == self.tsq.name
+        table = ((np.float32, 1, np.float32),
+                 (np.int32, 1, np.int32),
+                 (np.int16, 2, np.int16),
+                 (np.int8, 4, np.int8))
+        first_row = (row == 1).argmax()
+        fmt = self.tsq.format[first_row]
+        chans = self.tsq.chan[row] - 1
+        fp_loc = self.tsq.fp_loc[row]
+        nsamples = (self.tsq.size[first_row] - 10) * table[fmt][1]
+        dtype = np.dtype(table[fmt][2]).type
+        spikes = np.empty((fp_loc.size, nsamples), dtype=dtype)
+        tev_name = self.tankname + os.extsep + self.raw_ext
+        with open(tev_name, 'rb') as tev:
+            with contextlib.closing(mmap.mmap(tev.fileno(), 0,
+                                              access=mmap.ACCESS_READ)) as tev:
+                for i, offset in enumerate(fp_loc):
+                    spikes[i] = np.frombuffer(tev, dtype, nsamples, offset)
+        shanks = self.tsq.shank[row]
+        side = self.tsq.side[row]
+        index = pd.MultiIndex.from_arrays((shanks, chans, side))
+        return SpikeDataFrame(spikes, meta=self.tsq, index=index, dtype=dtype)
+    
 
 class SpikeDataFrameAbstractBase(pd.DataFrame):
     __metaclass__ = abc.ABCMeta
+
+    def __init__(self, spikes, meta=None, *args, **kwargs):
+        """ """
+        super(SpikeDataFrameBase, self).__init__(*args, **kwargs)
+        try:
+            self.meta = spikes.meta
+        except AttributeError:
+            self.meta = meta
+            if self.meta is None:
+                raise ValueError('"meta" argument cannot be none')
 
     @abc.abstractproperty
     def fs(self):
@@ -216,10 +245,14 @@ class SpikeDataFrameAbstractBase(pd.DataFrame):
 
 
 class SpikeDataFrameBase(SpikeDataFrameAbstractBase):
+    """ """
+    def __init__(self, spikes, meta=None, *args, **kwargs):
+        super(SpikeDataFrameBase, self).__init__(spikes, meta=meta, *args, **kwargs)
+            
     @cached_property
     def channels(self):
         channels = self.channel_group.apply(self.flatten).T
-        channels.columns = channels.columns.astype(int)
+        channels.columns = cast(channels.columns, np.int64)
         return channels
 
     def channel(self, i): return self.flatten(self.channel_group.get_group(i))
@@ -233,7 +266,9 @@ class SpikeDataFrameBase(SpikeDataFrameAbstractBase):
     __iter__ = iterchannels
 
     def flatten(self, data):
+        """ """
         try:
+            # TODO: `stack` method is potentially very fragile
             return data.stack().reset_index(drop=True)
         except MemoryError:
             raise MemoryError('out of memory')
@@ -258,48 +293,69 @@ class SpikeDataFrameBase(SpikeDataFrameAbstractBase):
     def var(self): return self.channels.var()
     def std(self): return self.channels.std()
     def mad(self): return self.channels.mad()
-    def sem(self): return pd.Series(stats.sem(self.raw, axis=0))
+    def sem(self): return pd.Series(sem(self.raw, axis=0))
     def median(self): return self.summary('median')
     def sum(self): return self.summary('sum')
     def max(self): return self.summary('max')
     def min(self): return self.summary('min')
-    def bin(self, *args, **kwargs): return pd.cut(*args, **kwargs)
+    def bin(self, bins):
+        ncolumns = channels.columns.size
+        counts = empty((bins.size - 1, ncolumns))
+        zipped_bins = zip(bins[:-1], bins[1:])
+        for column in xrange(ncolumns):
+            cold = data[column]
+            counts[:, column] = asanyarray([chd[bi:bj].sum()
+                                            for bi, bj in zipped_bins])
+        return pd.DataFrame(counts)
 
     def summary(self, func):
+        # get the correct string base class for the version of python
         stringbase = basestring if sys.version_info.major < 3 else str
-        func_is_valid = any(imap(isinstance, (func, func),
-                                 (stringbase, types.FunctionType)))
+
+        # check to make sure that `func` is a string or function
+        func_is_valid = any(imap(isinstance, (func, func), (stringbase,
+                                                            types.FunctionType)))
         assert func_is_valid, "'func' must be a string or function"
+
+        # if `func` is a string
         if hasattr(self.channel_group, func):
-            chan_func = getattr(self.channel_group, func)
-            chan_func_t = getattr(chan_func().T, func)
+            getter = operator.attrgetter(func)
+            chan_func = getter(self.channel_group)
+            chan_func_t = getter(chan_func().T)
             return chan_func_t()
-        elif hasattr(self.channel_group, func.__name__):
+
+        # else if it's a function and has the attribute `__name__`
+        elif hasattr(func, '__name__') and \
+                hasattr(self.channel_group, func.__name__):
             return self.summary(func.__name__)
+        
+        # else if it's just a regular ole' function
         else:
             f = lambda x: func(self.flatten(x))
+
+        # apply the function to the channel group
         return self.channel_group.apply(f)
 
 
-def cast(a, to_type):
+def cast(a, to_type, *args, **kwargs):
+    assert hasattr(a, 'astype'), 'invalid object for casting'
+    
     if hasattr(a, 'dtype'):
         if a.dtype == to_type:
             return a
     try:
-        return a.astype(to_type, copy=False)
+        return a.astype(to_type, *args, **kwargs)
     except TypeError:
-        return a.astype(to_type)
+        try:
+            return a.astype(to_type, copy=False)
+        except TypeError:
+            return a.astype(to_type)
 
 
 class SpikeDataFrame(SpikeDataFrameBase):
     def __init__(self, spikes, meta=None, *args, **kwargs):
-        super(SpikeDataFrame, self).__init__(spikes, *args, **kwargs)
-        try:
-            self.meta = spikes.meta
-        except AttributeError:
-            self.meta = meta
-            if self.meta is None:
-                raise ValueError('"meta" argument cannot be none')
+        super(SpikeDataFrameBase, self).__init__(spikes, meta=meta, *args,
+                                                 **kwargs)
 
     def bin_times(self, threshes, ms=2, bin_size=1000):
         spike_times = self.spike_times(threshes, ms)
@@ -316,8 +372,8 @@ class SpikeDataFrame(SpikeDataFrameBase):
         return samples
 
     def spike_times(self, threshes, ms=2, conv_factor=1e3):
-        pass
-
+        cleared = self.cleared(threshes, ms=ms)
+        
     def cleared(self, threshes, ms=2):
         clr = self.threshold(threshes)
         window = self.refrac_window(ms)
@@ -384,58 +440,16 @@ class SpikeDataFrame(SpikeDataFrameBase):
         ax2.set_title('$\mathrm{d}/\mathrm{d}x$ Spike Count vs. Threshold')
         ax2.axis('tight')
 
-    # def firing_rate(self, threshes, ms):
-    #     cleared = self.cleared(threshes, ms)
-    #     spike_times = span.thresh.spike_times(cleared.values, self.spike_fs)
-    #     return cleared.sum().div(spike_times.max() / 1e3)
-
     def threshold(self, thresh):
         return self.gt(thresh)
 
 
 class SparseSpikeDataFrame(SpikeDataFrameBase):
     def __init__(self, spikes, meta=None, *args, **kwargs):
-        super(SparseSpikeDataFrame, self).__init__(spikes, *args, **kwargs)
-        try:
-            self.meta = spikes.meta
-        except AttributeError:
-            self.meta = meta
-            if self.meta is None:
-                raise ValueError('"meta" argument cannot be none')
+        super(SpikeDataFrameBase, self).__init__(spikes, meta=meta, *args,
+                                                 **kwargs)
 
-
-class PandasTank(TdtTankBase):
-    def __init__(self, tankname):
-        super(PandasTank, self).__init__(tankname)
-
-    @thunkify
-    def _read_tev(self, event_name):
-        """ """
-        name = name2num(event_name)
-        row = name == self.tsq.name
-        table = ((np.float32, 1, np.float32),
-                 (np.int32, 1, np.int32),
-                 (np.int16, 2, np.int16),
-                 (np.int8, 4, np.int8))
-        first_row = (row == 1).argmax()
-        fmt = self.tsq.format[first_row]
-        chans = self.tsq.chan[row] - 1
-        fp_loc = self.tsq.fp_loc[row]
-        nsamples = (self.tsq.size[first_row] - 10) * table[fmt][1]
-        dtype = np.dtype(table[fmt][2]).type
-        spikes = np.empty((fp_loc.size, nsamples), dtype=dtype)
-        tev_name = self.tankname + os.extsep + self.raw_ext
-        with open(tev_name, 'rb') as tev:
-            with contextlib.closing(mmap.mmap(tev.fileno(), 0,
-                                              access=mmap.ACCESS_READ)) as tev:
-                for i, offset in enumerate(fp_loc):
-                    spikes[i] = np.frombuffer(tev, dtype, nsamples, offset)
-        shanks = self.tsq.shank[row]
-        side = self.tsq.side[row]
-        index = pd.MultiIndex.from_arrays((shanks, chans, side))
-        return SpikeDataFrame(spikes, meta=self.tsq, index=index, dtype=dtype)
-
-
+        
 def dirsize(d):
     s = os.path.getsize(d)
     for item in glob.glob(os.path.join(d, '*')):
@@ -483,7 +497,7 @@ def side_sums(n=None):
     fns = get_tank_names()
     if n is None:
         n = len(fns)
-    fig = pl.figure()
+    fig = pylab.figure()
     nplot = int(np.ceil(np.sqrt(n)))
     kind = 'bar'
     fmt = r'$t=%.4f,\,\,p=%.4f$, age == P%i'
@@ -494,14 +508,14 @@ def side_sums(n=None):
             pt = PandasTank(p)
             s = pt.spikes.cleared(3e-5).side_group.sum()
             v = s.values
-            t, p = stats.ttest_ind(v[0], v[1])
+            t, p = ttest_ind(v[0], v[1])
             s.T.sum().plot(ax=ax, kind=kind)
             ax.set_title(fmt % (t, p, pt.animal_age), fontsize='tiny')
         except ValueError:
             pass
     fig.suptitle('Side-wise Spike Counts', fontsize='large')
     fig.tight_layout()
-    pl.show()
+    pylab.show()
 
 
 if __name__ == '__main__':
