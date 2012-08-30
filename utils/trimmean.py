@@ -142,11 +142,10 @@ def trimmean(x, percent=5, trim_type='rounded', axis=None):
     x, percent = np.asanyarray(x), np.asanyarray(percent)
     allmissing = np.isnan(x).all(axis=axis)
     xdims = x.ndim
+    perm = []
     if axis is not None and axis > 1:
         perm = np.hstack((np.r_[axis:np.max(xdims, axis)], np.r_[axis - 1]))
         x = x.transpose(perm)
-    else:
-        perm = []
     x = np.ma.masked_equal(np.sort(x, axis=0), np.nan)
     size = list(x.shape)
     size[0] = 1
