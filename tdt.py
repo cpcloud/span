@@ -14,7 +14,7 @@ import threading
 import functools
 import operator
 
-from itertools import izip, imap
+
 
 from scipy.signal import fftconvolve as convolve
 
@@ -47,7 +47,7 @@ ElectrodeMap = np.array([[1, 3, 2, 6],
 ShankMap = np.array([0, 0, 0, 0, 1, 1, 1, 1, 2, 2, 2, 2, 3, 3, 3, 3])
 MedialLateral = np.array(['medial', 'lateral'])[[0, 0, 0, 0, 0, 0, 0, 0,
                                                  1, 1, 1, 1, 1, 1, 1, 1]]
-Indexer = pd.DataFrame(dict(izip(('channel', 'shank', 'side'),
+Indexer = pd.DataFrame(dict(zip(('channel', 'shank', 'side'),
                                  (ElectrodeMap, ShankMap, MedialLateral))))
 
 EventTypes = pd.Series({
@@ -63,7 +63,7 @@ EventTypes = pd.Series({
 
 def name2num(name, base=256):
     """"Convert a string to a number"""
-    return (base ** np.r_[:len(name)]).dot(np.fromiter(imap(ord, name),
+    return (base ** np.r_[:len(name)]).dot(np.fromiter(map(ord, name),
                                                        dtype=int))
 
 
@@ -102,7 +102,7 @@ def iscomplex(x): return np.issubdtype(x.dtype, np.complex)
 
 def get_fft_funcs(*arrays):
     """ """
-    if any(map(iscomplex, map(np.asanyarray, arrays))):
+    if any(map(iscomplex, list(map(np.asanyarray, arrays)))):
         return np.fft.ifft, np.fft.fft
     return np.fft.irfft, np.fft.rfft
 
@@ -127,7 +127,7 @@ def xcorr(x, y=None, maxlags=None, detrend=pylab.detrend_mean, normalize=True,
         ctmp = acorr(x, int(2 ** nextpow2(2 * lsize - 1)))
     else:
         # pad the smaller of x and y with zeros
-        x, y, lsize = pad_larger(*map(detrend, map(np.asanyarray, (x, y))))
+        x, y, lsize = pad_larger(*list(map(detrend, list(map(np.asanyarray, (x, y))))))
 
         # compute the xcorr using fft convolution
         ctmp = correlate(x, y, int(2 ** nextpow2(2 * lsize - 1)))
@@ -191,7 +191,7 @@ def thunkify(f):
             """The actual thunk."""
             wait_event.wait()
             if exc[0]:
-                raise exc[1][0], exc[1][1], exc[1][2]
+                raise exc[1][0](exc[1][1]).with_traceback(exc[1][2])
             return result[0]
         threading.Thread(target=worker).start()
         return thunk
@@ -214,16 +214,14 @@ def cached_property(f):
     return getter
 
 
-class TdtTankBase(object):
-    __metaclass__ = abc.ABCMeta
-
+class TdtTankBase(object, metaclass=abc.ABCMeta):
     fields = TsqFields
     np_types = TsqNumpyTypes
     date_re = re.compile(r'.*(\d{6}).*')
     site_re = re.compile(r'.*s(?:ite)?(?:\s|_)*(\d+)')
     header_ext = 'tsq'
     raw_ext = 'tev'
-    tsq_dtype = np.dtype(zip(TsqFields, TsqNumpyTypes))
+    tsq_dtype = np.dtype(list(zip(TsqFields, TsqNumpyTypes)))
     age_re = re.compile(r'.*[pP](\d+).*')
 
     def __init__(self, tankname):
@@ -239,9 +237,9 @@ class TdtTankBase(object):
             now = pd.datetime.now()
             month, day, year = now.month, now.day, now.year
         else:
-            datetmp = os.sep.join(i + j for i, j in izip(date[::2],
+            datetmp = os.sep.join(i + j for i, j in zip(date[::2],
                                                          date[1::2])).split(os.sep)
-            month, day, year = imap(int, datetmp)
+            month, day, year = map(int, datetmp)
 
         self.__date = pd.datetime(year=year + 2000, month=month, day=day).date()
         self.site = int(self.site_re.match(basename).group(1))
@@ -307,9 +305,7 @@ class PandasTank(TdtTankBase):
         return SpikeDataFrame(spikes, meta=self.tsq, index=index, dtype=dtype)
 
 
-class SpikeDataFrameAbstractBase(pd.DataFrame):
-    __metaclass__ = abc.ABCMeta
-
+class SpikeDataFrameAbstractBase(pd.DataFrame, metaclass=abc.ABCMeta):
     def __init__(self, spikes, meta=None, *args, **kwargs):
         """ """
         super(SpikeDataFrameAbstractBase, self).__init__(spikes, *args, **kwargs)
@@ -337,7 +333,7 @@ class SpikeDataFrameBase(SpikeDataFrameAbstractBase):
     def raw(self): return self.channels.values
 
     def iterchannels(self):
-        for channel in self.channels.iteritems(): yield channel
+        for channel in self.channels.items(): yield channel
 
     __iter__ = iterchannels
 
@@ -378,7 +374,7 @@ class SpikeDataFrameBase(SpikeDataFrameAbstractBase):
     def bin(cls, data, bins):
         nchannels = data.columns.size
         counts = pd.DataFrame(np.empty((bins.size - 1, nchannels)))
-        zbins = zip(bins[:-1], bins[1:])
+        zbins = list(zip(bins[:-1], bins[1:]))
         for column, dcolumn in data.iterkv():
             counts[column] = pd.Series([dcolumn.ix[bi:bj].sum()
                                         for bi, bj in zbins], name=column)
@@ -386,8 +382,8 @@ class SpikeDataFrameBase(SpikeDataFrameAbstractBase):
 
     def summary(self, func):
         # check to make sure that `func` is a string or function
-        func_is_valid = any(list(imap(isinstance, (func, func),
-                                      (basestring, types.FunctionType))))
+        func_is_valid = any(list(map(isinstance, (func, func),
+                                      (str, types.FunctionType))))
         assert func_is_valid, ("'func' must be a string or function: "
                                "type(func) == {0}".format(type(func)))
 
@@ -437,7 +433,7 @@ class SpikeDataFrame(SpikeDataFrameBase):
         max_sample = self.channels.index[-1]
         bin_samples = cast(np.floor(binsize * self.fs / conv), int)
         bins = np.r_[:max_sample:bin_samples]
-        v = cleared.values[[xrange(bi, bj) for bi, bj in izip(bins[:-1],
+        v = cleared.values[[range(bi, bj) for bi, bj in zip(bins[:-1],
                                                               bins[1:])]]
         b = pd.DataFrame(v.sum(np.argmax(v.shape)))
         if raw_out:
@@ -475,7 +471,7 @@ class SpikeDataFrame(SpikeDataFrameBase):
             xctmp = np.empty((ncorrs, 2 * maxlags - 1))
 
             left, right, lshank, rshank = [pd.Series(np.empty(ncorrs, dtype=int))
-                                           for _ in xrange(4)]
+                                           for _ in range(4)]
             left.name, right.name, lshank.name, rshank.name = ('Left', 'Right',
                                                                'Left Shank',
                                                                'Right Shank')
@@ -574,7 +570,7 @@ def get_tank_names(path=os.path.expanduser(os.path.join('~', 'xcorr_data'))):
     fns = glob.glob(os.path.join(globs, '*'))
     fns = np.array([f for f in fns if os.path.isdir(f)])
     tevs = glob.glob(os.path.join(globs, '**', '*%stev' % os.extsep))
-    tevsize = np.asanyarray(list(imap(os.path.getsize, tevs)))
+    tevsize = np.asanyarray(list(map(os.path.getsize, tevs)))
     inds = np.argsort(tevsize)
     fns = np.fliplr(fns[inds][np.newaxis]).squeeze().tolist()
     return fns
