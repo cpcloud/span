@@ -90,7 +90,7 @@ def ndlinspace(ranges, *nelems):
     lbounds = []
     ubounds = []
     b = np.asarray(nelems, dtype=np.float64)
-    lbounds, ubounds = zip(*((r[0], r[1]) for r in ranges))
+    lbounds, ubounds = list(zip(*((r[0], r[1]) for r in ranges)))
     # for r in ranges:
         # lbounds.append(r[0])
         # ubounds.append(r[1])
@@ -167,7 +167,7 @@ def show_spikes(ch, data, spikes, n=10, m=0, win=2.0, fs=None, mp=None):
         pl.axhline(val, linewidth=1, color='r')
         pl.text(tm, val, '%.3g' % val, fontsize=12)
         try:
-            while input('Spike %d at %d' % (i, t[0])):
+            while eval(input('Spike %d at %d' % (i, t[0]))):
                 pass
         except KeyboardInterrupt:
             break
