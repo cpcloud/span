@@ -47,8 +47,8 @@ ElectrodeMap = np.array([[1, 3, 2, 6],
 ShankMap = np.array([0, 0, 0, 0, 1, 1, 1, 1, 2, 2, 2, 2, 3, 3, 3, 3])
 MedialLateral = np.array(['medial', 'lateral'])[[0, 0, 0, 0, 0, 0, 0, 0,
                                                  1, 1, 1, 1, 1, 1, 1, 1]]
-Indexer = pd.DataFrame(dict(zip(('channel', 'shank', 'side'),
-                                 (ElectrodeMap, ShankMap, MedialLateral))))
+Indexer = pd.DataFrame(dict(list(zip(('channel', 'shank', 'side'),
+                                 (ElectrodeMap, ShankMap, MedialLateral)))))
 
 EventTypes = pd.Series({
     0x0: np.nan,
@@ -63,7 +63,7 @@ EventTypes = pd.Series({
 
 def name2num(name, base=256):
     """"Convert a string to a number"""
-    return (base ** np.r_[:len(name)]).dot(np.fromiter(map(ord, name),
+    return (base ** np.r_[:len(name)]).dot(np.fromiter(list(map(ord, name)),
                                                        dtype=int))
 
 
@@ -239,7 +239,7 @@ class TdtTankBase(object, metaclass=abc.ABCMeta):
         else:
             datetmp = os.sep.join(i + j for i, j in zip(date[::2],
                                                          date[1::2])).split(os.sep)
-            month, day, year = map(int, datetmp)
+            month, day, year = list(map(int, datetmp))
 
         self.__date = pd.datetime(year=year + 2000, month=month, day=day).date()
         self.site = int(self.site_re.match(basename).group(1))
@@ -333,7 +333,7 @@ class SpikeDataFrameBase(SpikeDataFrameAbstractBase):
     def raw(self): return self.channels.values
 
     def iterchannels(self):
-        for channel in self.channels.items(): yield channel
+        for channel in list(self.channels.items()): yield channel
 
     __iter__ = iterchannels
 
@@ -433,7 +433,7 @@ class SpikeDataFrame(SpikeDataFrameBase):
         max_sample = self.channels.index[-1]
         bin_samples = cast(np.floor(binsize * self.fs / conv), int)
         bins = np.r_[:max_sample:bin_samples]
-        v = cleared.values[[range(bi, bj) for bi, bj in zip(bins[:-1],
+        v = cleared.values[[list(range(bi, bj)) for bi, bj in zip(bins[:-1],
                                                               bins[1:])]]
         b = pd.DataFrame(v.sum(np.argmax(v.shape)))
         if raw_out:
