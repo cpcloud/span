@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 
 import threading
-import Queue
+import queue
 import multiprocessing
 import warnings
 
@@ -36,7 +36,7 @@ def load_data(f, where=None, raw_name='raw',
     -------
 
     """
-    assert isinstance(num_threads, (int, long)), \
+    assert isinstance(num_threads, int), \
         '"num_threads" must be an integer'
     assert f.isopen, 'f must be open'
     assert f.mode != 'w', 'f must be readable'
@@ -61,12 +61,12 @@ def load_data(f, where=None, raw_name='raw',
             output_queue.put((raw.read(), i))
             input_queue.task_done()
 
-    input_queue = Queue.Queue()
-    output_queue = Queue.Queue()
+    input_queue = queue.Queue()
+    output_queue = queue.Queue()
     for i, shank in enumerate(f.iterNodes(where)):
         input_queue.put((getattr(shank, raw_name), i))
 
-    threads = (threading.Thread(target=set_local) for _ in xrange(num_threads))
+    threads = (threading.Thread(target=set_local) for _ in range(num_threads))
     for thread in threads:
         thread.daemon = True
         thread.start()

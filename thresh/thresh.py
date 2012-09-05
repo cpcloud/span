@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-from __future__ import division
+
 
 import os
 import glob
@@ -90,7 +90,7 @@ def ndlinspace(ranges, *nelems):
     lbounds = []
     ubounds = []
     b = np.asarray(nelems, dtype=np.float64)
-    lbounds, ubounds = itertools.izip(*((r[0], r[1]) for r in ranges))
+    lbounds, ubounds = zip(*((r[0], r[1]) for r in ranges))
     # for r in ranges:
         # lbounds.append(r[0])
         # ubounds.append(r[1])
@@ -105,7 +105,7 @@ def spike_times(cleared, fs, const=1e3):
     """
     c = const / fs
     times = np.zeros(cleared.shape, dtype=np.uint64)
-    for i in xrange(np.min(times.shape)):
+    for i in range(np.min(times.shape)):
         w, = np.where(cleared[:, i])
         times[w, i] = w * c
     return times
@@ -150,7 +150,7 @@ def show_spikes(ch, data, spikes, n=10, m=0, win=2.0, fs=None, mp=None):
         mp = data.attrs.map
 
     window = spike_window(win, fs)
-    spike_indices = spikes[ch].dropna().keys()
+    spike_indices = list(spikes[ch].dropna().keys())
     assert n < max(spike_indices.shape)
     spike_indices = spike_indices[m:n]
     chind, = np.where(ch == mp)
@@ -167,12 +167,12 @@ def show_spikes(ch, data, spikes, n=10, m=0, win=2.0, fs=None, mp=None):
         pl.axhline(val, linewidth=1, color='r')
         pl.text(tm, val, '%.3g' % val, fontsize=12)
         try:
-            while raw_input('Spike %d at %d' % (i, t[0])):
+            while input('Spike %d at %d' % (i, t[0])):
                 pass
         except KeyboardInterrupt:
             break
         except EOFError:
-            print
+            print()
             break
         pl.clf()
     pl.close('all')
@@ -182,7 +182,7 @@ def make_scale(x, y):
     m = x.shape[0]
     z0 = 10000 * x + y
     z1 = np.zeros(m)
-    for i in xrange(m):
+    for i in range(m):
         z1[i] = (z0 == z0[i]).sum()
     return z1 * 2
 
@@ -208,11 +208,11 @@ def plot_binned_data(times, binsize, elec_map, window_title, plot_func):
     binned = bin_data(times, np.r_[times.min():maxtime:binsize])
     ch_fmt_str = 'Ch. %i'
     title_fmt_str = '{0} vs. {1}, {2} ms bins'
-    for i in xrange(nplots):
+    for i in range(nplots):
         emi = elec_map[i]
         xlab = ch_fmt_str % emi
         bini = binned[:, i]
-        for j in xrange(i):
+        for j in range(i):
             emj = elec_map[j]
             pl.subplot(npm1, npm1, npm1 * (i - 1) + j + 1)
             binj = binned[:, j]
@@ -251,7 +251,7 @@ def make_timescale_xcorrs(times, binsizes, elec_map, window_title):
 
 
 def aggregate_plot(filenames, binsizes, ms=2.0, plot_type='scatter'):
-    if isinstance(filenames, basestring):
+    if isinstance(filenames, str):
         filenames = filenames,
 
     binsizes = np.atleast_1d(binsizes)

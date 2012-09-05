@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 
 import warnings
-from itertools import imap
+
 import numpy as np
 import pylab as pl
 
@@ -9,7 +9,7 @@ import pylab as pl
 class TrimmerBase(object):
     def __init__(self, percent, n, sz=1):
         super(TrimmerBase, self).__init__()
-        self.percent, self.n, self.sz = imap(np.asanyarray, (percent, n, sz))
+        self.percent, self.n, self.sz = map(np.asanyarray, (percent, n, sz))
 
     def trim(self, x, axis=None):
         if not self.alltrimmed:
@@ -95,7 +95,7 @@ def nans(shape, dtype=np.float64):
     return a
 
 def rounded(x, n, percent, size):
-    x, n, percent, size = imap(np.asanyarray, (x, n, percent, size))
+    x, n, percent, size = map(np.asanyarray, (x, n, percent, size))
     k = n * percent / 200.0
     k0 = np.round(k - np.finfo(k.dtype).eps).astype(int)
     if n and n > 0 and k0 < n / 2.0:
@@ -107,7 +107,7 @@ def rounded(x, n, percent, size):
     return m, alltrimmed
 
 def unweighted(x, n, percent, size):
-    x, n, percent, size = imap(np.asanyarray, (x, n, percent, size))
+    x, n, percent, size = map(np.asanyarray, (x, n, percent, size))
     k0 = np.floor(n * percent / 200.0)
     
     if n and n > 0 and k0 < n / 2.0:
@@ -119,7 +119,7 @@ def unweighted(x, n, percent, size):
     return m, alltrimmed
 
 def weighted(x, n, percent, size):
-    x, n, percent, size = imap(np.asanyarray, (x, n, percent, size))
+    x, n, percent, size = map(np.asanyarray, (x, n, percent, size))
     k = n * percent / 200.0
     k0 = np.floor(k)
     f = 1 + k0 - k
@@ -154,7 +154,7 @@ def trimmean(x, percent=5, trim_type='rounded', axis=None):
     else:
         m = np.ma.masked_equal(nans(size, dtype=x.dtype), np.nan)
         alltrimmed = np.zeros(size, dtype=bool)
-        for j in xrange(np.prod(size[1:])):
+        for j in range(np.prod(size[1:])):
             xj = x.T[j]
             n, = np.where(np.logical_not(np.isnan(xj)))
             n = n[-1]
@@ -179,7 +179,7 @@ if __name__ == '__main__':
     percent = 50
     regular = x.mean(0)
     trimmed = trimmean(x, percent=percent)
-    print regular, trimmed
+    print(regular, trimmed)
     # fig, axs = pl.subplots(2, 1, sharex=True, sharey=True)
     # for ax, m, t in zip(axs.flat, [trimmed, regular], ['trimmed', 'regular']):
         # ax.plot(m)
