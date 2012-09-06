@@ -1,7 +1,9 @@
 #!/usr/bin/env python
 # encoding: utf-8
 """
+Module for read TDT (Tucker-Davis Technologies) Tank files
 """
+
 import os
 import sys
 import abc
@@ -13,8 +15,6 @@ import re
 import threading
 import functools
 import operator
-
-
 
 from scipy.signal import fftconvolve as convolve
 
@@ -36,8 +36,8 @@ sys.path.append(os.path.expanduser(os.path.join('~', 'code', 'py')))
 
 import span
 
-TsqFields = ('size', 'type', 'name', 'channel', 'sort_code', 'timestamp', 'file_pointer_location',
-             'format', 'fs')
+TsqFields = ('size', 'type', 'name', 'channel', 'sort_code', 'timestamp',
+             'file_pointer_location', 'format', 'fs')
 TsqNumpyTypes = (np.int32, np.int32, np.uint32, np.uint16, np.uint16,
                  np.float64, np.int64, np.int32, np.float32)
 ElectrodeMap = np.array([[1, 3, 2, 6],
@@ -47,8 +47,8 @@ ElectrodeMap = np.array([[1, 3, 2, 6],
 ShankMap = np.array([0, 0, 0, 0, 1, 1, 1, 1, 2, 2, 2, 2, 3, 3, 3, 3])
 MedialLateral = np.array(['medial', 'lateral'])[[0, 0, 0, 0, 0, 0, 0, 0,
                                                  1, 1, 1, 1, 1, 1, 1, 1]]
-Indexer = pd.DataFrame(dict(list(zip(('channel', 'shank', 'side'),
-                                 (ElectrodeMap, ShankMap, MedialLateral)))))
+Indexer = pd.DataFrame(dict(zip(('channel', 'shank', 'side'),
+                                (ElectrodeMap, ShankMap, MedialLateral))))
 
 EventTypes = pd.Series({
     0x0: np.nan,
@@ -63,8 +63,7 @@ EventTypes = pd.Series({
 
 def name2num(name, base=256):
     """"Convert a string to a number"""
-    return (base ** np.r_[:len(name)]).dot(np.fromiter(list(map(ord, name)),
-                                                       dtype=int))
+    return (base ** np.r_[:len(name)]).dot(np.fromiter(map(ord, name), dtype=int))
 
 
 def nans(size, dtype=float):
@@ -102,7 +101,7 @@ def iscomplex(x): return np.issubdtype(x.dtype, np.complex)
 
 def get_fft_funcs(*arrays):
     """ """
-    if any(map(iscomplex, list(map(np.asanyarray, arrays)))):
+    if any(map(iscomplex, map(np.asanyarray, arrays))):
         return np.fft.ifft, np.fft.fft
     return np.fft.irfft, np.fft.rfft
 
@@ -127,7 +126,7 @@ def xcorr(x, y=None, maxlags=None, detrend=pylab.detrend_mean, normalize=True,
         ctmp = acorr(x, int(2 ** nextpow2(2 * lsize - 1)))
     else:
         # pad the smaller of x and y with zeros
-        x, y, lsize = pad_larger(*list(map(detrend, list(map(np.asanyarray, (x, y))))))
+        x, y, lsize = pad_larger(*map(detrend, map(np.asanyarray, (x, y))))
 
         # compute the xcorr using fft convolution
         ctmp = correlate(x, y, int(2 ** nextpow2(2 * lsize - 1)))
@@ -221,7 +220,7 @@ class TdtTankBase(object, metaclass=abc.ABCMeta):
     site_re = re.compile(r'.*s(?:ite)?(?:\s|_)*(\d+)')
     header_ext = 'tsq'
     raw_ext = 'tev'
-    tsq_dtype = np.dtype(list(zip(TsqFields, TsqNumpyTypes)))
+    tsq_dtype = np.dtype(zip(TsqFields, TsqNumpyTypes))
     age_re = re.compile(r'.*[pP](\d+).*')
 
     def __init__(self, tankname):
@@ -239,7 +238,7 @@ class TdtTankBase(object, metaclass=abc.ABCMeta):
         else:
             datetmp = os.sep.join(i + j for i, j in zip(date[::2],
                                                          date[1::2])).split(os.sep)
-            month, day, year = list(map(int, datetmp))
+            month, day, year = map(int, datetmp)
 
         self.__date = pd.datetime(year=year + 2000, month=month, day=day).date()
         self.site = int(self.site_re.match(basename).group(1))
@@ -333,7 +332,7 @@ class SpikeDataFrameBase(SpikeDataFrameAbstractBase):
     def raw(self): return self.channels.values
 
     def iterchannels(self):
-        for channel in list(self.channels.items()): yield channel
+        for channel in self.channels.iteritems(): yield channel
 
     __iter__ = iterchannels
 
@@ -382,8 +381,8 @@ class SpikeDataFrameBase(SpikeDataFrameAbstractBase):
 
     def summary(self, func):
         # check to make sure that `func` is a string or function
-        func_is_valid = any(list(map(isinstance, (func, func),
-                                      (str, types.FunctionType))))
+        func_is_valid = any(map(isinstance, (func, func),
+                                      (str, types.FunctionType)))
         assert func_is_valid, ("'func' must be a string or function: "
                                "type(func) == {0}".format(type(func)))
 
@@ -433,8 +432,8 @@ class SpikeDataFrame(SpikeDataFrameBase):
         max_sample = self.channels.index[-1]
         bin_samples = cast(np.floor(binsize * self.fs / conv), int)
         bins = np.r_[:max_sample:bin_samples]
-        v = cleared.values[[list(range(bi, bj)) for bi, bj in zip(bins[:-1],
-                                                              bins[1:])]]
+        v = cleared.values[[range(bi, bj) for bi, bj in zip(bins[:-1],
+                                                            bins[1:])]]
         b = pd.DataFrame(v.sum(np.argmax(v.shape)))
         if raw_out:
             return b, v
@@ -570,7 +569,7 @@ def get_tank_names(path=os.path.expanduser(os.path.join('~', 'xcorr_data'))):
     fns = glob.glob(os.path.join(globs, '*'))
     fns = np.array([f for f in fns if os.path.isdir(f)])
     tevs = glob.glob(os.path.join(globs, '**', '*%stev' % os.extsep))
-    tevsize = np.asanyarray(list(map(os.path.getsize, tevs)))
+    tevsize = np.asanyarray(map(os.path.getsize, tevs))
     inds = np.argsort(tevsize)
     fns = np.fliplr(fns[inds][np.newaxis]).squeeze().tolist()
     return fns
