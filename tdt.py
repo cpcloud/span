@@ -11,26 +11,13 @@ import glob
 import mmap
 import types
 import re
-import threading
-import functools
 import operator
 
-from scipy.signal import fftconvolve as convolve
+import pylab
+import scipy.stats
 
 import numpy as np
 import pandas as pd
-import pylab
-import scipy
-import scipy.stats
-
-
-try:
-    from matplotlib.cbook import Bunch
-except ImportError:
-    class Bunch(dict):
-        def __init__(self, **kwargs):
-            super(Bunch, self).__init__(**kwargs)
-            self.__dict__ = self
 
 
 sys.path.append(os.path.expanduser(os.path.join('~', 'code', 'py')))
@@ -43,13 +30,20 @@ TsqFields = ('size', 'type', 'name', 'channel', 'sort_code', 'timestamp',
              'file_pointer_location', 'format', 'fs')
 TsqNumpyTypes = (np.int32, np.int32, np.uint32, np.uint16, np.uint16,
                  np.float64, np.int64, np.int32, np.float32)
-ElectrodeMap = np.array([[1, 3, 2, 6],
-                         [7, 4, 5, 8],
-                         [13, 12, 10, 9],
-                         [14, 16, 11, 15]]).ravel() - 1
-ShankMap = np.array([0, 0, 0, 0, 1, 1, 1, 1, 2, 2, 2, 2, 3, 3, 3, 3])
-MedialLateral = np.array(['medial', 'lateral'])[[0, 0, 0, 0, 0, 0, 0, 0,
-                                                 1, 1, 1, 1, 1, 1, 1, 1]]
+
+ElectrodeMap = pd.Series(np.array([[1, 3, 2, 6],
+                                   [7, 4, 5, 8],
+                                   [13, 12, 10, 9],
+                                   [14, 16, 11, 15]]).ravel() - 1, name='Electrode Map')
+
+NShanks = 4
+NSides = NShanks * 2
+ShankMap = pd.Series(np.outer(range(NShanks),
+                              np.ones(NShanks)).astype(int).ravel(),
+                     name='Shank Map')
+MedialLateral = pd.Series(np.asanyarray(('medial', 'lateral'))[np.hstack((np.zeros(NSides),
+                                                                          np.ones(NSides)))],
+                          name='Side Map')
 Indexer = pd.DataFrame(dict(zip(('channel', 'shank', 'side'),
                                 (ElectrodeMap, ShankMap, MedialLateral))))
 
@@ -61,360 +55,7 @@ EventTypes = pd.Series({
     0x8101: 'stream',
     0x8201: 'snip',
     0x8801: 'mark'
-})
-
-
-def name2num(name, base=256):
-    """"Convert a string to a number
-
-    Parameters
-    ----------
-    name : str
-    base : int, optional
-
-    Returns
-    -------
-    ret : int
-    """
-    return (base ** np.r_[:len(name)]).dot(np.fromiter(map(ord, name), dtype=int))
-
-
-def nans(size, dtype=float):
-    """Create an array of NaNs
-
-    Parameters
-    ----------
-    size : tuple
-    dtype : descriptor, optional
-
-    Returns
-    -------
-    a : array_like
-    """
-    a = np.zeros(size, dtype=dtype)
-    a.fill(np.nan)
-    return a
-
-
-def nextpow2(n):
-    """Return the next power of 2 of a number.
-
-    Parameters
-    ----------
-    n : array_like
-
-    Returns
-    -------
-    ret : array_like
-    """
-    return np.ceil(np.log2(np.absolute(np.asanyarray(n))))
-
-
-def zeropad(x, s=0):
-    """Pad an array, `x`, with `s` zeros.
-
-    Parameters
-    ----------
-    x : array_like
-    s : int
-
-    Returns
-    -------
-    ret : `x` padded with `s` zeros.
-    """
-    assert isinstance(s, (int, long)), 's must be an integer'
-    assert s >= 0, 's cannot be negative'
-    if not s:
-        return x
-    return np.lib.pad(x, s, mode='constant', constant_values=(0,))
-
-
-def pad_larger(x, y):
-    """Pad the larger of two arrays and the return the arrays and the size of
-    the larger array.
-
-    TODO: Generalize this function to n arguments.
-
-    Parameters
-    ----------
-    x, y : array_like
-
-    Returns
-    -------
-    x, y : array_like
-    lsize : int
-        The size of the larger of `x` and `y`.
-    """
-    xsize, ysize = x.size, y.size
-    lsize = max(xsize, ysize)
-    if xsize != ysize:
-        size_diff = lsize - min(xsize, ysize)
-
-        if xsize > ysize:
-            y = zeropad(y, size_diff)
-        else:
-            x = zeropad(x, size_diff)
-
-    return x, y, lsize
-
-
-def iscomplex(x):
-    """Test whether `x` is complex.
-
-    Parameters
-    ----------
-    x : array_like
-
-    Returns
-    -------
-    r : bool
-    """
-    return np.issubdtype(x.dtype, np.complex)
-
-
-def get_fft_funcs(*arrays):
-    """Get the correct fft functions for the input type.
-
-    Parameters
-    ----------
-    arrays : tuple
-
-    Returns
-    -------
-    r : tuple of callable, callable
-    """
-    if any(map(iscomplex, map(np.asanyarray, arrays))):
-        r = np.fft.ifft, np.fft.fft
-    else:
-        r = np.fft.irfft, np.fft.rfft
-    return r
-
-
-def acorr(x, n):
-    """Compute the autocorrelation of `x`
-
-    Parameters
-    ----------
-    x : array_like
-        Input array
-    n : int
-        Number of fft points
-
-    Returns
-    -------
-    r : array_like
-        The autocorrelation of `x`.
-    """
-    x = np.asanyarray(x)
-    ifft, fft = get_fft_funcs(x)
-    return ifft(np.absolute(fft(x, n)) ** 2.0, n)
-
-
-def correlate(x, y, n):
-    """Compute the cross correlation of `x` and `y`
-
-    Parameters
-    ----------
-    x, y : array_like
-    n : int
-
-    Returns
-    -------
-    c : array_like
-        Cross correlation of `x` and `y`
-    """
-    ifft, fft = get_fft_funcs(x, y)
-    return ifft(fft(x, n) * fft(y, n).conj(), n)
-
-
-def matrixcorrelate(x):
-    """Cross-correlation of the columns in a matrix
-    
-    Parameters
-    ----------
-    x : array_like
-        The matrix from which to compute the cross correlations of each column
-        with the others
-
-    Returns
-    -------
-    c : array_like
-        The 2 * maxlags - 1 x x.shape[1] ** 2 matrix of cross-correlations
-    """
-    raise NotImplementedError
-
-
-def xcorr(x, y=None, maxlags=None, detrend=pylab.detrend_none, normalize=False,
-          unbiased=False):
-    """Compute the cross correlation of `x` and `y`.
-
-    This function computes the cross correlation of `x` and `y`. It uses the
-    equivalence of the cross correlation with the negative convolution computed
-    using a FFT to achieve must faster cross correlation than is possible with
-    the signal processing definition.
-
-    By default it computes the raw cross-/autocorrelation.
-
-    Note that it is not necessary for `x` and `y` to be the same size.
-
-    Parameters
-    ----------
-    x : array_like
-    y : array_like, optional
-        If not given or is equal to `x`, the autocorrelation is computed.
-    maxlags : int, optional
-        The highest lag at which to compute the cross correlation.
-    detrend : callable, optional
-        A callable to detrend the data.
-    normalize : bool, optional
-    unbiased : bool, optional
-
-    Returns
-    -------
-    c : pd.Series
-    """
-    if y is None or np.array_equal(x, y):
-        # faster than the more general version
-        x = detrend(np.asanyarray(x))
-        lsize = x.size
-        ctmp = acorr(x, int(2 ** nextpow2(2 * lsize - 1)))
-    else:
-        # pad the smaller of x and y with zeros
-        x, y, lsize = pad_larger(*map(detrend, map(np.asanyarray, (x, y))))
-
-        # compute the xcorr using fft convolution
-        ctmp = correlate(x, y, int(2 ** nextpow2(2 * lsize - 1)))
-
-    # no lags are given so use the entire xcorr
-    if maxlags is None:
-        maxlags = lsize
-
-    lags = np.r_[1 - maxlags:maxlags]
-
-    # make sure the full xcorr is given (acorr is symmetric around 0)
-    c = ctmp[lags]
-
-    # normalize by the number of observations seen at each lag
-    if unbiased:
-        assert not normalize, 'cannot have normalization and unbiased'
-        
-    if normalize:
-        assert not unbiased, 'cannot have normalization and unbiased'
-        
-    mlags = (lsize - np.absolute(lags)) if unbiased else 1.0
-
-    # normalize by the standard deviation of x and y
-    if normalize:
-        # ~ an order of mag faster std if already mean centered
-        if detrend == pylab.detrend_mean:
-            stds = x.dot(x) if y is None else np.sqrt(x.dot(x) * y.dot(y))
-        else:
-            stds = x.var()
-            if y is not None:
-                stds = np.sqrt(stds * y.var())
-    else:
-        stds = 1.0
-
-    c /= stds * mlags
-    return pd.Series(c, index=lags)
-
-
-def remove_legend(ax=None):
-    """Remove legend for ax or the current axes.
-
-    Parameters
-    ----------
-    ax : matplotlib.axes.Axes
-    """
-    if ax is None:
-        ax = pylab.gca()
-    ax.legend_ = None
-
-
-def thunkify(f):
-    """Perform `f` using a threaded thunk.
-
-    Parameters
-    ----------
-    f : callable
-    """
-    @functools.wraps(f)
-    def thunked(*args, **kwargs):
-        """The thunked version of `f`
-
-        Parameters
-        ----------
-        args : tuple, optional
-        kwargs : dict, optional
-
-        Returns
-        -------
-        thunk : callable
-        """
-        wait_event = threading.Event()
-        result = [None]
-        exc = [False, None]
-        def worker():
-            """The worker thread with which to run `f`."""
-            try:
-                result[0] = f(*args, **kwargs)
-            except Exception as e:
-                exc[0], exc[1] = True, sys.exc_info()
-            finally:
-                wait_event.set()
-        def thunk():
-            """The actual thunk.
-
-            Returns
-            -------
-            res : type(f(*args, **kwargs))
-            """
-            wait_event.wait()
-            if exc[0]:
-                raise exc[1][0](exc[1][1]).with_traceback(exc[1][2])
-            return result[0]
-        threading.Thread(target=worker).start()
-        return thunk
-    return thunked
-
-
-def repeatfunc(func, times=None, *args):
-    """
-    """
-    if times is None:
-        return itertools.starmap(func, itertools.repeat(args))
-    return itertools.starmap(func, itertools.repeat(args, times))
-
-
-def pairwise(iterable):
-    a, b = itertools.tee(iterable)
-    next(b, None)
-    return zip(a, b)
-
-
-def cached_property(f):
-    """returns a cached property that is calculated by function `f`
-
-    Parameters
-    ----------
-    f : callable
-
-    Returns
-    -------
-    getter : callable
-    """
-    @property
-    @functools.wraps(f)
-    def getter(self):
-        try:
-            x = self.__property_cache[f]
-        except AttributeError:
-            self.__property_cache = {}
-            x = self.__property_cache[f] = f(self)
-        except KeyError:
-            x = self.__property_cache[f] = f(self)
-        return x
-    return getter
+}, name='Event Types')
 
 
 class TdtTankBase(object, metaclass=abc.ABCMeta):
@@ -528,13 +169,13 @@ class SpikeDataFrameBase(SpikeDataFrameAbstractBase):
     @cached_property
     def channel_indices(self):
         inds = pd.DataFrame(self.channel_group.indices)
-        inds.columns = cast(inds.columns, np.int64)
+        inds.columns = cast(inds.columns, int)
         return inds
 
     @cached_property
     def shank_indices(self):
         inds = pd.DataFrame(self.shank_group.indices)
-        inds.columns = cast(inds.columns, np.int64)
+        inds.columns = cast(inds.columns, int)
         return inds
 
     @cached_property
@@ -560,7 +201,7 @@ class SpikeDataFrameBase(SpikeDataFrameAbstractBase):
     @cached_property
     def channels2(self):
         channels = self.channel_group.apply(self.flatten).T
-        channels.columns = cast(channels.columns, np.int64)
+        channels.columns = cast(channels.columns, int)
         return channels
 
     def channel(self, i):
@@ -685,7 +326,7 @@ class SpikeDataFrame(SpikeDataFrameBase):
     def bin(self, threshes, ms=2.0, binsize=1e3, conv=1e3, raw_out=False):
         cleared = self.cleared(threshes, ms=ms).channels
         max_sample = self.channels.index[-1]
-        bin_samples = span.utils.cast(np.floor(binsize * self.fs / conv), int)
+        bin_samples = cast(np.floor(binsize * self.fs / conv), int)
         bins = np.r_[:max_sample:bin_samples]
         
         v = cleared.values[[range(bi, bj) for bi, bj in zip(bins[:-1], bins[1:])]]
@@ -723,8 +364,10 @@ class SpikeDataFrame(SpikeDataFrameBase):
     def binned(self, value): self.__binned = value
 
     def xcorr1(self, i, j, threshes=3e-5, ms=2.0, binsize=1e3, maxlags=100,
-               conv=1e3, detrend=pylab.detrend_none, unbiased=True,
+               conv=1e3, detrend=pylab.detrend_none, unbiased=False,
                normalize=False):
+        """
+        """
         if self.binned is None:
             self.binned = self.bin(threshes=threshes, ms=ms, binsize=binsize,
                                    conv=conv)
@@ -732,8 +375,11 @@ class SpikeDataFrame(SpikeDataFrameBase):
                      normalize=normalize, unbiased=unbiased, detrend=detrend)
 
     def xcorr(self, threshes, ms=2.0, binsize=1e3, conv=1e3, maxlags=100,
+              detrend=pylab.detrend_none, unbiased=False, normalize=False,
               plot=False, figsize=(40, 25), dpi=80, titlesize=4, labelsize=3,
               sharex=True, sharey=True):
+        """
+        """
         if self.xcorrs is None:
             if self.binned is None:
                 self.binned = self.bin(threshes, ms=ms, binsize=binsize,
@@ -742,17 +388,15 @@ class SpikeDataFrame(SpikeDataFrameBase):
             ncorrs = nchannels ** 2
             xctmp = np.empty((ncorrs, 2 * maxlags - 1))
 
-            left, right, lshank, rshank = [pd.Series(np.empty(ncorrs, dtype=np.int64))
-                                           for _ in range(4)]
-            left.name, right.name, lshank.name, rshank.name = ('Left', 'Right',
-                                                               'Left Shank',
-                                                               'Right Shank')
-            k = 0
+
+            left = pd.Series(np.tile(np.arange(nchannels), nchannels),
+                             name='Left')
+            right = pd.Series(np.sort(left.values), name='Right')
+            lshank, rshank = ShankMap[left], ShankMap[right]
+            lshank.name, rshank.name = 'Left Shank', 'Right Shank'
+            
             for i, chi in binned.iterkv():
-                shi = ShankMap[i]
                 for j, chj in binned.iterkv():
-                    shj = ShankMap[j]
-                    left[k], right[k], lshank[k], rshank[k] = i, j, shi, shj
                     args = chi,
                     if i != j:
                         args += chj,
@@ -761,7 +405,7 @@ class SpikeDataFrame(SpikeDataFrameBase):
                     k += 1
 
             index = pd.MultiIndex.from_arrays((left, right, lshank, rshank))
-            self.xcorrs = pd.DataFrame(xctmp, index=index, columns=c.index)
+            self.xcorrs = pd.DataFrame(xctmp, index=index, columns=.index)
 
         xc = self.xcorrs
 
@@ -797,7 +441,8 @@ class SpikeDataFrame(SpikeDataFrameBase):
                                  columns=self.columns, dtype=dtype, copy=False)
 
     def make_new(self, data, dtype=None):
-        """ """
+        """Make a new instance of the current object.
+        """
         if dtype is None:
             assert hasattr(data, 'dtype'), 'data has no "dtype" attribute'
             dtype = data.dtype
@@ -806,7 +451,11 @@ class SpikeDataFrame(SpikeDataFrameBase):
 
     @property
     def _constructor(self):
+        """
+        """
         def construct(*args, **kwargs):
+            """
+            """
             args = list(args)
             if len(args) == 2:
                 meta = args.pop(1)
@@ -816,27 +465,9 @@ class SpikeDataFrame(SpikeDataFrameBase):
         return construct
 
 
-class SparseSpikeDataFrame(SpikeDataFrameBase, pd.SparseDataFrame):
-    def __init__(self, spikes, meta=None, *args, **kwargs):
-        """ """
-        super(SparseSpikeDataFrame, self).__init__(spikes, meta=meta, *args,
-                                                   **kwargs)
-
-
-def dirsize(d):
-    """ """
-    s = os.path.getsize(d)
-    for item in glob.glob(os.path.join(d, '*')):
-        path = os.path.join(d, item)
-        if os.path.isfile(path):
-            s += os.path.getsize(path)
-        elif os.path.isdir(path):
-            s += dirsize(path)
-    return s
-
-
 def get_tank_names(path=os.path.expanduser(os.path.join('~', 'xcorr_data'))):
-    """ """
+    """Get the names of the tank on the current machine.
+    """
     globs = path
     fns = glob.glob(os.path.join(globs, '*'))
     fns = np.array([f for f in fns if os.path.isdir(f)])
@@ -847,7 +478,9 @@ def get_tank_names(path=os.path.expanduser(os.path.join('~', 'xcorr_data'))):
     return fns
 
 
-def profile_spikes():
+def profile_spikes(pct_stats=0.05, sortby='time'):
+    """Profile the reading of TEV files.
+    """
     import cProfile as profile
     import pstats
     import tempfile
@@ -863,34 +496,8 @@ def profile_spikes():
             stats_fn = stats_file.name
             profile.run('sp = PandasTank("%s").spikes' % fn, stats_fn)
             p = pstats.Stats(stats_fn)
-        p.strip_dirs().sort_stats('time').print_stats(0.05)
+        p.strip_dirs().sort_stats(sortby).print_stats(pct_stats)
     return fns
-
-
-def side_sums(n=None):
-    """ """
-    fns = get_tank_names()
-    if n is None:
-        n = len(fns)
-    fig = pylab.figure()
-    nplot = int(np.ceil(np.sqrt(n)))
-    kind = 'bar'
-    fmt = r'$t=%.4f,\,\,p=%.4f$, age == P%i'
-    for i, fn in enumerate(fns[:n], start=1):
-        p = os.path.join(fn, os.path.basename(fn))
-        ax = fig.add_subplot(nplot, nplot, i)
-        try:
-            pt = PandasTank(p)
-            s = pt.spikes.cleared(3e-5).side_group.sum()
-            v = s.values
-            t, p = ttest_ind(v[0], v[1])
-            s.T.sum().plot(ax=ax, kind=kind)
-            ax.set_title(fmt % (t, p, pt.animal_age), fontsize='tiny')
-        except ValueError:
-            pass
-    fig.suptitle('Side-wise Spike Counts', fontsize='large')
-    fig.tight_layout()
-    pylab.show()
 
 
 if __name__ == '__main__':
@@ -899,10 +506,10 @@ if __name__ == '__main__':
     fns.sort(key=lambda x: os.path.getsize(x))
     ind = -2
     fn = fns[ind]
-    # fn_small = os.path.join(fn, os.path.basename(fn))
-    fn_small = 'Spont_Spikes_100111_P3rat_site1'
+    fn_small = os.path.join(fn, os.path.basename(fn))
     t = PandasTank(fn_small)
-    raw = t.spikes.raw
+    sp = t.spikes
+    raw = sp.raw
     # thr = spikes.threshold(3e-5).astype(float)
     # thr.values[thr.values == 0] = np.nan
 

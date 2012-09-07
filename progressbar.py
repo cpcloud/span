@@ -36,7 +36,7 @@ class ProgressBar(object):
         formatted : str
             The progress bar formatted as a string
         """
-        progressed = self.progress // self.step
+        progressed = int(self.progress / self.step)
         fill = progressed * self.fill
         blank = (self.width - progressed) * self.blank
         return self.format.format(fill=fill, blank=blank,
@@ -84,15 +84,8 @@ class AnimatedProgressBar(ProgressBar):
     def show_progress(self):
         """Show the current progress, compensating for terminal existence.
         """
-        c = '\r'
-        try:
-            is_terminal = self.stdout.isatty()
-        except AttributeError:
-            pass
-        else:
-            if is_terminal:
-                c = '\n'
-
+        is_terminal = hasattr(self.stdout, 'isatty') and self.stdout.isatty()
+        c = '\r' if is_terminal else '\n'
         self.stdout.write(c)
         self.stdout.write(str(self))
         self.stdout.flush()

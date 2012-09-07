@@ -6,6 +6,8 @@
 import os
 import sys
 import argparse
+import time
+import random
 
 import numpy as np
 import scipy
@@ -13,6 +15,8 @@ import scipy.io
 
 import tdt
 import server as serv
+
+from clint.textui import puts, colored, progress
 
 
 def serv2mat(raw, output_filename, name='data'):
@@ -51,24 +55,28 @@ def main():
     server = serv.ArodServer()
 
     # download the files from the server
-    local_tev, local_tsq = download_files(server, [tev_fn, tsq_fn])
+    local_tev, local_tsq = server.download_files([tev_fn, tsq_fn])
 
     # make the file names
     tank_base, _ = os.path.splitext(local_tev)
     tank_base = os.path.join(os.getcwd(), os.path.basename(tank_base))
     
-    mat_filename = os.path.join(os.getcwd(),
-                                os.path.basename(dn) + os.extsep + 'mat')
+    mat_filename = os.path.basename(dn) + os.extsep + 'mat'
 
-    print('\nConverting TDT Tank to MATLAB...')
+    print('\nConverting TDT Tank to MATLAB:', end=' ')
+    puts(colored.blue('{} ...'.format(mat_filename)))
 
     # save to the current directory
     serv2mat(tdt.PandasTank(tank_base).spikes.raw, mat_filename)
+    puts(colored.green('Done!'))
 
     # get rid of the extra files
     os.remove(local_tsq)
     os.remove(local_tev)
-    
+
 
 if __name__ == '__main__':
     main()
+    # for i in progress.bar(range(200)):
+        # time.sleep(random.random() * 0.01)
+        

@@ -54,9 +54,13 @@ class ArodServer(AbstractServer):
         """
         filename = os.path.join(os.sep, 'home', filename.lstrip('~' + os.sep))
         local_path = os.path.join(os.getcwd(), os.path.basename(filename))
+        remote_filesize = self.ftp.size(filename)
         
-        self.progress_bar = AnimatedProgressBar(end=self.ftp.size(filename),
-                                                width=50)
+        if os.path.exists(local_path):
+            if os.path.getsize(local_path) == remote_filesize:
+                return local_path
+
+        self.progress_bar = AnimatedProgressBar(end=remote_filesize, width=50)
         if verbose:
             print(os.path.basename(local_path))
             
@@ -65,10 +69,11 @@ class ArodServer(AbstractServer):
                 """
                 """
                 local_file.write(chunk)
+                # yield len(chunk)
                 self.progress_bar += len(chunk)
                 self.progress_bar.show_progress()
                 
-            self.ftps.retrbinary('RETR {0}'.format(filename), callback)
+            self.ftp.retrbinary('RETR {0}'.format(filename), callback)
         print()
         return local_path
 
