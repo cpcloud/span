@@ -10,7 +10,7 @@ from progressbar import AnimatedProgressBar
 
 
 class AbstractServer(object, metaclass=abc.ABCMeta):
-    """
+    """Abstract base class for a server object
     """
     @abc.abstractmethod
     def download_file(self, filename):
@@ -33,11 +33,13 @@ class ArodServer(AbstractServer):
             The host name of the server or an IP address.
         """
         super(ArodServer, self).__init__()
-        self.username, self.password = username, getpass.getpass()
-        self.hostname = hostname
-        self.ftp = ftplib.FTP(self.hostname, self.username, self.password)
+        self.username, self.hostname = username, hostname
+        self.ftp = ftplib.FTP(self.hostname, self.username, getpass.getpass())
+        
+    def __del__(self):
+        self.ftps.close()
 
-    def download_file(self, filename):
+    def download_file(self, filename, verbose=True):
         """Download a file from the server using FTP.
 
         Parameters
@@ -50,16 +52,39 @@ class ArodServer(AbstractServer):
         local_path : str
             The local path to the file downloaded
         """
-        filename = '/home/' + filename.lstrip('~')
+        filename = os.path.join(os.sep, 'home', filename.lstrip('~' + os.sep))
         local_path = os.path.join(os.getcwd(), os.path.basename(filename))
+        
         self.progress_bar = AnimatedProgressBar(end=self.ftp.size(filename),
                                                 width=50)
-        print('%s' % os.path.basename(local_path))
-        
+        if verbose:
+            print(os.path.basename(local_path))
+            
         with open(local_path, 'wb') as local_file:
             def callback(chunk):
+                """
+                """
                 local_file.write(chunk)
                 self.progress_bar += len(chunk)
                 self.progress_bar.show_progress()
-            self.ftp.retrbinary('RETR {0}'.format(filename), callback)
+                
+            self.ftps.retrbinary('RETR {0}'.format(filename), callback)
+        print()
         return local_path
+
+    def download_files(self, filenames):
+        """Download files from the arod server using multithreading.
+            
+        Parameters
+        ----------
+        server : ArodServer
+        filenames : sequence
+            Files to download from the server
+
+        Returns
+        -------
+        r : list
+            Names of the downloaded files
+        """
+        return [self.download_file(filename) for filename in filenames]
+    
