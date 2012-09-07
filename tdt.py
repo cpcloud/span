@@ -96,9 +96,6 @@ def nans(size, dtype=float):
     return a
 
 
-# def correlate(x, y): return convolve(x[::-1], y)
-
-
 def nextpow2(n):
     """Return the next power of 2 of a number.
 
@@ -113,7 +110,7 @@ def nextpow2(n):
     return np.ceil(np.log2(np.absolute(np.asanyarray(n))))
 
 
-def zeropad(x, s):
+def zeropad(x, s=0):
     """Pad an array, `x`, with `s` zeros.
 
     Parameters
@@ -123,7 +120,7 @@ def zeropad(x, s):
 
     Returns
     -------
-    
+    ret : `x` padded with `s` zeros.
     """
     assert isinstance(s, (int, long)), 's must be an integer'
     assert s >= 0, 's cannot be negative'
@@ -162,15 +159,35 @@ def pad_larger(x, y):
 
 
 def iscomplex(x):
-    """ """
+    """Test whether `x` is complex.
+
+    Parameters
+    ----------
+    x : array_like
+
+    Returns
+    -------
+    r : bool
+    """
     return np.issubdtype(x.dtype, np.complex)
 
 
 def get_fft_funcs(*arrays):
-    """ """
+    """Get the correct fft functions for the input type.
+
+    Parameters
+    ----------
+    arrays : tuple
+
+    Returns
+    -------
+    r : tuple of callable, callable
+    """
     if any(map(iscomplex, map(np.asanyarray, arrays))):
-        return np.fft.ifft, np.fft.fft
-    return np.fft.irfft, np.fft.rfft
+        r = np.fft.ifft, np.fft.fft
+    else:
+        r = np.fft.irfft, np.fft.rfft
+    return r
 
 
 def acorr(x, n):
@@ -178,6 +195,15 @@ def acorr(x, n):
 
     Parameters
     ----------
+    x : array_like
+        Input array
+    n : int
+        Number of fft points
+
+    Returns
+    -------
+    r : array_like
+        The autocorrelation of `x`.
     """
     x = np.asanyarray(x)
     ifft, fft = get_fft_funcs(x)
@@ -186,6 +212,7 @@ def acorr(x, n):
 
 def correlate(x, y, n):
     """Compute the cross correlation of `x` and `y`
+    
     """
     ifft, fft = get_fft_funcs(x, y)
     return ifft(fft(x, n) * fft(y, n).conj(), n)
