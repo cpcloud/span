@@ -5,13 +5,9 @@
 
 import os
 import sys
-import abc
 import argparse
-import getpass
-import ftplib
-import shutil
 import multiprocessing
-import concurrent
+# import concurrent
 import concurrent.futures
 
 import numpy as np
@@ -19,7 +15,7 @@ import scipy
 import scipy.io
 
 import tdt
-import server
+import server as serv
 
 
 CPU_COUNT = multiprocessing.cpu_count()
@@ -46,7 +42,7 @@ def parse_args():
     return parser.parse_args()
 
 
-def download_files(server, filenames):
+def download_files(server, filenames, threads=True):
     """Download files from the arod server using multithreading.
 
     Parameters
@@ -60,10 +56,13 @@ def download_files(server, filenames):
     r : list
         Names of the downloaded files
     """
-    
-    with concurrent.futures.ThreadPoolExecutor(max_workers=cpu_count) as e:
-        r = [e.submit(server.download_file, filename) for filename in filenames]
-    return map(lambda x: x.result(), r)
+    if threads:
+        with concurrent.futures.ThreadPoolExecutor() as e:
+            r = [e.submit(server.download_file, filenames)
+                 for filename in filenames]
+        return r
+    return [server.download_file(filename) for filename in filenames]
+        
     
 
 def main():
@@ -78,10 +77,10 @@ def main():
     tsq_fn = os.path.join(dn, bn_base + 'tsq')
 
     # init the server
-    server = server.ArodServer()
+    server = serv.ArodServer()
 
     # download the files from the server
-    local_tev, local_tsq = download_files(server, (tev_fn, tsq_fn))
+    local_tev, local_tsq = download_files(server, [tev_fn, tsq_fn])
 
     # make the file names
     tank_base, _ = os.path.splitext(local_tev)
@@ -90,7 +89,7 @@ def main():
     mat_filename = os.path.join(os.getcwd(),
                                 os.path.basename(dn) + os.extsep + 'mat')
 
-    print('\nConverting TDT Tank to MATLAB...')
+    print('\n\nConverting TDT Tank to MATLAB...')
 
     # save to the current directory
     serv2mat(tdt.PandasTank(tank_dir).spikes.channels.values, mat_filename)
