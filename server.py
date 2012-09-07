@@ -3,6 +3,8 @@
 
 import abc
 import ftplib
+import getpass
+import os
 
 from progressbar import AnimatedProgressBar
 
@@ -41,7 +43,7 @@ class ArodServer(AbstractServer):
         Parameters
         ----------
         filename : str
-            The name of the file to download from the server
+            The name of the file to download from the server.
 
         Returns
         -------
