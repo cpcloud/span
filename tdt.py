@@ -505,6 +505,7 @@ class PandasTank(TdtTankBase):
         shanks, side = self.tsq.shank[row], self.tsq.side[row]
         index = pd.MultiIndex.from_arrays((shanks, chans, side))
         return SpikeDataFrame(spikes, meta=self.tsq, index=index, dtype=dtype)
+        # return pd.DataFrame(spikes, index=index)
 
 
 class SpikeDataFrameAbstractBase(pd.DataFrame, metaclass=abc.ABCMeta):
@@ -525,12 +526,47 @@ class SpikeDataFrameBase(SpikeDataFrameAbstractBase):
         super(SpikeDataFrameBase, self).__init__(*args, **kwargs)
 
     @cached_property
+    def channel_indices(self):
+        inds = pd.DataFrame(self.channel_group.indices)
+        inds.columns = cast(inds.columns, np.int64)
+        return inds
+
+    @cached_property
+    def shank_indices(self):
+        inds = pd.DataFrame(self.shank_group.indices)
+        inds.columns = cast(inds.columns, np.int64)
+        return inds
+
+    @cached_property
     def channels(self):
+        # get the channel indices
+        inds = self.channel_indices
+
+        # get the 3D array of raw values
+        vals = self.values[inds.values]
+
+        # number of channels
+        nch = inds.columns.size
+        
+        # get indices of the sorted dimensions of vals and reverse so
+        # highest is first
+        shp = np.asanyarray(vals.shape)
+        shpsort = shp.argsort()[::-1]
+
+        # transpose vals to make a reshape into a samples x channels array
+        valsr = vals.transpose(shpsort).reshape((np.prod(shp) // nch, nch))
+        return pd.DataFrame(valsr, columns=inds.columns)
+
+    @cached_property
+    def channels2(self):
         channels = self.channel_group.apply(self.flatten).T
         channels.columns = cast(channels.columns, np.int64)
         return channels
 
-    def channel(self, i): return self.channels[i]
+    def channel(self, i):
+        """Get an indivdual channel
+        """
+        return self.ix[self.channel_indicies[i]].stack()
 
     @property
     def raw(self): return self.channels.values
@@ -694,7 +730,6 @@ class SpikeDataFrame(SpikeDataFrameBase):
                                    conv=conv)
         return xcorr(self.binned[i], self.binned[j], maxlags=maxlags,
                      normalize=normalize, unbiased=unbiased, detrend=detrend)
-        
 
     def xcorr(self, threshes, ms=2.0, binsize=1e3, conv=1e3, maxlags=100,
               plot=False, figsize=(40, 25), dpi=80, titlesize=4, labelsize=3,
@@ -864,9 +899,10 @@ if __name__ == '__main__':
     fns.sort(key=lambda x: os.path.getsize(x))
     ind = -2
     fn = fns[ind]
-    fn_small = os.path.join(fn, os.path.basename(fn))
+    # fn_small = os.path.join(fn, os.path.basename(fn))
+    fn_small = 'Spont_Spikes_100111_P3rat_site1'
     t = PandasTank(fn_small)
-    sp = t.spikes
+    raw = t.spikes.raw
     # thr = spikes.threshold(3e-5).astype(float)
     # thr.values[thr.values == 0] = np.nan
 
