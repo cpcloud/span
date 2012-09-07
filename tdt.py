@@ -212,10 +212,36 @@ def acorr(x, n):
 
 def correlate(x, y, n):
     """Compute the cross correlation of `x` and `y`
-    
+
+    Parameters
+    ----------
+    x, y : array_like
+    n : int
+
+    Returns
+    -------
+    c : array_like
+        Cross correlation of `x` and `y`
     """
     ifft, fft = get_fft_funcs(x, y)
     return ifft(fft(x, n) * fft(y, n).conj(), n)
+
+
+def matrixcorrelate(x):
+    """Cross-correlation of the columns in a matrix
+    
+    Parameters
+    ----------
+    x : array_like
+        The matrix from which to compute the cross correlations of each column
+        with the others
+
+    Returns
+    -------
+    c : array_like
+        The 2 * maxlags - 1 x x.shape[1] ** 2 matrix of cross-correlations
+    """
+    raise NotImplementedError
 
 
 def xcorr(x, y=None, maxlags=None, detrend=pylab.detrend_none, normalize=False,
@@ -245,7 +271,7 @@ def xcorr(x, y=None, maxlags=None, detrend=pylab.detrend_none, normalize=False,
 
     Returns
     -------
-    
+    c : pd.Series
     """
     if y is None or np.array_equal(x, y):
         # faster than the more general version
@@ -294,22 +320,42 @@ def xcorr(x, y=None, maxlags=None, detrend=pylab.detrend_none, normalize=False,
 
 
 def remove_legend(ax=None):
-    """Remove legend for ax or the current axes."""
+    """Remove legend for ax or the current axes.
+
+    Parameters
+    ----------
+    ax : matplotlib.axes.Axes
+    """
     if ax is None:
         ax = pylab.gca()
     ax.legend_ = None
 
 
 def thunkify(f):
-    """Perform `f` using a threaded thunk."""
+    """Perform `f` using a threaded thunk.
+
+    Parameters
+    ----------
+    f : callable
+    """
     @functools.wraps(f)
     def thunked(*args, **kwargs):
-        """The thunked version of `f`"""
+        """The thunked version of `f`
+
+        Parameters
+        ----------
+        args : tuple, optional
+        kwargs : dict, optional
+
+        Returns
+        -------
+        thunk : callable
+        """
         wait_event = threading.Event()
         result = [None]
         exc = [False, None]
         def worker():
-            """The worker thread with which to run `f`"""
+            """The worker thread with which to run `f`."""
             try:
                 result[0] = f(*args, **kwargs)
             except Exception as e:
@@ -317,7 +363,12 @@ def thunkify(f):
             finally:
                 wait_event.set()
         def thunk():
-            """The actual thunk."""
+            """The actual thunk.
+
+            Returns
+            -------
+            res : type(f(*args, **kwargs))
+            """
             wait_event.wait()
             if exc[0]:
                 raise exc[1][0](exc[1][1]).with_traceback(exc[1][2])
@@ -327,8 +378,31 @@ def thunkify(f):
     return thunked
 
 
+def repeatfunc(func, times=None, *args):
+    """
+    """
+    if times is None:
+        return itertools.starmap(func, itertools.repeat(args))
+    return itertools.starmap(func, itertools.repeat(args, times))
+
+
+def pairwise(iterable):
+    a, b = itertools.tee(iterable)
+    next(b, None)
+    return zip(a, b)
+
+
 def cached_property(f):
-    """returns a cached property that is calculated by function f"""
+    """returns a cached property that is calculated by function `f`
+
+    Parameters
+    ----------
+    f : callable
+
+    Returns
+    -------
+    getter : callable
+    """
     @property
     @functools.wraps(f)
     def getter(self):
