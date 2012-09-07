@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # encoding: utf-8
 """
-Module for read TDT (Tucker-Davis Technologies) Tank files
+Module for reading TDT (Tucker-Davis Technologies) Tank files
 """
 
 import os
@@ -9,7 +9,6 @@ import sys
 import abc
 import glob
 import mmap
-import contextlib
 import types
 import re
 import threading
@@ -21,8 +20,9 @@ from scipy.signal import fftconvolve as convolve
 import numpy as np
 import pandas as pd
 import pylab
+import scipy
+import scipy.stats
 
-from scipy.stats import sem, ttest_ind
 
 try:
     from matplotlib.cbook import Bunch
@@ -32,9 +32,12 @@ except ImportError:
             super(Bunch, self).__init__(**kwargs)
             self.__dict__ = self
 
+
 sys.path.append(os.path.expanduser(os.path.join('~', 'code', 'py')))
 
 import span
+
+sys.path.pop(-1)
 
 TsqFields = ('size', 'type', 'name', 'channel', 'sort_code', 'timestamp',
              'file_pointer_location', 'format', 'fs')
@@ -62,12 +65,32 @@ EventTypes = pd.Series({
 
 
 def name2num(name, base=256):
-    """"Convert a string to a number"""
+    """"Convert a string to a number
+
+    Parameters
+    ----------
+    name : str
+    base : int, optional
+
+    Returns
+    -------
+    ret : int
+    """
     return (base ** np.r_[:len(name)]).dot(np.fromiter(map(ord, name), dtype=int))
 
 
 def nans(size, dtype=float):
-    """Create an array of NaNs"""
+    """Create an array of NaNs
+
+    Parameters
+    ----------
+    size : tuple
+    dtype : descriptor, optional
+
+    Returns
+    -------
+    a : array_like
+    """
     a = np.zeros(size, dtype=dtype)
     a.fill(np.nan)
     return a
@@ -76,13 +99,55 @@ def nans(size, dtype=float):
 # def correlate(x, y): return convolve(x[::-1], y)
 
 
-def nextpow2(n): return np.ceil(np.log2(np.absolute(np.asanyarray(n))))
+def nextpow2(n):
+    """Return the next power of 2 of a number.
+
+    Parameters
+    ----------
+    n : array_like
+
+    Returns
+    -------
+    ret : array_like
+    """
+    return np.ceil(np.log2(np.absolute(np.asanyarray(n))))
 
 
-def zeropad(x, s): return np.lib.pad(x, s, mode='constant', constant_values=(0,))
+def zeropad(x, s):
+    """Pad an array, `x`, with `s` zeros.
+
+    Parameters
+    ----------
+    x : array_like
+    s : int
+
+    Returns
+    -------
+    
+    """
+    assert isinstance(s, (int, long)), 's must be an integer'
+    assert s >= 0, 's cannot be negative'
+    if not s:
+        return x
+    return np.lib.pad(x, s, mode='constant', constant_values=(0,))
 
 
 def pad_larger(x, y):
+    """Pad the larger of two arrays and the return the arrays and the size of
+    the larger array.
+
+    TODO: Generalize this function to n arguments.
+
+    Parameters
+    ----------
+    x, y : array_like
+
+    Returns
+    -------
+    x, y : array_like
+    lsize : int
+        The size of the larger of `x` and `y`.
+    """
     xsize, ysize = x.size, y.size
     lsize = max(xsize, ysize)
     if xsize != ysize:
@@ -96,7 +161,9 @@ def pad_larger(x, y):
     return x, y, lsize
 
 
-def iscomplex(x): return np.issubdtype(x.dtype, np.complex)
+def iscomplex(x):
+    """ """
+    return np.issubdtype(x.dtype, np.complex)
 
 
 def get_fft_funcs(*arrays):
@@ -107,18 +174,52 @@ def get_fft_funcs(*arrays):
 
 
 def acorr(x, n):
+    """Compute the autocorrelation of `x`
+
+    Parameters
+    ----------
+    """
     x = np.asanyarray(x)
     ifft, fft = get_fft_funcs(x)
     return ifft(np.absolute(fft(x, n)) ** 2.0, n)
 
 
 def correlate(x, y, n):
+    """Compute the cross correlation of `x` and `y`
+    """
     ifft, fft = get_fft_funcs(x, y)
     return ifft(fft(x, n) * fft(y, n).conj(), n)
 
 
-def xcorr(x, y=None, maxlags=None, detrend=pylab.detrend_mean, normalize=True,
-          unbiased=True):
+def xcorr(x, y=None, maxlags=None, detrend=pylab.detrend_none, normalize=False,
+          unbiased=False):
+    """Compute the cross correlation of `x` and `y`.
+
+    This function computes the cross correlation of `x` and `y`. It uses the
+    equivalence of the cross correlation with the negative convolution computed
+    using a FFT to achieve must faster cross correlation than is possible with
+    the signal processing definition.
+
+    By default it computes the raw cross-/autocorrelation.
+
+    Note that it is not necessary for `x` and `y` to be the same size.
+
+    Parameters
+    ----------
+    x : array_like
+    y : array_like, optional
+        If not given or is equal to `x`, the autocorrelation is computed.
+    maxlags : int, optional
+        The highest lag at which to compute the cross correlation.
+    detrend : callable, optional
+        A callable to detrend the data.
+    normalize : bool, optional
+    unbiased : bool, optional
+
+    Returns
+    -------
+    
+    """
     if y is None or np.array_equal(x, y):
         # faster than the more general version
         x = detrend(np.asanyarray(x))
@@ -141,25 +242,27 @@ def xcorr(x, y=None, maxlags=None, detrend=pylab.detrend_mean, normalize=True,
     c = ctmp[lags]
 
     # normalize by the number of observations seen at each lag
+    if unbiased:
+        assert not normalize, 'cannot have normalization and unbiased'
+        
+    if normalize:
+        assert not unbiased, 'cannot have normalization and unbiased'
+        
     mlags = (lsize - np.absolute(lags)) if unbiased else 1.0
 
     # normalize by the standard deviation of x and y
     if normalize:
         # ~ an order of mag faster std if already mean centered
         if detrend == pylab.detrend_mean:
-            if y is None:
-                stds = x.dot(x)
-            else:
-                stds = np.sqrt(x.dot(x) * y.dot(y))
+            stds = x.dot(x) if y is None else np.sqrt(x.dot(x) * y.dot(y))
         else:
-            stds = x.std()
+            stds = x.var()
             if y is not None:
-                stds *= y.std()
+                stds = np.sqrt(stds * y.var())
     else:
         stds = 1.0
 
     c /= stds * mlags
-
     return pd.Series(c, index=lags)
 
 
@@ -220,7 +323,7 @@ class TdtTankBase(object, metaclass=abc.ABCMeta):
     site_re = re.compile(r'.*s(?:ite)?(?:\s|_)*(\d+)')
     header_ext = 'tsq'
     raw_ext = 'tev'
-    tsq_dtype = np.dtype(zip(TsqFields, TsqNumpyTypes))
+    tsq_dtype = np.dtype(list(zip(TsqFields, TsqNumpyTypes)))
     age_re = re.compile(r'.*[pP](\d+).*')
 
     def __init__(self, tankname):
@@ -295,8 +398,7 @@ class PandasTank(TdtTankBase):
         spikes = np.empty((fp_loc.size, nsamples), dtype=dtype)
         tev_name = self.tankname + os.extsep + self.raw_ext
         with open(tev_name, 'rb') as tev:
-            with contextlib.closing(mmap.mmap(tev.fileno(), 0,
-                                              access=mmap.ACCESS_READ)) as tev:
+            with mmap.mmap(tev.fileno(), 0, access=mmap.ACCESS_READ) as tev:
                 for i, offset in enumerate(fp_loc):
                     spikes[i] = np.frombuffer(tev, dtype, nsamples, offset)
         shanks, side = self.tsq.shank[row], self.tsq.side[row]
@@ -312,6 +414,7 @@ class SpikeDataFrameAbstractBase(pd.DataFrame, metaclass=abc.ABCMeta):
 
     @abc.abstractproperty
     def fs(self):
+        """ """
         pass
 
 
@@ -336,22 +439,30 @@ class SpikeDataFrameBase(SpikeDataFrameAbstractBase):
 
     __iter__ = iterchannels
 
-    def flatten(self, data):
-        """ """
+    @staticmethod
+    def flatten(data):
+        """Flatten a SpikeDataFrame
+        """
         try:
             # FIX: `stack` method is potentially very fragile
             return data.stack().reset_index(drop=True)
         except MemoryError:
-            raise MemoryError('out of memory')
+            raise MemoryError('out of memory while trying to flatten')
 
     @cached_property
-    def channel_group(self): return self.groupby(level=self.meta.channel.name)
+    def channel_group(self):
+        """ """
+        return self.groupby(level=self.meta.channel.name)
 
     @property
-    def shank_group(self): return self.groupby(level=self.meta.shank.name)
+    def shank_group(self):
+        """ """
+        return self.groupby(level=self.meta.shank.name)
 
     @property
-    def side_group(self): return self.groupby(level=self.meta.side.name)
+    def side_group(self):
+        """ """
+        return self.groupby(level=self.meta.side.name)
 
     @cached_property
     def fs(self): return self.meta.fs.unique().max()
@@ -360,7 +471,7 @@ class SpikeDataFrameBase(SpikeDataFrameAbstractBase):
     def var(self): return self.channels.var()
     def std(self): return self.channels.std()
     def mad(self): return self.channels.mad()
-    def sem(self): return pd.Series(sem(self.raw, axis=0))
+    def sem(self): return pd.Series(scipy.stats.sem(self.raw, axis=0))
     def median(self): return self.channels.median()
     def sum(self): return self.summary('sum')
     def max(self): return self.summary('max')
@@ -369,8 +480,8 @@ class SpikeDataFrameBase(SpikeDataFrameAbstractBase):
     @cached_property
     def nchans(self): return int(self.meta.channel.max() + 1)
 
-    @classmethod
-    def bin(cls, data, bins):
+    @staticmethod
+    def bin(data, bins):
         nchannels = data.columns.size
         counts = pd.DataFrame(np.empty((bins.size - 1, nchannels)))
         zbins = list(zip(bins[:-1], bins[1:]))
@@ -425,32 +536,40 @@ class SpikeDataFrame(SpikeDataFrameBase):
     def __init__(self, spikes, meta=None, *args, **kwargs):
         super(SpikeDataFrameBase, self).__init__(spikes, meta=meta, *args,
                                                  **kwargs)
-        self.__xcorrs = None
+        self.__xcorrs, self.__binned = None, None
 
-    def binned(self, threshes, ms=2.0, binsize=1e3, conv=1e3, raw_out=False):
+    def __lt__(self, other): return self.lt(other)
+    def __le__(self, other): return self.le(other)
+    def __gt__(self, other): return self.gt(other)
+    def __ge__(self, other): return self.ge(other)
+    def __ne__(self, other): return self.ne(other)
+    def __eq__(self, other): return self.eq(other)
+
+    def bin(self, threshes, ms=2.0, binsize=1e3, conv=1e3, raw_out=False):
         cleared = self.cleared(threshes, ms=ms).channels
         max_sample = self.channels.index[-1]
-        bin_samples = cast(np.floor(binsize * self.fs / conv), int)
+        bin_samples = span.utils.cast(np.floor(binsize * self.fs / conv), int)
         bins = np.r_[:max_sample:bin_samples]
-        v = cleared.values[[range(bi, bj) for bi, bj in zip(bins[:-1],
-                                                            bins[1:])]]
+        
+        v = cleared.values[[range(bi, bj) for bi, bj in zip(bins[:-1], bins[1:])]]
         b = pd.DataFrame(v.sum(np.argmax(v.shape)))
         if raw_out:
             return b, v
         return b
-        # return self.bin(cleared, bins)
 
     def refrac_window(self, ms=2.0, conv_factor=1e3):
         secs = ms / conv_factor
         return cast(np.floor(secs * self.fs), int)
 
-    def threshold(self, thresh): return self.gt(thresh)
+    def __bool__(self): return self.values.all()
+    
+    def threshold(self, thresh): return self > thresh
 
     def cleared(self, threshes, ms=2.0):
         clr = self.threshold(threshes)
         if clr.shape[0] < clr.shape[1]:
             clr = clr.T
-        span.clear_refrac.clearref_out(clr.values, self.refrac_window(ms))
+        span.clear_refrac.clear_refrac_out(clr.values, self.refrac_window(ms))
         return clr
 
     @property
@@ -460,16 +579,34 @@ class SpikeDataFrame(SpikeDataFrameBase):
     def xcorrs(self, value):
         self.__xcorrs = value
 
+    @property
+    def binned(self): return self.__binned
+
+    @binned.setter
+    def binned(self, value): self.__binned = value
+
+    def xcorr1(self, i, j, threshes=3e-5, ms=2.0, binsize=1e3, maxlags=100,
+               conv=1e3, detrend=pylab.detrend_none, unbiased=True,
+               normalize=False):
+        if self.binned is None:
+            self.binned = self.bin(threshes=threshes, ms=ms, binsize=binsize,
+                                   conv=conv)
+        return xcorr(self.binned[i], self.binned[j], maxlags=maxlags,
+                     normalize=normalize, unbiased=unbiased, detrend=detrend)
+        
+
     def xcorr(self, threshes, ms=2.0, binsize=1e3, conv=1e3, maxlags=100,
               plot=False, figsize=(40, 25), dpi=80, titlesize=4, labelsize=3,
               sharex=True, sharey=True):
         if self.xcorrs is None:
-            binned = self.binned(threshes, ms=ms, binsize=binsize, conv=conv)
+            if self.binned is None:
+                self.binned = self.bin(threshes, ms=ms, binsize=binsize,
+                                       conv=conv)
             nchannels = binned.columns.size
             ncorrs = nchannels ** 2
             xctmp = np.empty((ncorrs, 2 * maxlags - 1))
 
-            left, right, lshank, rshank = [pd.Series(np.empty(ncorrs, dtype=int))
+            left, right, lshank, rshank = [pd.Series(np.empty(ncorrs, dtype=np.int64))
                                            for _ in range(4)]
             left.name, right.name, lshank.name, rshank.name = ('Left', 'Right',
                                                                'Left Shank',
@@ -480,12 +617,11 @@ class SpikeDataFrame(SpikeDataFrameBase):
                 for j, chj in binned.iterkv():
                     shj = ShankMap[j]
                     left[k], right[k], lshank[k], rshank[k] = i, j, shi, shj
-
-                    if i == j:
-                        args = chi, maxlags=maxlags, unbiased=False
-                    else:
-                        args = chi, chj, maxlags=maxlags, unbiased=False
-                    xctmp[k] = xcorr(*args)
+                    args = chi,
+                    if i != j:
+                        args += chj,
+                    c = xcorr1(*args, maxlags=maxlags)
+                    xctmp[k] = c
                     k += 1
 
             index = pd.MultiIndex.from_arrays((left, right, lshank, rshank))
@@ -569,7 +705,7 @@ def get_tank_names(path=os.path.expanduser(os.path.join('~', 'xcorr_data'))):
     fns = glob.glob(os.path.join(globs, '*'))
     fns = np.array([f for f in fns if os.path.isdir(f)])
     tevs = glob.glob(os.path.join(globs, '**', '*%stev' % os.extsep))
-    tevsize = np.asanyarray(map(os.path.getsize, tevs))
+    tevsize = np.asanyarray(list(map(os.path.getsize, tevs)))
     inds = np.argsort(tevsize)
     fns = np.fliplr(fns[inds][np.newaxis]).squeeze().tolist()
     return fns
@@ -629,10 +765,10 @@ if __name__ == '__main__':
     fn = fns[ind]
     fn_small = os.path.join(fn, os.path.basename(fn))
     t = PandasTank(fn_small)
-    spikes = t.spikes
-    thr = spikes.threshold(3e-5).astype(float)
-    thr.values[thr.values == 0] = np.nan
-    
+    sp = t.spikes
+    # thr = spikes.threshold(3e-5).astype(float)
+    # thr.values[thr.values == 0] = np.nan
+
     # xc = spikes.xcorr(3e-5, plot=True, sharey=True)
     # binned = spikes.binned(3e-5)
     # b0 = binned[2]
@@ -649,4 +785,3 @@ if __name__ == '__main__':
     # pylab.subplot(212)
     # pylab.vlines(mycorr.index, 0, mycorr.values)
     # pylab.show()
-    
