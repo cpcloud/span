@@ -37,7 +37,7 @@ class ArodServer(AbstractServer):
         self.ftp = ftplib.FTP(self.hostname, self.username, getpass.getpass())
         
     def __del__(self):
-        self.ftps.close()
+        self.ftp.close()
 
     def download_file(self, filename, verbose=True):
         """Download a file from the server using FTP.
