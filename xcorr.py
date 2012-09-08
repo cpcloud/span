@@ -4,6 +4,7 @@ Module for cross-/auto- correlation.
 
 import numpy as np
 import pandas as pd
+import pylab
 
 
 def nextpow2(n):
