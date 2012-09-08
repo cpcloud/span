@@ -1,66 +1,18 @@
 """
 """
 
+import sys
+import abc
+
+import numpy as np
 import pandas as pd
-from .xcorr import xcorr
+import pylab
 
+import span
 
-def group_indices(group, dtype=int):
-    """
-    """
-    inds = pd.DataFrame(group.indicies)
-    inds.columns = cast(inds.columns, dtype)
-    return inds
-
-
-def flatten(data):
-    """Flatten a SpikeDataFrame
-    """
-    try:
-        # FIX: `stack` method is potentially very fragile
-        return data.stack().reset_index(drop=True)
-    except MemoryError:
-        raise MemoryError('out of memory while trying to flatten')
-
-
-# def bin_data(data, bins):
-#     """
-#     """
-#     nchannels = data.columns.size
-#     counts = pd.DataFrame(np.empty((bins.size - 1, nchannels)))
-#     zbins = list(zip(bins[:-1], bins[1:]))
-#     for column, dcolumn in data.iterkv():
-#         counts[column] = pd.Series([dcolumn.ix[bi:bj].sum()
-#                                     for bi, bj in zbins], name=column)
-#     return counts
-
-
-def summary(func, group):
-    """TODO: Make this function less ugly!"""
-    # check to make sure that `func` is a string or function
-    func_is_valid = any(map(isinstance, (func, func),
-                                  (str, types.FunctionType)))
-    assert func_is_valid, ("'func' must be a string or function: "
-                           "type(func) == {0}".format(type(func)))
-
-    # if `func` is a string
-    if hasattr(group, func):
-        getter = operator.attrgetter(func)
-        chan_func = getter(group)
-        chan_func_t = getter(chan_func().T)
-        return chan_func_t()
-
-    # else if it's a function and has the attribute `__name__`
-    elif hasattr(func, '__name__') and \
-            hasattr(group, func.__name__):
-        return summary(func.__name__)
-
-    # else if it's just a regular ole' function
-    else:
-        f = lambda x: func(SpikeDataFrame.flatten(x))
-
-    # apply the function to the channel group
-    return group.apply(f)
+from xcorr import xcorr
+from decorate import cached_property
+from utils import summary, group_indices, flatten, cast
 
 
 class SpikeDataFrameAbstractBase(pd.DataFrame, metaclass=abc.ABCMeta):
@@ -89,6 +41,10 @@ class SpikeDataFrameAbstractBase(pd.DataFrame, metaclass=abc.ABCMeta):
         """
         pass
 
+    @abc.abstractproperty
+    def raw(self):
+        pass
+
 
 class SpikeDataFrameBase(SpikeDataFrameAbstractBase):
     """
@@ -107,58 +63,65 @@ class SpikeDataFrameBase(SpikeDataFrameAbstractBase):
         # number of channels
         nch = inds.columns.size
         
-        # get indices of the sorted dimensions of vals and reverse so
-        # highest is first
-        shp = np.asanyarray(vals.shape)
-        shpsort = shp.argsort()[::-1]
+        # get indices of the sorted (descending) dimensions of vals
+        shpsort = np.asanyarray(vals.shape).argsort()[::-1]
 
         # transpose vals to make a reshape into a samples x channels array
-        valsr = vals.transpose(shpsort).reshape(np.prod(shp) // nch, nch)
+        valsr = vals.transpose(shpsort).reshape(vals.size // nch, nch)
         return pd.DataFrame(valsr, columns=inds.columns)
 
     @property
+    def shanks(self):
+        inds = self.shank_indices
+        vals = self.values[inds.values]
+        nsh = inds.columns.size
+        shpsort = np.asanyarray(vals.shape).argsort()[::-1]
+        valsr = vals.transpose(shpsort).reshape(vals.size // nsh, nsh)
+        return pd.DataFrame(valsr, columns=inds.columns)
+
+    @cached_property
     def channels_slow(self):
-        channels = self.channel_group.apply(self.flatten).T
+        channels = self.channel_group.apply(flatten).T
         channels.columns = cast(channels.columns, int)
         return channels
-
-    @cached_property
+    
     def fs(self): return self.meta.fs.unique().max()
-
-    @cached_property
     def nchans(self): return int(self.meta.channel.max() + 1)
 
-    @cached_property
-    def channel_indices(self): return self.group_indices(self.channel_group)
-
-    @property
-    def shank_indices(self): return self.group_indices(self.shank_group)
-
-    @property
-    def side_indices(self): return self.group_indices(self.side_group)
-
-    @cached_property
+    def channel_indices(self): return group_indices(self.channel_group)
+    def shank_indices(self): return group_indices(self.shank_group)
+    def side_indices(self): return group_indices(self.side_group)
+    
     def channel_group(self): return self.groupby(level=self.meta.channel.name)
-
-    @property
     def shank_group(self): return self.groupby(level=self.meta.shank.name)
-
-    @property
     def side_group(self): return self.groupby(level=self.meta.side.name)
 
-    @property
     def raw(self): return self.channels.values
+    
+    fs = cached_property(fs)
+    nchans = cached_property(nchans)
+
+    channel_indices = cached_property(channel_indices)
+    shank_indices = cached_property(shank_indices)
+    side_indices = cached_property(side_indices)
+
+    channel_group = property(channel_group)
+    shank_group = property(shank_group)
+    side_group = property(side_group)
+
+    raw = property(raw)
 
     def channel(self, i): return self.channels[i]
-    def mean(self): return self.summary('mean')
+    def mean(self): return self.channel_summary('mean')
     def var(self): return self.channels.var()
     def std(self): return self.channels.std()
     def mad(self): return self.channels.mad()
     def sem(self): return pd.Series(scipy.stats.sem(self.raw, axis=0))
     def median(self): return self.channels.median()
-    def sum(self):return self.summary('sum')
-    def max(self): return self.summary('max')
-    def min(self): return self.summary('min')
+    def sum(self): return self.channel_summary('sum')
+    def max(self): return self.channel_summary('max')
+    def min(self): return self.channel_summary('min')
+    def channel_summary(self, func): return summary(self.channel_group, func)
 
 
 class SpikeDataFrame(SpikeDataFrameBase):
@@ -173,26 +136,38 @@ class SpikeDataFrame(SpikeDataFrameBase):
     def __ge__(self, other): return self.ge(other)
     def __ne__(self, other): return self.ne(other)
     def __eq__(self, other): return self.eq(other)
+    def __bool__(self): return self.all().all()
 
-    def bin(self, threshes, ms=2.0, binsize=1e3, conv=1e3, raw_out=False):
+    threshold = __gt__
+    
+    def bin(self, threshes, ms=2.0, binsize=1000, conv=1e3):
+        """Bin spike data by `ms` millisecond bins.
+
+        Parameters
+        ----------
+        threshes: array_like
+        ms : float, optional
+            Refractory period
+        binsize : float
+            The size of the bins to use, in milliseconds
+        conv : float
+            The conversion factor to convert the the binsize to samples
+
+        Returns
+        -------
+        df : pd.DataFrame
+        """
         cleared = self.cleared(threshes, ms=ms).channels
         max_sample = self.channels.index[-1]
         bin_samples = cast(np.floor(binsize * self.fs / conv), int)
         bins = np.r_[:max_sample:bin_samples]
-        
-        v = cleared.values[[range(bi, bj) for bi, bj in zip(bins[:-1], bins[1:])]]
-        b = pd.DataFrame(v.sum(np.argmax(v.shape)))
-        if raw_out:
-            return b, v
-        return b
+        zipped_bins = list(zip(bins[:-1], bins[1:]))
+        v = cleared.values[[range(bi, bj) for bi, bj in zipped_bins]]
+        axis, = np.where(np.asanyarray(v.shape) == bin_samples)
+        return pd.DataFrame(v.sum(axis))
 
-    def refrac_window(self, ms=2.0, conv_factor=1e3):
-        secs = ms / conv_factor
-        return cast(np.floor(secs * self.fs), int)
-
-    def __bool__(self): return self.values.all()
-    
-    def threshold(self, thresh): return self > thresh
+    def refrac_window(self, ms=2.0, conv=1e3):
+        return cast(np.floor(ms / conv * self.fs), int)
 
     def cleared(self, threshes, ms=2.0):
         clr = self.threshold(threshes)
@@ -235,10 +210,9 @@ class SpikeDataFrame(SpikeDataFrameBase):
             if self.binned is None:
                 self.binned = self.bin(threshes, ms=ms, binsize=binsize,
                                        conv=conv)
-            nchannels = binned.columns.size
+            nchannels = self.binned.columns.size
             ncorrs = nchannels ** 2
             xctmp = np.empty((ncorrs, 2 * maxlags - 1))
-
 
             left = pd.Series(np.tile(np.arange(nchannels), nchannels),
                              name='Left')
@@ -246,8 +220,8 @@ class SpikeDataFrame(SpikeDataFrameBase):
             lshank, rshank = ShankMap[left], ShankMap[right]
             lshank.name, rshank.name = 'Left Shank', 'Right Shank'
             
-            for i, chi in binned.iterkv():
-                for j, chj in binned.iterkv():
+            for i, chi in self.binned.iterkv():
+                for j, chj in self.binned.iterkv():
                     args = chi,
                     if i != j:
                         args += chj,
@@ -256,7 +230,7 @@ class SpikeDataFrame(SpikeDataFrameBase):
                     k += 1
 
             index = pd.MultiIndex.from_arrays((left, right, lshank, rshank))
-            self.xcorrs = pd.DataFrame(xctmp, index=index, columns=.index)
+            self.xcorrs = pd.DataFrame(xctmp, index=index, columns=c.index)
 
         xc = self.xcorrs
 
