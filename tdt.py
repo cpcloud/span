@@ -14,8 +14,8 @@ import glob
 import numpy as np
 import pandas as pd
 
-from spikeglobals import *
-import tank
+from .spikeglobals import *
+from . import tank
 
 sys.path.append(os.path.expanduser(os.path.join('~', 'code', 'py')))
 
