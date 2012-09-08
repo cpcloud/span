@@ -1,6 +1,7 @@
 import unittest
 
 import numpy as np
+from numpy.random import randint, rand, randn
 from numpy.testing import assert_allclose, assert_array_equal
 
 from ..utils import (cast, ndtuples, dirsize, ndlinspace, nans, remove_legend,
@@ -9,14 +10,38 @@ from ..utils import (cast, ndtuples, dirsize, ndlinspace, nans, remove_legend,
                      iscomplex)
 
 
+def rand_array_delegate(func, n, ndims):
+    """
+    """
+    return func(*randint(n, size=ndims).tolist())
+
+
+def rand_array(n=100, ndims=3):
+    """
+    """
+    return rand_array_delegate(rand, n, ndims)
+
+
+def randn_array(n=100, ndims=3):
+    """
+    """
+    return rand_array_delegate(randn, n, ndims)
+
+
+def rand_int_tuple(m=5, n=10):
+    """
+    """
+    return randint(1, m, size=n)
+
+
 def test_nextpow2():
     """
     """
-    int_max = 10000
-    n = np.random.randint(int_max)
+    int_max = 1000
+    n = randint(int_max)
     np2 = nextpow2(n)
     assert 2 ** np2 > n, '2 ** np2 == {} <= n == {}'.format(2 ** np2, n)
-    assert np2 == np.log2(2 ** np2), '{} != np.log2({})'.format(np2, 2 ** np2)
+    assert_allclose(np2, np.log2(2 ** np2))
 
 
 def test_fractional():
@@ -24,10 +49,19 @@ def test_fractional():
     """
     n = 1
     m = 1000
-    x = np.random.randn(n)
-    xi = np.random.randint(m)
+    x = randn(n)
+    xi = randint(m)
     assert fractional(x)
+    assert fractional(rand())
     assert not fractional(xi)
+    assert not fractional(randint(1, np.iinfo(int).max))
+
+
+def test_ndtuples():
+    t = rand_int_tuple()
+    k = ndtuples(*t)
+    set_k = set(np.unique(k.ravel()))
+    assert 1
 
 
 class TestZeroPad(unittest.TestCase):
@@ -35,10 +69,9 @@ class TestZeroPad(unittest.TestCase):
         """
         """
         n = 50
-        dims = 3
-        self.x = np.random.randn(*np.random.randint(np.random.randint(n),
-                                                    size=dims).tolist())
-        self.s = np.random.randint(n)
+        ndims = 3
+        self.x = randn_array(n=n, ndims=ndims)
+        self.s = randint(n)
 
     def test_s0(self):
         """Test the case of padding for a 1D array.
@@ -74,11 +107,22 @@ def test_iscomplex():
     """
     """
     n = 1000
-    x = np.random.randn(n, n) + 1j
+    x = randn(n, n) + 1j
     assert iscomplex(x), 'x is not complex and has type {}'.format(x.dtype)
-    assert 
 
 
 def test_get_fft_funcs():
     """
     """
+    x = [rand_array() for _ in randint(1, 10)]
+    fft, ifft = get_fft_funcs(*x)
+    if all(map(iscomplex, x)):
+        assert fft is np.fft.fft
+        assert ifft is np.fft.ifft
+    elif all(map(np.isreal, x)):
+        assert fft is np.fft.rfft
+        assert ifft is np.fft.irfft
+    else:
+        pass
+        
+    
