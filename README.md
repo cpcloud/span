@@ -11,6 +11,7 @@ Dependencies
 * [matplotlib](http://matplotlib.sourceforge.net) >= 1.1.1
 * [Pandas](http://pandas.pydata.org) >= 0.8.1
 * [Clint](https://github.com/kennethreitz/clint)
+
 ### If you want:
 * [Nose](http://nose.readthedocs.org/en/latest) >= 1.1.3 if you want to run tests
 
@@ -23,4 +24,4 @@ of analysis, thus I created this package to help me do that.
 wholeheartedly welcome any contributions!
 
 * I have another project `span` which is more general than this module,
-and I would eventually like to integrate this package into `span`.
+and I would eventually like to integrate `tdt` into `span`.
