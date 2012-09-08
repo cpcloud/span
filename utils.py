@@ -7,6 +7,10 @@ import operator
 import numpy as np
 import pandas as pd
 
+from functools import partial
+from .functional import compose
+
+
 def cast(a, dtype=None, order='K', casting='unsafe', subok=True, copy=False):
     """Cast `a` to dtype `dtype`.
 
@@ -50,8 +54,7 @@ def ndtuples(*dims):
     -------
     cur : array_like
     """
-    if not dims:
-        return ()
+    assert dims, 'no arguments given'
     dims = list(dims) # 100111_P3rat_site1
     n = dims.pop()
     cur = np.arange(n)[:, np.newaxis]
@@ -310,6 +313,7 @@ def iscomplex(x):
     r : bool
     """
     return np.issubdtype(x.dtype, complex)
+    
 
 
 def get_fft_funcs(*arrays):
@@ -325,7 +329,11 @@ def get_fft_funcs(*arrays):
     r : tuple of callable, callable
         The fft and ifft appropriate for the dtype of input.
     """
+    ndims_getter = operator.attrgetter('ndim')
+    asserter = compose(ndims_getter, np.squeeze, np.array)
+    assert all(map(lambda x: asserter(x) == 1, arrays)), 'all input arrays must be 1D'
+    
     r = np.fft.irfft, np.fft.rfft
-    if any(map(iscomplex, map(np.asanyarray, arrays))):
+    if any(composemap(iscomplex, np.squeeze, np.asanyarray)):
         r = np.fft.ifft, np.fft.fft
     return r
