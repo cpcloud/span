@@ -5,12 +5,16 @@ Python module to read Tucker-Davis Technologies TTank files
 
 Dependencies
 ---
+
+### Must haves:
 * [Python](http://python.org) >= 3
 * [NumPy](http://numpy.scipy.org) >= 1.6
 * [SciPy](http://scipy.org) >= 0.10
 * [matplotlib](http://matplotlib.sourceforge.net) >= 1.1.1
 * [Pandas](http://pandas.pydata.org) >= 0.8.1
 * [Clint](https://github.com/kennethreitz/clint)
+
+### If you want:
 * [Nose](http://nose.readthedocs.org/en/latest) >= 1.1.3 if you want to run tests
 
 Purpose
