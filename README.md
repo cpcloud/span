@@ -15,7 +15,7 @@ Dependencies
 
 Purpose
 ---
-I need to read large files quickly into numpy arrays and do all sorts
+I need to read large, proprietary files quickly into `ndarrays` and do all sorts
 of analysis, thus I created this package to help me do that.
 
 Currently, it's very "hacky" and thus the API is very unstable. I
