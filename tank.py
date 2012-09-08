@@ -1,4 +1,16 @@
-from .spikedataframe import SpikeDataFrame
+"""
+"""
+
+import os
+import sys
+import abc
+import re
+import mmap
+
+from spikeglobals import *
+from spikedataframe import SpikeDataFrame
+from decorate import thunkify, cached_property
+from utils import name2num
 
 class TdtTankBase(object, metaclass=abc.ABCMeta):
     """
@@ -13,7 +25,7 @@ class TdtTankBase(object, metaclass=abc.ABCMeta):
     age_re = re.compile(r'.*[pP](\d+).*')
 
     def __init__(self, tankname):
-        super(TdtTankBase, self).__init__()
+        super().__init__()
         basename = os.path.basename(tankname)
 
         self.tankname = tankname
