@@ -1,5 +1,7 @@
+import sys
 import functools
 import threading
+
 
 def thunkify(f):
     """Perform `f` using a threaded thunk.
