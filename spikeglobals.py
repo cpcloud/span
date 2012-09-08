@@ -16,8 +16,8 @@ NSides = NShanks * 2
 ShankMap = pd.Series(np.outer(range(NShanks),
                               np.ones(NShanks)).astype(int).ravel(),
                      name='Shank Map')
-MedialLateral = pd.Series(np.asanyarray(('medial', 'lateral'))[np.hstack((np.zeros(NSides),
-                                                                          np.ones(NSides)))],
+MedialLateral = pd.Series(np.asanyarray(('medial', 'lateral'))[np.hstack((np.zeros(NSides, int),
+                                                                          np.ones(NSides, int)))],
                           name='Side Map')
 Indexer = pd.DataFrame(dict(zip(('channel', 'shank', 'side'),
                                 (ElectrodeMap, ShankMap, MedialLateral))))
