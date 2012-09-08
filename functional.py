@@ -1,4 +1,5 @@
 from functools import partial, reduce
+from itertools import repeat
 
 
 def flip(f):
@@ -52,4 +53,14 @@ def compose2(f, g):
 
 def compose(*args):
     return partial(reduce, compose2)(args)
+
+
+def composemap(*args):
+    nmaps = repeat(map, len(args))
+    partial_map = map(partial, nmaps, args)
+
+    # compose2(... compose2(p0, p1), ... pN)
+    return reduce(compose2, partial_map)
+
+
 
