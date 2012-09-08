@@ -10,9 +10,9 @@ import pylab
 
 import span
 
-from xcorr import xcorr
-from decorate import cached_property
-from utils import summary, group_indices, flatten, cast
+from .xcorr import xcorr
+from .decorate import cached_property
+from .utils import summary, group_indices, flatten, cast, ndtuples
 
 
 class SpikeDataFrameAbstractBase(pd.DataFrame, metaclass=abc.ABCMeta):
@@ -214,12 +214,11 @@ class SpikeDataFrame(SpikeDataFrameBase):
             ncorrs = nchannels ** 2
             xctmp = np.empty((ncorrs, 2 * maxlags - 1))
 
-            left = pd.Series(np.tile(np.arange(nchannels), nchannels),
-                             name='Left')
-            right = pd.Series(np.sort(left.values), name='Right')
+            left, right = ndtuples(nchannels, nchannels).T
             lshank, rshank = ShankMap[left], ShankMap[right]
             lshank.name, rshank.name = 'Left Shank', 'Right Shank'
-            
+
+            # TODO: use matrix xcorr for cases like these, it might be faster
             for i, chi in self.binned.iterkv():
                 for j, chj in self.binned.iterkv():
                     args = chi,
