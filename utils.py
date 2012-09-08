@@ -21,6 +21,10 @@ def cast(a, dtype=None, order='K', casting='unsafe', subok=True, copy=False):
     subok : bool, optional
     copy : bool, optional
 
+    Raises
+    ------
+    AssertionError
+
     Returns
     -------
     r : array_like
@@ -203,3 +207,125 @@ def summary(group, func):
 
     # apply the function to the channel group
     return group.apply(f)
+
+
+def nextpow2(n):
+    """Return the next power of 2 of a number.
+
+    Parameters
+    ----------
+    n : array_like
+
+    Returns
+    -------
+    ret : array_like
+    """
+    return np.ceil(np.log2(np.absolute(np.asanyarray(n))))
+
+
+def fractional(x):
+    """Test whether an array has a fractional part.
+    """
+    x = np.asanyarray(x)
+    frac = np.zeros(x.size)
+    np.modf(x, frac)
+    return frac.any()
+
+
+def zeropad(x, s=0):
+    """Pad an array, `x`, with `s` zeros.
+
+    Parameters
+    ----------
+    x : array_like
+    s : int
+
+    Raises
+    ------
+    AssertionError
+
+    Returns
+    -------
+    ret : `x` padded with `s` zeros.
+    """
+    assert not fractional(s), 's must be an integer or floating point number with no fractional part'
+    assert s >= 0, 's cannot be negative'
+    if not s:
+        return x
+    return np.pad(x, s, mode='constant', constant_values=(0,))
+
+
+def pad_larger2(x, y):
+    """Pad the larger of two arrays and the return the arrays and the size of
+    the larger array.
+
+    Parameters
+    ----------
+    x, y : array_like
+
+    Returns
+    -------
+    x, y : array_like
+    lsize : int
+        The size of the larger of `x` and `y`.
+    """
+    xsize, ysize = x.size, y.size
+    lsize = max(xsize, ysize)
+    if xsize != ysize:
+        size_diff = lsize - min(xsize, ysize)
+
+        if xsize > ysize:
+            y = zeropad(y, size_diff)
+        else:
+            x = zeropad(x, size_diff)
+
+    return x, y, lsize
+
+
+def pad_larger(*arrays):
+    if len(arrays) == 2:
+        return pad_larger2(*arrays)
+    size_getter = operater.attrgetter('size')
+    sizes = np.asanyarray(list(map(size_getter, arrays)))
+    lsize = sizes.max()
+
+    ret = ()
+    for array, size in zip(arrays, sizes):
+        size_diff = lsize - size
+        ret += zeropad(array, size_diff),
+
+    ret += lsize,
+    return ret 
+
+
+def iscomplex(x):
+    """Test whether `x` is complex.
+
+    Parameters
+    ----------
+    x : array_like
+
+    Returns
+    -------
+    r : bool
+    """
+    return np.issubdtype(x.dtype, complex)
+
+
+def get_fft_funcs(*arrays):
+    """Get the correct fft functions for the input type.
+
+    Parameters
+    ----------
+    arrays : tuple
+        Arrays to be checked for complex dtype.
+
+    Returns
+    -------
+    r : tuple of callable, callable
+        The fft and ifft appropriate for the dtype of input.
+    """
+    r = np.fft.irfft, np.fft.rfft
+    if any(map(iscomplex, map(np.asanyarray, arrays))):
+        r = np.fft.ifft, np.fft.fft
+    return r
