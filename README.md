@@ -19,9 +19,12 @@ Dependencies
   to run tests
 * [IPython](http://ipython.org) >= 0.11 How anyone uses Python without this boggles my mind
 
-###Notes
+##Notes
 ---
+### The why
 * I need to read large, proprietary [TDT](http://www.tdt.com) files quickly into
   [`ndarrays`](http://docs.scipy.org/doc/numpy/reference/arrays.html).
+
+### What to expect
 * Currently, it's very "hacky" and thus the API is very unstable. I
   wholeheartedly welcome any contributions!
