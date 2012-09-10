@@ -1,6 +1,9 @@
-SPike ANalaysis
+![Neonatal Rat Neuron](http://www.conncad.com/gallery/neonatal+rat+pyramidal+neuron.jpg)
+`span`
 ===
-A module for spike train analysis
+
+is a Python module for
+[spike train](http://en.wikipedia.org/wiki/Neural_coding) analyses.
 
 Warning
 ---
