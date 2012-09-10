@@ -8,7 +8,7 @@ import numpy as np
 import pandas as pd
 
 from functools import partial
-from .functional import compose
+from ..tdt.functional import compose
 
 
 def cast(a, dtype=None, order='K', casting='unsafe', subok=True, copy=False):
