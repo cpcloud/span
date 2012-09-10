@@ -4,3 +4,6 @@
 [submodule "sport"]
 	path = sport
 	url = git@github.com:cpcloud/sport.git
+[submodule "tdt"]
+	path = tdt
+	url = git@github.com:cpcloud/tdt.git
