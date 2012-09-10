@@ -12,7 +12,7 @@ import span
 
 from .xcorr import xcorr
 from .decorate import cached_property
-from ..utils.utils import summary, group_indices, flatten, cast, ndtuples
+from ..utils import summary, group_indices, flatten, cast, ndtuples
 
 
 class SpikeDataFrameAbstractBase(pd.DataFrame, metaclass=abc.ABCMeta):
