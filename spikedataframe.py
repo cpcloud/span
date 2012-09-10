@@ -27,7 +27,7 @@ class SpikeDataFrameAbstractBase(pd.DataFrame, metaclass=abc.ABCMeta):
         meta : array_like, optional
         args, kwargs : args, kwargs to pandas.DataFrame
         """
-        super(SpikeDataFrameAbstractBase, self).__init__(spikes, *args, **kwargs)
+        super().__init__(spikes, *args, **kwargs)
         self.meta = spikes.meta if meta is None else meta
 
     @abc.abstractproperty
