@@ -7,3 +7,6 @@
 [submodule "tdt"]
 	path = tdt
 	url = git@github.com:cpcloud/tdt.git
+[submodule "span/tdt"]
+	path = span/tdt
+	url = git@github.com:cpcloud/tdt.git
