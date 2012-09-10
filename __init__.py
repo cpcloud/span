@@ -5,5 +5,3 @@ from .spikedataframe import SpikeDataFrame
 from .spikeglobals import Indexer, ShankMap
 from .tank import PandasTank
 from .xcorr import xcorr
-
-__all__ = locals().values()

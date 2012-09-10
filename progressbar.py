@@ -1,11 +1,21 @@
 import sys
 
-class ProgressBar(object):
-    """
+class ProgressBar:
+    """Class encapsulating a progress bar.
     """
     def __init__(self, start=0, end=10, width=12, fill='#', blank='.',
                  fmt='[{fill}{blank}] {progress}%', incremental=True):
-        """
+        """Constructor for ProgressBar class.
+
+        Parameters
+        ----------
+        start : int, optional
+        end : int, optional
+        width : int, optional
+        fill : str, optional
+        blank : str, optional
+        fmt : str, optional
+        incremental : bool, optional
         """
         super(ProgressBar, self).__init__()
         self.start = start
@@ -15,11 +25,19 @@ class ProgressBar(object):
         self.blank = blank
         self.format = fmt
         self.incremental = incremental
-        self.step = 100.0 / width
+        self.step = 100. / width
         self.reset()
 
     def __iadd__(self, increment):
         """Increment the amount of progress in place.
+
+        Parameters
+        ----------
+        increment : int
+
+        Returns
+        -------
+        self : ProgressBar
         """
         increment = self._get_progress(increment)
         if self.progress + increment < 100.0:
@@ -77,13 +95,17 @@ class AnimatedProgressBar(ProgressBar):
     """
     def __init__(self, *args, **kwargs):
         """Constructor.
+
+        Parameters
+        ----------
+        args : tuple, optional
+        kwargs : dict, optional
         """
         super(AnimatedProgressBar, self).__init__(*args, **kwargs)
         self.stdout = kwargs.get('stdout', sys.stdout)
 
     def show_progress(self):
-        """Show the current progress, compensating for terminal existence.
-        """
+        """Show the current progress, compensating for terminal existence."""
         is_terminal = hasattr(self.stdout, 'isatty') and self.stdout.isatty()
         c = '\r' if is_terminal else '\n'
         self.stdout.write(c)

@@ -8,33 +8,28 @@ import os
 import sys
 import glob
 
-# import pylab
-# import scipy.stats
-
 import numpy as np
 import pandas as pd
 
 from .spikeglobals import *
 from . import tank
 
-sys.path.append(os.path.expanduser(os.path.join('~', 'code', 'py')))
-
-import span
-
-sys.path.pop(-1)
-
 
 def get_tank_names(path=os.path.expanduser(os.path.join('~', 'xcorr_data'))):
     """Get the names of the tanks on the current machine.
+
+    Parameters
+    ----------
+    path : str, optional
     """
-    globs = path
-    fns = glob.glob(os.path.join(globs, '*'))
-    fns = np.array([f for f in fns if os.path.isdir(f)])
+    if not os.path.exists(path):
+        raise OSError('{} does not exist'.format(path))
+    fns = glob.glob(os.path.join(path, '*'))
+    fns = np.fromiter(filter(os.path.isdir, fns), dtype=str)
     tevs = glob.glob(os.path.join(globs, '**', '*%stev' % os.extsep))
-    tevsize = np.asanyarray(list(map(os.path.getsize, tevs)))
+    tevsize = np.fromiter(map(os.path.getsize, tevs), dtype=int)
     inds = np.argsort(tevsize)
-    fns = np.fliplr(fns[inds][np.newaxis]).squeeze().tolist()
-    return fns
+    return fns[::-1].tolist()
 
 
 def profile_spikes(pct_stats=0.05, sortby='time'):
@@ -71,20 +66,3 @@ if __name__ == '__main__':
     raw = sp.raw
     # thr = spikes.threshold(3e-5).astype(float)
     # thr.values[thr.values == 0] = np.nan
-
-    # xc = spikes.xcorr(3e-5, plot=True, sharey=True)
-    # binned = spikes.binned(3e-5)
-    # b0 = binned[2]
-    # b0mean = b0.mean()
-    # b0cent = b0 - b0mean
-
-    # denom = b0.var()
-    # npcorr = np.correlate(b0cent.values, b0cent.values, 'full') / denom
-    # mycorr = xcorr(b0)
-
-    # pylab.subplot(211)
-    # pylab.plot(npcorr)
-
-    # pylab.subplot(212)
-    # pylab.vlines(mycorr.index, 0, mycorr.values)
-    # pylab.show()
