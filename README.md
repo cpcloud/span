@@ -1,4 +1,11 @@
-![Neonatal Rat Neuron](http://www.conncad.com/gallery/neonatal%20rat%20pyramidal%20neuron.jpg)
+<div id="container">
+<img
+src="http://www.conncad.com/gallery/neonatal%20rat%20pyramidal%20neuron.jpg"
+/>
+</div?
+#container img {
+   vertical-align: middle;
+}
 `span`
 ===
 
