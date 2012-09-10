@@ -1,5 +1,5 @@
 <div id="container">
-    <img
+    <img style="vertical-align: middle;"
     src="http://www.hcplive.com/media/webexclusives/1acea3023d3534830489a81a4b855642.jpg"/>
 </div>
 `span`
