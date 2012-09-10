@@ -16,8 +16,9 @@ if platform.system().lower() == 'linux':
     extra_compile_args.append('-march=native')
     
 
-ext_modules = [Extension('_clear_refrac',
-                         [os.path.join('span', 'utils',
+utils_dir = os.path.join('span', 'utils')
+ext_modules = [Extension(os.path.join(utils_dir, '_clear_refrac'),
+                         [os.path.join(utils_dir,
                                        'clear_refrac%spyx' % os.extsep)],
                          extra_compile_args=extra_compile_args,
                          include_dirs=[np.get_include()])]

@@ -334,7 +334,7 @@ def get_fft_funcs(*arrays):
     assert all(map(lambda x: asserter(x) == 1, arrays)), 'all input arrays must be 1D'
     
     r = np.fft.irfft, np.fft.rfft
-    if any(composemap(iscomplex, np.squeeze, np.asanyarray)):
+    if any(composemap(iscomplex, np.squeeze, np.asanyarray)(arrays)):
         r = np.fft.ifft, np.fft.fft
     return r
 
