@@ -127,6 +127,25 @@ def nans(size, dtype=float):
     return a
 
 
+def nans_like(a, dtype=None, order='K', subok=True):
+    """Create an array of nans with dtype, order, and class like `a`.
+
+    Parameters
+    ----------
+    a : array_like
+    dtype : np.dtype, optional
+    order : str, optional
+    subok : bool, optional
+
+    Returns
+    -------
+    res : array_like
+    """
+    res = empty_like(a, dtype=dtype, order=order, subok=subok)
+    copyto(res, np.nan, casting='unsafe')
+    return res
+
+
 def remove_legend(ax=None):
     """Remove legend for ax or the current axes.
 
