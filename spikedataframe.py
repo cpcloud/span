@@ -52,7 +52,7 @@ class SpikeDataFrameBase(SpikeDataFrameAbstractBase):
     """
     """
     def __init__(self, *args, **kwargs):
-        super(SpikeDataFrameBase, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
 
     @cached_property
     def channels(self):
@@ -128,8 +128,7 @@ class SpikeDataFrameBase(SpikeDataFrameAbstractBase):
 
 class SpikeDataFrame(SpikeDataFrameBase):
     def __init__(self, spikes, meta=None, *args, **kwargs):
-        super(SpikeDataFrameBase, self).__init__(spikes, meta=meta, *args,
-                                                 **kwargs)
+        super().__init__(spikes, meta=meta, *args, **kwargs)
         self.__xcorrs, self.__binned = None, None
 
     def __lt__(self, other): return self.lt(other)
