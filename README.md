@@ -1,11 +1,4 @@
-<div id="container">
-<img
-src="http://www.conncad.com/gallery/neonatal%20rat%20pyramidal%20neuron.jpg"
-/>
-</div?
-#container img {
-   vertical-align: middle;
-}
+![Neonatal Rat Neuron](http://www.hcplive.com/media/webexclusives/1acea3023d3534830489a81a4b855642.jpg)
 `span`
 ===
 
