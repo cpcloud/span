@@ -6,7 +6,7 @@ import ftplib
 import getpass
 import os
 
-from progressbar import AnimatedProgressBar
+from .progressbar import AnimatedProgressBar
 
 
 class AbstractServer(object, metaclass=abc.ABCMeta):
