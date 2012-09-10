@@ -19,11 +19,7 @@ Dependencies
 
 Notes
 ---
-* I need to read large, proprietary files quickly into `ndarrays` and do all sorts
-of analysis, thus I created this package to help me do that.
-
+* I need to read large, proprietary files quickly into
+  [`ndarrays`](http://docs.scipy.org/doc/numpy/reference/arrays.html).
 * Currently, it's very "hacky" and thus the API is very unstable. I
 wholeheartedly welcome any contributions!
-
-* I have another project `span` which is more general than this module,
-and I would eventually like to integrate `tdt` into `span`.
