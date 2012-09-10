@@ -1,8 +1,8 @@
 `tdt`
 ===
-is a Python module to read [Tucker-Davis Technologies](http://www.tdt.com)
-[TTank](http://jaewon.mine.nu/jaewon/2010/10/04/how-to-import-tdt-tank-into-matlab)
-files.
+is a Python module to read
+[Tucker-Davis Technologies](http://www.tdt.com) (TDT)
+[TTank files](http://jaewon.mine.nu/jaewon/2010/10/04/how-to-import-tdt-tank-into-matlab).
 
 Dependencies
 ---
@@ -22,7 +22,9 @@ Dependencies
 Notes
 ---
 ### The why
-* I need to read large, proprietary [TDT](http://www.tdt.com) files quickly into
+* I need to read large, proprietary
+  [TDT TTank files](http://jaewon.mine.nu/jaewon/2010/10/04/how-to-import-tdt-tank-into-matlab)
+  quickly into
   [`ndarrays`](http://docs.scipy.org/doc/numpy/reference/arrays.html).
 
 ### What to expect
