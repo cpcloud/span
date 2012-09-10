@@ -43,6 +43,8 @@ class SpikeDataFrameAbstractBase(pd.DataFrame, metaclass=abc.ABCMeta):
 
     @abc.abstractproperty
     def raw(self):
+        """Retrieve the underlying raw NumPy array.
+        """
         pass
 
 
