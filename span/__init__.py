@@ -1,4 +1,3 @@
-import tdt
-import utils
+from . import tdt
+from . import utils
 
-__all__ = locals().values()
