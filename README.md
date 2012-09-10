@@ -1,6 +1,6 @@
-Python TDT
+`tdt`
 ===
-TDT is a Python module to read
+`tdt` is a Python module to read
 [Tucker-Davis Technologies](http://www.tdt.com)
 [TTank](http://jaewon.mine.nu/jaewon/2010/10/04/how-to-import-tdt-tank-into-matlab)
 files.
