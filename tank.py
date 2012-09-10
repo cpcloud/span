@@ -10,7 +10,7 @@ import mmap
 from .spikeglobals import *
 from .spikedataframe import SpikeDataFrame
 from .decorate import thunkify, cached_property
-from .utils import name2num
+from ..utils.utils import name2num
 
 class TdtTankBase(object, metaclass=abc.ABCMeta):
     """
