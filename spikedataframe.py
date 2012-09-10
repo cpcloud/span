@@ -218,7 +218,9 @@ class SpikeDataFrame(SpikeDataFrameBase):
             lshank, rshank = ShankMap[left], ShankMap[right]
             lshank.name, rshank.name = 'Left Shank', 'Right Shank'
 
-            # TODO: use matrix xcorr for cases like these, it might be faster
+            # TODO: use matrix xcorr for cases like these, it might be
+            # faster
+            # TODO: implement electrode distance indexing
             for i, chi in self.binned.iterkv():
                 for j, chj in self.binned.iterkv():
                     args = chi,
