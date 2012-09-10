@@ -13,7 +13,9 @@ Dependencies
 * [Clint](https://github.com/kennethreitz/clint)
 
 ### If you want:
-* [Nose](http://nose.readthedocs.org/en/latest) >= 1.1.3 if you want to run tests
+* [Nose](http://nose.readthedocs.org/en/latest) >= 1.1.3 if you want
+  to run tests
+* [IPython](http://ipython.org) >= 0.11 How anyone uses Python without this boggles my mind
 
 Notes
 ---
