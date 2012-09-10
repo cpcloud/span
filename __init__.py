@@ -1,1 +1,1 @@
-from .tdt import *
+from . import *
