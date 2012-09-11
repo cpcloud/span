@@ -43,7 +43,7 @@ def thunkify(f):
             """
             wait_event.wait()
             if exc[0]:
-                raise exc[1][0](exc[1][1]).with_traceback(exc[1][2])
+                raise exc[1][0], exc[1][1], exc[1][2]
             return result[0]
         threading.Thread(target=worker).start()
         return thunk
