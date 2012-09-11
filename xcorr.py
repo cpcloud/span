@@ -97,7 +97,7 @@ def xcorr(x, y=None, maxlags=None, detrend=pylab.detrend_none, normalize=False,
     """
     x = detrend(np.asanyarray(x))
     
-    if y is None or np.array_equal(x, y):
+    if y is None or np.array_equal(x, y) or x is y:
         lsize = x.size
         corr_func = acorr
         ctmp = acorr(x, int(2 ** nextpow2(2 * lsize - 1)))
@@ -109,28 +109,17 @@ def xcorr(x, y=None, maxlags=None, detrend=pylab.detrend_none, normalize=False,
     if maxlags is None:
         maxlags = lsize
 
+    # create the lags vector
     lags = np.r_[1 - maxlags:maxlags]
 
     # make sure the full xcorr is given (acorr is symmetric around 0)
     c = ctmp[lags]
 
     # normalize by the number of observations seen at each lag
-    mlags = 1.0
-    if unbiased:
-        mlags = (lsize - np.absolute(lags))
-        print('dividing by {}'.format(mlags))
+    mlags = (lsize - np.absolute(lags)) if unbiased else 1.0
 
     # normalize by the product of the standard deviation of x and y
-    stds = 1.0
-    if normalize:
-        if detrend == pylab.detrend_mean:
-            stds = x.dot(x)
-            if y is not None:
-                stds = np.sqrt(stds * y.dot(y))
-        else:
-            stds = x.var()
-            if y is not None:
-                stds = np.sqrt(stds * y.var())        
+    stds = sqrt(x.dot(x) * y.dot(y)) if normalize else 1.0
 
     c /= stds * mlags
     return pd.Series(c, index=lags)
