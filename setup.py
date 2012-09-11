@@ -46,7 +46,7 @@ if __name__ == '__main__':
           license='LICENSE.txt',
           description='Spike train analysis',
           long_description=readme,
-          install_requires=['Cython >=0.17', 'numpy >=1.6.0',
+          requires=['Cython >=0.17', 'numpy >=1.6.0',
                             'scipy >=0.10.0', 'pandas >=0.8.0',
                             'matplotlib >=1.1.1'],
           cmdclass={'build_ext': build_ext})
