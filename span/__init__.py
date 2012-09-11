@@ -1,3 +1,3 @@
-from . import tdt
-from . import utils
+import span.tdt
+import span.utils
 
