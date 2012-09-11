@@ -63,7 +63,7 @@ def main():
     
     mat_filename = os.path.basename(dn) + os.extsep + 'mat'
 
-    print('\nConverting TDT Tank to MATLAB:', end=' ')
+    print('\nConverting TDT Tank to MATLAB:')
     puts(colored.blue('{} ...'.format(mat_filename)))
 
     # save to the current directory
