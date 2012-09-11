@@ -6,12 +6,15 @@ import ftplib
 import getpass
 import os
 
-from .progressbar import AnimatedProgressBar
+from progressbar import AnimatedProgressBar
 
 
-class AbstractServer(object, metaclass=abc.ABCMeta):
+class AbstractServer(object):
     """Abstract base class for a server object
     """
+
+    __metaclass__ = abc.ABCMeta
+    
     @abc.abstractmethod
     def download_file(self, filename):
         """
@@ -66,7 +69,11 @@ class ArodServer(AbstractServer):
             
         with open(local_path, 'wb') as local_file:
             def callback(chunk):
-                """
+                """Callback function for RETR FTP operation.
+
+                Parameters
+                ----------
+                chunk : str
                 """
                 local_file.write(chunk)
                 # yield len(chunk)

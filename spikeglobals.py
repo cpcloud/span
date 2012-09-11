@@ -1,6 +1,8 @@
 import numpy as np
 import pandas as pd
 
+import span.utils
+
 TsqFields = ('size', 'type', 'name', 'channel', 'sort_code', 'timestamp',
              'file_pointer_location', 'format', 'fs')
 TsqNumpyTypes = (np.int32, np.int32, np.uint32, np.uint16, np.uint16,
@@ -13,7 +15,7 @@ ElectrodeMap = pd.Series(np.array([[1, 3, 2, 6],
 
 NShanks = 4
 NSides = NShanks * 2
-ShankMap = pd.Series(np.outer(range(NShanks),
+ShankMap = pd.Series(np.outer(xrange(NShanks),
                               np.ones(NShanks)).astype(int).ravel(),
                      name='Shank Map')
 MedialLateral = pd.Series(np.asanyarray(('medial', 'lateral'))[np.hstack((np.zeros(NSides, int),
@@ -31,3 +33,5 @@ EventTypes = pd.Series({
     0x8201: 'snip',
     0x8801: 'mark'
 }, name='Event Types')
+
+DistanceMap = span.utils.distance_map(n=NShanks)

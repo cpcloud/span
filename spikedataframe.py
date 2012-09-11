@@ -9,15 +9,19 @@ import pandas as pd
 import pylab
 
 import span
+from xcorr import xcorr
+from decorate import cached_property
 
-from .xcorr import xcorr
-from .decorate import cached_property
-from ..utils import summary, group_indices, flatten, cast, ndtuples
+from span.utils import summary, group_indices, flatten, cast, ndtuples
+from spikeglobals import DistanceMap, ShankMap
 
 
-class SpikeDataFrameAbstractBase(pd.DataFrame, metaclass=abc.ABCMeta):
+class SpikeDataFrameAbstractBase(pd.DataFrame):
     """Abstract base class for all spike data frames.
     """
+
+    __metaclass__ = abc.ABCMeta
+
     def __init__(self, spikes, meta=None, *args, **kwargs):
         """Constructor.
 
@@ -27,7 +31,7 @@ class SpikeDataFrameAbstractBase(pd.DataFrame, metaclass=abc.ABCMeta):
         meta : array_like, optional
         args, kwargs : args, kwargs to pandas.DataFrame
         """
-        super().__init__(spikes, *args, **kwargs)
+        super(SpikeDataFrameAbstractBase, self).__init__(spikes, *args, **kwargs)
         self.meta = spikes.meta if meta is None else meta
 
     @abc.abstractproperty
@@ -36,7 +40,7 @@ class SpikeDataFrameAbstractBase(pd.DataFrame, metaclass=abc.ABCMeta):
 
         Returns
         -------
-        sr : float
+        sampling_rate : float
             The sampling rate of the recording.
         """
         pass
@@ -49,10 +53,9 @@ class SpikeDataFrameAbstractBase(pd.DataFrame, metaclass=abc.ABCMeta):
 
 
 class SpikeDataFrameBase(SpikeDataFrameAbstractBase):
-    """
-    """
+    """Base class implementing basic spike data set properties and methods."""
     def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
+        super(SpikeDataFrameBase, self).__init__(*args, **kwargs)
 
     @cached_property
     def channels(self):
@@ -128,7 +131,7 @@ class SpikeDataFrameBase(SpikeDataFrameAbstractBase):
 
 class SpikeDataFrame(SpikeDataFrameBase):
     def __init__(self, spikes, meta=None, *args, **kwargs):
-        super().__init__(spikes, meta=meta, *args, **kwargs)
+        super(SpikeDataFrame, self).__init__(spikes, meta=meta, *args, **kwargs)
         self.__xcorrs, self.__binned = None, None
 
     def __lt__(self, other): return self.lt(other)
@@ -168,13 +171,27 @@ class SpikeDataFrame(SpikeDataFrameBase):
         return pd.DataFrame(v.sum(axis))
 
     def refrac_window(self, ms=2.0, conv=1e3):
+        """Compute the refractory window in samples.
+
+        Parameters
+        ----------
+        ms : float, optional
+        conv : float, optional
+
+        Returns
+        -------
+        win : int
+        """
         return cast(np.floor(ms / conv * self.fs), int)
 
     def cleared(self, threshes, ms=2.0):
+        """Remove spikes from the refractory window of a channel."""
         clr = self.threshold(threshes)
+
+        # TODO: fragile indexing here
         if clr.shape[0] < clr.shape[1]:
             clr = clr.T
-        span.clear_refrac.clear_refrac_out(clr.values, self.refrac_window(ms))
+        span.utils.clear_refrac_out(clr.values, self.refrac_window(ms))
         return clr
 
     @property
@@ -190,22 +207,51 @@ class SpikeDataFrame(SpikeDataFrameBase):
     @binned.setter
     def binned(self, value): self.__binned = value
 
-    def xcorr1(self, i, j, threshes=3e-5, ms=2.0, binsize=1e3, maxlags=100,
-               conv=1e3, detrend=pylab.detrend_none, unbiased=False,
-               normalize=False):
+    def xcorr1(self, chi, chj, maxlags=100, detrend=pylab.detrend_none,
+               unbiased=False, normalize=False):
+        """Compute the cross correlation of two channels.
+
+        Parameters
+        ----------
+        i, j : int
+        threshes : array_like
+        ms : float, optional
+        binsize : float, optional
+        maxlags : int, optional
+        conv : float, optional
+        detrend : callable, optional
+        unbiased : bool, optional
+        normalize : bool, optional
+
+        Returns
+        -------
+        c : pandas.Series
+            The cross correlation of the spike counts in channels i and j.
         """
-        """
-        if self.binned is None:
-            self.binned = self.bin(threshes=threshes, ms=ms, binsize=binsize,
-                                   conv=conv)
-        return xcorr(self.binned[i], self.binned[j], maxlags=maxlags,
-                     normalize=normalize, unbiased=unbiased, detrend=detrend)
+        return xcorr(chi, chj, maxlags=maxlags, detrend=detrend,
+                     unbiased=unbiased, normalize=normalize)
 
     def xcorr(self, threshes, ms=2.0, binsize=1e3, conv=1e3, maxlags=100,
               detrend=pylab.detrend_none, unbiased=False, normalize=False,
               plot=False, figsize=(40, 25), dpi=80, titlesize=4, labelsize=3,
               sharex=True, sharey=True):
         """
+
+        Parameters
+        ----------
+        threshes : array_like
+        ms : float, optional
+        binsize : float, optional
+        maxlags : int, optional
+        conv : float, optional
+        detrend : callable, optional
+        unbiased : bool, optional
+        normalize : bool, optional
+
+        Returns
+        -------
+        xc : pandas.DataFrame
+            The cross correlation of all the channels in the data
         """
         if self.xcorrs is None:
             if self.binned is None:
@@ -219,23 +265,26 @@ class SpikeDataFrame(SpikeDataFrameBase):
             lshank, rshank = ShankMap[left], ShankMap[right]
             lshank.name, rshank.name = 'Left Shank', 'Right Shank'
 
+            maxs = np.empty(ncorrs)
+
             # TODO: use matrix xcorr for cases like these, it might be
             # faster
             # TODO: implement electrode distance indexing
+            k = 0
             for i, chi in self.binned.iterkv():
                 for j, chj in self.binned.iterkv():
-                    args = chi,
-                    if i != j:
-                        args += chj,
-                    c = xcorr1(*args, maxlags=maxlags)
+                    c = self.xcorr1(chi, chj, maxlags=maxlags, detrend=detrend,
+                                    unbiased=unbiased, normalize=normalize)
                     xctmp[k] = c
+                    maxs[k] = c.max()
                     k += 1
-
+            dm = pd.Series(DistanceMap.ravel(), name='distance')
             index = pd.MultiIndex.from_arrays((left, right, lshank, rshank))
             self.xcorrs = pd.DataFrame(xctmp, index=index, columns=c.index)
-
+            
         xc = self.xcorrs
 
+        # TODO: move this to another (possibly static) method.
         if plot:
             elec_map = ElectrodeMap
             nchannels = self.nchans
@@ -260,15 +309,40 @@ class SpikeDataFrame(SpikeDataFrameBase):
                             tax.set_visible(False)
             fig.tight_layout()
             pylab.show()
-        return xc
+        return xc, dm
 
     def astype(self, dtype):
-        """ """
+        """Return a new instance of SpikeDataFrame with a (possibly) different
+        dtype.
+
+        Parameters
+        ----------
+        dtype : numpy.dtype
+
+        Returns
+        -------
+        obj : SpikeDataFrame
+            A new SpikeDataFrame object.
+        """
         return self._constructor(self._data, self.meta, index=self.index,
                                  columns=self.columns, dtype=dtype, copy=False)
 
     def make_new(self, data, dtype=None):
         """Make a new instance of the current object.
+
+        Parameters
+        ----------
+        data : array_like
+        dtype : numpy.dtype, optional
+
+        Raises
+        ------
+        AssertionError
+
+        Returns
+        -------
+        obj : SpikeDataFrame
+            A new SpikeDataFrame object.
         """
         if dtype is None:
             assert hasattr(data, 'dtype'), 'data has no "dtype" attribute'
@@ -278,10 +352,25 @@ class SpikeDataFrame(SpikeDataFrameBase):
 
     @property
     def _constructor(self):
-        """
+        """Return a constructor function.
+
+        Returns
+        -------
+        construct : callable
+            A function to construct a new instance of SpikeDataFrame.
         """
         def construct(*args, **kwargs):
-            """
+            """Construct a new instance of the type of the current object.
+
+            Parameters
+            ----------
+            args : tuple
+            kwargs : dict
+
+            Returns
+            -------
+            obj : type(self)
+                A new object of type type(self).
             """
             args = list(args)
             if len(args) == 2:

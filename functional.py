@@ -1,8 +1,10 @@
-"""Module implementing a few standard functional programming functions.
+#!/usr/bin/env python
+
+"""Module implementing standard functional programming constructs.
 """
 
 from functools import partial, reduce
-from itertools import repeat
+from itertools import repeat, imap as map
 
 
 def flip(f):

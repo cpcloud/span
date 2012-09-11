@@ -2,9 +2,13 @@
 Module for cross-/auto- correlation.
 """
 
+from itertools import imap as map
+
 import numpy as np
 import pandas as pd
 import pylab
+
+from span.utils import nextpow2, pad_larger, get_fft_funcs
 
 
 def acorr(x, n):
@@ -92,21 +96,14 @@ def xcorr(x, y=None, maxlags=None, detrend=pylab.detrend_none, normalize=False,
     c : pd.Series
     """
     x = detrend(np.asanyarray(x))
-    corr_args = x,
     
     if y is None or np.array_equal(x, y):
         lsize = x.size
         corr_func = acorr
-        # ctmp = acorr(x, int(2 ** nextpow2(2 * lsize - 1)))
+        ctmp = acorr(x, int(2 ** nextpow2(2 * lsize - 1)))
     else:
         x, y, lsize = pad_larger(x, detrend(np.asanyarray(y)))
-        corr_args += y,
-        corr_func = correlate
-        # ctmp = correlate(x, y, int(2 ** nextpow2(2 * lsize - 1)))
-
-    nfft = int(2 ** nextpow2(2 * lsize - 1))
-    corr_args += nfft,
-    ctmp = corr_func(*args)
+        ctmp = correlate(x, y, int(2 ** nextpow2(2 * lsize - 1)))
 
     # no lags are given so use the entire xcorr
     if maxlags is None:
@@ -118,7 +115,10 @@ def xcorr(x, y=None, maxlags=None, detrend=pylab.detrend_none, normalize=False,
     c = ctmp[lags]
 
     # normalize by the number of observations seen at each lag
-    mlags = (lsize - np.absolute(lags)) if unbiased else 1.0
+    mlags = 1.0
+    if unbiased:
+        mlags = (lsize - np.absolute(lags))
+        print('dividing by {}'.format(mlags))
 
     # normalize by the product of the standard deviation of x and y
     stds = 1.0

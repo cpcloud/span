@@ -1,6 +1,6 @@
 import sys
 
-class ProgressBar:
+class ProgressBar(object):
     """Class encapsulating a progress bar.
     """
     def __init__(self, start=0, end=10, width=12, fill='#', blank='.',

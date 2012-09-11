@@ -7,14 +7,17 @@ import abc
 import re
 import mmap
 
-from .spikeglobals import *
-from .spikedataframe import SpikeDataFrame
-from .decorate import thunkify, cached_property
-from ..utils.utils import name2num
+from itertools import imap as map
 
-class TdtTankBase(metaclass=abc.ABCMeta):
+from spikeglobals import *
+from spikedataframe import SpikeDataFrame
+from decorate import thunkify, cached_property
+from span.utils import name2num
+
+class TdtTankBase(object):
     """
     """
+    __metaclass__ = abc.ABCMeta
     fields = TsqFields
     np_types = TsqNumpyTypes
     date_re = re.compile(r'.*(\d{6}).*')
@@ -25,7 +28,7 @@ class TdtTankBase(metaclass=abc.ABCMeta):
     age_re = re.compile(r'.*[pP](\d+).*')
 
     def __init__(self, tankname):
-        super().__init__()
+        super(TdtTankBase, self).__init__()
         basename = os.path.basename(tankname)
 
         self.tankname = tankname
