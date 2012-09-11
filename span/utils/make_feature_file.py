@@ -13,8 +13,6 @@ import numpy as np
 
 import spike_sort
 
-from thread_read import load_data
-
 
 def compute_threshold(sp, fs, contact, sc=5.0, const=0.6745, indfact=10):
     """Compute a threshold using parameters from `scholarpedia.org`.
@@ -178,6 +176,8 @@ def run_klustakwik(prefix, ext, suffix='fet', verbose=False, log=0):
 
 
 def isexe(fpath):
+    """
+    """
     return os.path.isfile(fpath) and os.access(fpath, os.X_OK)
 
 
@@ -206,6 +206,8 @@ def which(prog):
 
 
 def whichall(progs):
+    """
+    """
     for prog in progs:
         yield which(prog)
 
@@ -298,16 +300,6 @@ def load_dataset(f, shank_number, where=None, raw_name='raw', fs=None):
     return {'data': raw, 'FS': fs, 'n_contacts': min(raw.shape)}
 
 
-def get_electrode_map(f, where=None):
-    """"""
-    assert f.isopen, 'HDF5 file is not open'
-    assert f.mode != 'w', 'file must be readable'
-    if where is None:
-        where = f.root.data
-    shanks = f.iterNodes(where)
-    return np.vstack(shank.raw.attrs.map.flatten() for shank in shanks)
-
-
 def write_spk(data, prefix, ext, sc, dtype=np.int16, suffix='spk',
               perm=(1, 0, 2)):
     """Write a data set `data` to a file with file name `filename`.
@@ -393,18 +385,21 @@ def write_par_file(prefix, elec_map, fs, numbits):
 
 
 def datasize(dtype):
-    """"""
+    """
+    """
     assert isinstance(dtype, str), 'dtype must be a string'
     return struct.calcsize('1%s' % dtype)
 
 
 def nbits(dtype):
-    """"""
+    """
+    """
     return 8 * datasize(dtype)
 
 
 def truncate_and_scale(data, sc, dtype=np.int16):
-    """"""
+    """
+    """
     print('truncating...')
     d = data * sc
     try:
@@ -416,7 +411,8 @@ def truncate_and_scale(data, sc, dtype=np.int16):
 
 
 def write_neuroscope(f, sc, data, filename):
-    """"""
+    """
+    """
     if data is None:
         data = load_data(f)
 
@@ -427,7 +423,8 @@ def write_neuroscope(f, sc, data, filename):
 
 
 def get_sc(f, prefix, ext='dat'):
-    """"""
+    """
+    """
     path = os.path.join(os.curdir,
                         '.{prefix}.absmax.pkl'.format(prefix=prefix))
     data = None
