@@ -6,6 +6,7 @@ import sys
 import abc
 import re
 import mmap
+import contextlib
 
 from itertools import imap as map
 
@@ -99,7 +100,8 @@ class PandasTank(TdtTankBase):
         spikes = np.empty((fp_loc.size, nsamples), dtype=dtype)
         tev_name = self.tankname + os.extsep + self.raw_ext
         with open(tev_name, 'rb') as tev:
-            with mmap.mmap(tev.fileno(), 0, access=mmap.ACCESS_READ) as tev:
+            with contextlib.closing(mmap.mmap(tev.fileno(), 0,
+                                              access=mmap.ACCESS_READ)) as tev:
                 for i, offset in enumerate(fp_loc):
                     spikes[i] = np.frombuffer(tev, dtype, nsamples, offset)
         shanks, side = self.tsq.shank[row], self.tsq.side[row]
