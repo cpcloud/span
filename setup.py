@@ -16,7 +16,7 @@ if platform.system().lower() == 'linux':
     extra_compile_args.append('-march=native')
     
 
-utils_dir = os.path.join('span', 'utils')
+utils_dir = os.path.join(os.getcwd(), 'span', 'utils')
 ext_modules = [Extension(os.path.join(utils_dir, '_clear_refrac'),
                          [os.path.join(utils_dir,
                                        'clear_refrac%spyx' % os.extsep)],
