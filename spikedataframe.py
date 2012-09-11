@@ -265,20 +265,18 @@ class SpikeDataFrame(SpikeDataFrameBase):
             lshank, rshank = ShankMap[left], ShankMap[right]
             lshank.name, rshank.name = 'Left Shank', 'Right Shank'
 
-            maxs = np.empty(ncorrs)
-
             # TODO: use matrix xcorr for cases like these, it might be
             # faster
             # TODO: implement electrode distance indexing
             k = 0
-            for i, chi in self.binned.iterkv():
-                for j, chj in self.binned.iterkv():
-                    c = self.xcorr1(chi, chj, maxlags=maxlags, detrend=detrend,
+            for i, _ in self.binned.iterkv():
+                for j, _ in self.binned.iterkv():
+                    c = self.xcorr1(self.binned[i], self.binned[j],
+                                    maxlags=maxlags, detrend=detrend,
                                     unbiased=unbiased, normalize=normalize)
                     xctmp[k] = c
-                    maxs[k] = c.max()
                     k += 1
-            dm = pd.Series(DistanceMap.ravel(), name='distance')
+            
             index = pd.MultiIndex.from_arrays((left, right, lshank, rshank))
             self.xcorrs = pd.DataFrame(xctmp, index=index, columns=c.index)
             
@@ -309,7 +307,7 @@ class SpikeDataFrame(SpikeDataFrameBase):
                             tax.set_visible(False)
             fig.tight_layout()
             pylab.show()
-        return xc, dm
+        return xc, DistanceMap
 
     def astype(self, dtype):
         """Return a new instance of SpikeDataFrame with a (possibly) different

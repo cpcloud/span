@@ -34,4 +34,5 @@ EventTypes = pd.Series({
     0x8801: 'mark'
 }, name='Event Types')
 
-DistanceMap = span.utils.distance_map(n=NShanks)
+DistanceMap = pd.Series(span.utils.distance_map(n=NShanks).ravel(),
+                        name='Electrode Distance')
