@@ -1,14 +1,37 @@
-"""
+"""A collection of utility functions.
 """
 
+import os
 import types
 import operator
+import glob
+import string
+
+from itertools import imap as map, izip as zip, repeat
 
 import numpy as np
 import pandas as pd
 
-from functools import partial
-from ..tdt.functional import compose
+from span.tdt.functional import compose, composemap
+
+
+def get_names_and_threshes(f):
+    """Read in an excel file and get the names of the recordings and the
+    threshold.
+
+    Parameters
+    ----------
+    f : str
+
+    Returns
+    -------
+    dd : pandas.DataFrame
+    """
+    et = pd.io.parsers.ExcelFile(f)
+    nms = et.parse(et.sheet_names[-1])
+    dd = pd.DataFrame(nms['Block']).join(nms['Base Theshold']).drop_duplicates()
+    dd.columns = pd.Index(['block', 'threshold'])
+    return dd
 
 
 def cast(a, dtype=None, order='K', casting='unsafe', subok=True, copy=False):
@@ -48,14 +71,16 @@ def ndtuples(*dims):
 
     Parameters
     ----------
-    dims : ints
+    dims : tuple of int
 
     Returns
     -------
     cur : array_like
     """
     assert dims, 'no arguments given'
-    dims = list(dims) # 100111_P3rat_site1
+    assert all(map(isinstance, dims, repeat(int, len(dims)))), \
+        'all arguments must be integers'
+    dims = list(dims)
     n = dims.pop()
     cur = np.arange(n)[:, np.newaxis]
     while dims:
@@ -64,7 +89,7 @@ def ndtuples(*dims):
         front = np.arange(d).repeat(n)[:, np.newaxis]
         cur = np.hstack((front, cur))
         n *= d
-    return cur
+    return cast(cur, int)
 
 
 def dirsize(d='.'):
@@ -73,7 +98,8 @@ def dirsize(d='.'):
     Parameters
     ----------
     d : str, optional
-        The directory of which to compute the size.
+        The directory of which to compute the size. Defaults to the current
+        directory.
 
     Returns
     -------
@@ -95,7 +121,7 @@ def ndlinspace(ranges, *nelems):
 
     Parameters
     ----------
-    ranges : list
+    ranges : array_like
     nelems : int, optional
 
     Returns
@@ -103,7 +129,6 @@ def ndlinspace(ranges, *nelems):
     n_linspaces : array_like
     """
     x = ndtuples(*nelems) + 1.0
-    lbounds, ubounds = [], []
     b = np.asanyarray(nelems)
     lbounds, ubounds = map(np.fromiter, zip(*((r[0], r[1]) for r in ranges)),
                            (np.float64, np.float64))
@@ -141,8 +166,8 @@ def nans_like(a, dtype=None, order='K', subok=True):
     -------
     res : array_like
     """
-    res = empty_like(a, dtype=dtype, order=order, subok=subok)
-    copyto(res, np.nan, casting='unsafe')
+    res = np.empty_like(a, dtype=dtype, order=order, subok=subok)
+    np.copyto(res, np.nan, casting='unsafe')
     return res
 
 
@@ -159,22 +184,58 @@ def remove_legend(ax=None):
 
 
 def name2num(name, base=256):
-    """"Convert a string to a number
+    """Convert an event name's string representation to a number.
 
     Parameters
     ----------
     name : str
+        The name of the event.
     base : int, optional
+        The base to use to compute the numerical representation of `name`.
 
     Returns
     -------
     ret : int
+        The number corresponding to TDT's numerical representation of an event
+        type string.
     """
-    return (base ** np.r_[:len(name)]).dot(np.fromiter(map(ord, name), dtype=int))
+    return (base ** np.r_[:len(name)]).dot(np.fromiter(map(ord, name), int))
+
+
+# TODO: THIS IS SO SLOW!
+def num2name(num, base=256, slen=4):
+    """Inverse of `name2num`.
+
+    Parameters
+    ----------
+    num : int
+    base : int, optional
+    slen : int, optional
+
+    Returns
+    -------
+    ret : str
+    """
+    base_vec = base ** np.r_[:slen]
+    nletters = len(string.ascii_letters)
+    x = pd.Series(dict(zip(string.ascii_letters, map(ord,
+                                                     string.ascii_letters))))
+    xad = x[ndtuples(*tuple(repeat(nletters, slen)))] * base_vec
+    w = xad[np.where(xad.sum(1) == num)].squeeze()
+    return ''.join(chr(c) for c in w / base_vec)
 
 
 def group_indices(group, dtype=int):
-    """
+    """Return the indices of a particular grouping as a `pandas.DataFrame`.
+
+    Parameters
+    ----------
+    group : pandas.Grouper
+    dtype : dtype
+
+    Returns
+    -------
+    inds : pandas.DataFrame
     """
     inds = pd.DataFrame(group.indices)
     inds.columns = cast(inds.columns, dtype)
@@ -182,7 +243,15 @@ def group_indices(group, dtype=int):
 
 
 def flatten(data):
-    """Flatten a SpikeDataFrame
+    """Flatten a DataFrame.
+
+    Parameters
+    ----------
+    data : pandas.DataFrame
+
+    Returns
+    -------
+    flattened : pandas.DataFrame or pandas.Series
     """
     try:
         # FIX: `stack` method is potentially very fragile
@@ -192,7 +261,11 @@ def flatten(data):
 
 
 def bin_data(data, bins):
-    """
+    """Put data in bins.
+
+    Parameters
+    ----------
+    data : pandas.DataFrame
     """
     nchannels = data.columns.size
     counts = pd.DataFrame(np.empty((bins.size - 1, nchannels)))
@@ -203,8 +276,19 @@ def bin_data(data, bins):
     return counts
 
 
+# TODO: Make this function less ugly!
 def summary(group, func):
-    """TODO: Make this function less ugly!"""
+    """Perform a summary computation on a group.
+
+    Parameters
+    ----------
+    group : pandas.Grouper
+    func : str or callable
+
+    Returns
+    -------
+    sumry : pandas.DataFrame or pandas.Series
+    """
     # check to make sure that `func` is a string or function
     func_is_valid = any(map(isinstance, (func, func),
                                   (str, types.FunctionType)))
@@ -221,6 +305,7 @@ def summary(group, func):
     # else if it's a function and has the attribute `__name__`
     elif hasattr(func, '__name__') and \
             hasattr(group, func.__name__):
+        # recurse
         return summary(func.__name__)
 
     # else if it's just a regular ole' function
@@ -247,11 +332,17 @@ def nextpow2(n):
 
 def fractional(x):
     """Test whether an array has a fractional part.
+
+    Parameters
+    ----------
+    x : array_like
+
+    Returns
+    -------
+    ret : bool
+        Whether the elements of x have a fractional part.
     """
-    x = np.asanyarray(x)
-    frac = np.zeros(x.size)
-    np.modf(x, frac)
-    return frac.any()
+    return np.modf(np.asanyarray(x), frac).any()
 
 
 def zeropad(x, s=0):
@@ -270,7 +361,8 @@ def zeropad(x, s=0):
     -------
     ret : `x` padded with `s` zeros.
     """
-    assert not fractional(s), 's must be an integer or floating point number with no fractional part'
+    assert not fractional(s), \
+        's must be an integer or floating point number with no fractional part'
     assert s >= 0, 's cannot be negative'
     if not s:
         return x
@@ -305,23 +397,34 @@ def pad_larger2(x, y):
 
 
 def pad_larger(*arrays):
+    """Pad the smallest of `n` arrays.
+
+    Parameters
+    ----------
+    arrays : tuple of array_like
+
+    Returns
+    -------
+    ret : list
+        List of zero padded arrays
+    """
     if len(arrays) == 2:
         return pad_larger2(*arrays)
     size_getter = operater.attrgetter('size')
-    sizes = np.asanyarray(list(map(size_getter, arrays)))
+    sizes = np.fromiter(map(size_getter, arrays), int)
     lsize = sizes.max()
 
-    ret = ()
+    ret = []
     for array, size in zip(arrays, sizes):
         size_diff = lsize - size
-        ret += zeropad(array, size_diff),
+        ret.append(zeropad(array, size_diff))
 
-    ret += lsize,
-    return ret 
+    ret.append(lsize)
+    return ret
 
 
 def iscomplex(x):
-    """Test whether `x` is complex.
+    """Test whether `x` is any type of complex array.
 
     Parameters
     ----------
@@ -330,10 +433,10 @@ def iscomplex(x):
     Returns
     -------
     r : bool
+        Whether x's dtype is a sub dtype or equal to complex.
     """
     return np.issubdtype(x.dtype, complex)
     
-
 
 def get_fft_funcs(*arrays):
     """Get the correct fft functions for the input type.
@@ -345,7 +448,7 @@ def get_fft_funcs(*arrays):
 
     Returns
     -------
-    r : tuple of callable, callable
+    r : 2-tuple of callables
         The fft and ifft appropriate for the dtype of input.
     """
     ndims_getter = operator.attrgetter('ndim')
@@ -356,7 +459,6 @@ def get_fft_funcs(*arrays):
     if any(composemap(iscomplex, np.squeeze, np.asanyarray)(arrays)):
         r = np.fft.ifft, np.fft.fft
     return r
-
 
 
 def spike_window(ms, fs, const=1e3):
@@ -373,3 +475,52 @@ def spike_window(ms, fs, const=1e3):
     Conversion of milliseconds to samples
     """
     return cast(np.floor(ms / const * fs), dtype=np.int32)
+
+
+def electrode_distance(fromij, toij, between_shank=125, within_shank=100):
+    """Compute the distance between two electrodes given an index and between and
+    within shank distance.
+
+    Parameters
+    ----------
+    fromij : tuple
+    toij : tuple
+    between_shank : int, optional
+    within_shank : int, optional
+
+    Returns
+    -------
+    d : float
+        The distance between electrodes at e_ij and e_kl.
+    """
+    fromi, fromj = fromij
+    toi, toj = toij
+
+    col_diff = (toj - fromj) * between_shank
+    row_diff = (toi - fromi) * within_shank
+    return np.sqrt(col_diff ** 2 + row_diff ** 2)
+
+
+def distance_map(n=4):
+    """Create an electrode distance map.
+
+    Parameters
+    ----------
+    n : int
+
+    Returns
+    -------
+    ret : pandas.Series
+    """
+    dists = np.zeros(n ** 4)
+    t = 0
+    rangen = np.arange(n)
+    a, b, c, d = ndtuples(n, n, n, n).T
+    for i in rangen:
+        for j in rangen:
+            for k in rangen:
+                for l in rangen:
+                    dists[t] = electrode_distance((i, j), (k, l))
+                    t += 1
+    index = pd.MultiIndex.from_arrays((a, b, c, d))
+    return pd.Series(dists, index=index, name='distance')
