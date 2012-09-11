@@ -119,7 +119,7 @@ def xcorr(x, y=None, maxlags=None, detrend=pylab.detrend_none, normalize=False,
     mlags = (lsize - np.absolute(lags)) if unbiased else 1.0
 
     # normalize by the product of the standard deviation of x and y
-    stds = sqrt(x.dot(x) * y.dot(y)) if normalize else 1.0
+    stds = np.sqrt(x.dot(x) * y.dot(y)) if normalize else 1.0
 
     c /= stds * mlags
     return pd.Series(c, index=lags)
