@@ -35,13 +35,11 @@ def parse_args():
                             help='a directory name from the server')
     except AttributeError:
         pass
-        # parser.add_option('dirname', metavar='DIRNAME', type=str,
-                            # help='a directory name from the server')
 
     try:
         _, args = parser.parse_args()
     except ValueError:
-        args = parser.parse_args()
+        args = parser.parse_args()[0]
     return args
 
     
