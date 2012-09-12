@@ -49,7 +49,7 @@ def main():
     dn = parse_args()
     dnbn = os.path.basename(dn)
     mat_filename = os.path.join(dn, dnbn + os.extsep + 'mat')
-    print '\nConverting TDT Tank to MATLAB: {}'.format(mat_filename)
+    print '\nConverting TDT Tank to MATLAB: {0}'.format(mat_filename)
     
     # save to the current directory
     serv2mat(span.tdt.PandasTank(dn).spikes.raw, mat_filename)
