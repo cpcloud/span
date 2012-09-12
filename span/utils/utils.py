@@ -6,8 +6,9 @@ import types
 import operator
 import glob
 import string
+import itertools
 
-from itertools import imap as map, izip as zip, repeat
+from itertools import imap as map, izip as zip
 
 import numpy as np
 import pandas as pd
@@ -216,13 +217,12 @@ def num2name(num, base=256, slen=4):
     -------
     ret : str
     """
+    letters = string.ascii_letters
+    x = pd.Series(dict(zip(letters, map(ord, letters))))
     base_vec = base ** np.r_[:slen]
-    nletters = len(string.ascii_letters)
-    x = pd.Series(dict(zip(string.ascii_letters, map(ord,
-                                                     string.ascii_letters))))
-    xad = x[ndtuples(*tuple(repeat(nletters, slen)))] * base_vec
-    w = xad[np.where(xad.sum(1) == num)].squeeze()
-    return ''.join(chr(c) for c in w / base_vec)
+    xad = x[ndtuples(*itertools.repeat(len(letters), slen))] * base_vec
+    w = xad[xad.sum(1) == num].squeeze() / base_vec
+    return ''.join(map(chr, w))
 
 
 def group_indices(group, dtype=int):
