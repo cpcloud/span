@@ -342,7 +342,8 @@ def fractional(x):
     ret : bool
         Whether the elements of x have a fractional part.
     """
-    return np.modf(np.asanyarray(x), frac).any()
+    frac, _ = np.modf(np.asanyarray(x))
+    return frac.any()
 
 
 def zeropad(x, s=0):
@@ -451,30 +452,11 @@ def get_fft_funcs(*arrays):
     r : 2-tuple of callables
         The fft and ifft appropriate for the dtype of input.
     """
-    ndims_getter = operator.attrgetter('ndim')
-    asserter = compose(ndims_getter, np.squeeze, np.array)
-    assert all(map(lambda x: asserter(x) == 1, arrays)), 'all input arrays must be 1D'
-    
     r = np.fft.irfft, np.fft.rfft
-    if any(composemap(iscomplex, np.squeeze, np.asanyarray)(arrays)):
+    arecomplex = composemap(iscomplex)
+    if any(arecomplex(arrays)):
         r = np.fft.ifft, np.fft.fft
     return r
-
-
-def spike_window(ms, fs, const=1e3):
-    """Perform a transparent conversion from time to samples.
-
-    Parameters
-    ----------
-    ms : int
-    fs : float
-    const : float, optional
-
-    Returns
-    -------
-    Conversion of milliseconds to samples
-    """
-    return cast(np.floor(ms / const * fs), dtype=np.int32)
 
 
 def electrode_distance(fromij, toij, between_shank=125, within_shank=100):
@@ -512,15 +494,9 @@ def distance_map(n=4):
     -------
     ret : pandas.Series
     """
-    dists = np.zeros(n ** 4)
-    t = 0
     rangen = np.arange(n)
     a, b, c, d = ndtuples(n, n, n, n).T
-    for i in rangen:
-        for j in rangen:
-            for k in rangen:
-                for l in rangen:
-                    dists[t] = electrode_distance((i, j), (k, l))
-                    t += 1
+    dists = np.asanyarray([electrode_distance((ai, bi), (ci, di))
+                           for ai, bi, ci, di in zip(a, b, c, d)])
     index = pd.MultiIndex.from_arrays((a, b, c, d))
     return pd.Series(dists, index=index, name='distance')
