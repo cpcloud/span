@@ -47,10 +47,9 @@ def parse_args():
 def main():
     # parse the arguments
     dn = parse_args()
-    print dn
-    # dnbn = os.path.basename(dn)
-    
-    # mat_filename = dnbn + os.extsep + 'mat'
+    dnbn = os.path.basename(dn)
+    mat_filename = os.path.join(dn, dnbn + os.extsep + 'mat')
+    print mat_filename
 
     # print '\nConverting TDT Tank to MATLAB: {}'.format(mat_filename)
     
