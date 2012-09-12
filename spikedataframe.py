@@ -6,7 +6,7 @@ import abc
 
 import numpy as np
 import pandas as pd
-import pylab
+from pylab import detrend_none, subplots
 
 import span
 from xcorr import xcorr
@@ -306,7 +306,6 @@ class SpikeDataFrame(SpikeDataFrameBase):
                         for tax in (ax.xaxis, ax.yaxis):
                             tax.set_visible(False)
             fig.tight_layout()
-            pylab.show()
         return xc, DistanceMap
 
     def astype(self, dtype):
