@@ -46,7 +46,7 @@ def parse_args():
 def main():
     # parse the arguments
     dn = parse_args()
-    print args
+    print dn
     dnbn = os.path.basename(dn)
     
     mat_filename = dnbn + os.extsep + 'mat'
