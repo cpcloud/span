@@ -11,7 +11,6 @@ except ImportError:
     from optparse import OptionParser as ArgumentParser
 
 import scipy.io
-
 import span
 
 
