@@ -55,6 +55,7 @@ def main():
     serv2mat(span.tdt.PandasTank(dn + os.sep + 'Spont_Spikes_' + dnbn).spikes.raw,
              mat_filename)
     print 'Done!'
+    os.remove(mat_filename)
 
 
 if __name__ == '__main__':
