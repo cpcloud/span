@@ -6,7 +6,11 @@ import abc
 
 import numpy as np
 import pandas as pd
-from pylab import detrend_none, subplots
+
+try:
+    from pylab import detrend_none, subplots
+except RuntimeError:
+    detrend_none, subplots = lambda x: x, None
 
 import span
 from xcorr import xcorr
@@ -207,7 +211,7 @@ class SpikeDataFrame(SpikeDataFrameBase):
     @binned.setter
     def binned(self, value): self.__binned = value
 
-    def xcorr1(self, chi, chj, maxlags=100, detrend=pylab.detrend_none,
+    def xcorr1(self, chi, chj, maxlags=100, detrend=detrend_none,
                unbiased=False, normalize=False):
         """Compute the cross correlation of two channels.
 
@@ -232,7 +236,7 @@ class SpikeDataFrame(SpikeDataFrameBase):
                      unbiased=unbiased, normalize=normalize)
 
     def xcorr(self, threshes, ms=2.0, binsize=1e3, conv=1e3, maxlags=100,
-              detrend=pylab.detrend_none, unbiased=False, normalize=False,
+              detrend=detrend_none, unbiased=False, normalize=False,
               plot=False, figsize=(40, 25), dpi=80, titlesize=4, labelsize=3,
               sharex=True, sharey=True):
         """
@@ -286,8 +290,8 @@ class SpikeDataFrame(SpikeDataFrameBase):
         if plot:
             elec_map = ElectrodeMap
             nchannels = self.nchans
-            fig, axs = pylab.subplots(nchannels, nchannels, sharex=sharex,
-                                      sharey=sharey, figsize=figsize, dpi=dpi)
+            fig, axs = subplots(nchannels, nchannels, sharex=sharex,
+                                sharey=sharey, figsize=figsize, dpi=dpi)
             for indi, i in enumerate(elec_map):
                 for indj, j in enumerate(elec_map):
                     ax = axs[indi, indj]
