@@ -52,7 +52,7 @@ def main():
     print '\nConverting TDT Tank to MATLAB: {0}'.format(mat_filename)
     
     # save to the current directory
-    serv2mat(span.tdt.PandasTank(dn + 'Spont_Spikes_' + dnbn).spikes.raw,
+    serv2mat(span.tdt.PandasTank(dn + os.sep + 'Spont_Spikes_' + dnbn).spikes.raw,
              mat_filename)
     print 'Done!'
 
