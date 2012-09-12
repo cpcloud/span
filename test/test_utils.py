@@ -89,7 +89,7 @@ class TestZeroPad(unittest.TestCase):
         self.assertEqual(desired_size, actual_size)
 
 
-class TestPadLarger():
+class TestPadLarger(unittest.TestCase):
     def setUp(self):
         """
         """
@@ -114,15 +114,15 @@ def test_iscomplex():
 def test_get_fft_funcs():
     """
     """
-    x = [rand_array() for _ in randint(1, 10)]
-    fft, ifft = get_fft_funcs(*x)
-    if all(map(iscomplex, x)):
-        assert fft is np.fft.fft
-        assert ifft is np.fft.ifft
-    elif all(map(np.isreal, x)):
-        assert fft is np.fft.rfft
-        assert ifft is np.fft.irfft
-    else:
-        pass
+    x = randn(100, 100)
+    xc = x + 1j
+    
+    fft, ifft = get_fft_funcs(xc)
+    assert fft is np.fft.fft
+    assert ifft is np.fft.ifft
+
+    fft, ifft = get_fft_funcs(x)
+    assert fft is np.fft.rfft
+    assert ifft is np.fft.irfft
         
     
