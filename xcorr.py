@@ -6,7 +6,11 @@ from itertools import imap as map
 
 import numpy as np
 import pandas as pd
-import pylab
+
+try:
+    from pylab import detrend_none
+except RuntimeError:
+    detrend_none = lambda x: x
 
 from span.utils import nextpow2, pad_larger, get_fft_funcs
 
@@ -66,7 +70,7 @@ def matrixcorrelate(x):
     raise NotImplementedError
 
 
-def xcorr(x, y=None, maxlags=None, detrend=pylab.detrend_none, normalize=False,
+def xcorr(x, y=None, maxlags=None, detrend=detrend_none, normalize=False,
           unbiased=False):
     """Compute the cross correlation of `x` and `y`.
 
