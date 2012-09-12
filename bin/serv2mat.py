@@ -48,18 +48,18 @@ def main():
     # parse the arguments
     dn = parse_args()
     print dn
-    dnbn = os.path.basename(dn)
+    # dnbn = os.path.basename(dn)
     
-    mat_filename = dnbn + os.extsep + 'mat'
+    # mat_filename = dnbn + os.extsep + 'mat'
 
-    print '\nConverting TDT Tank to MATLAB: {}'.format(mat_filename)
+    # print '\nConverting TDT Tank to MATLAB: {}'.format(mat_filename)
     
     # save to the current directory
-    serv2mat(span.tdt.PandasTank(dn).spikes.raw, mat_filename)
-    print 'Done!'
+    # serv2mat(span.tdt.PandasTank(dn).spikes.raw, mat_filename)
+    # print 'Done!'
 
     # get rid of the extra mat file from the server
-    os.remove(dn + os.extsep + 'mat')
+    # os.remove(dn + os.extsep + 'mat')
 
 
 if __name__ == '__main__':
