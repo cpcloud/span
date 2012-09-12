@@ -79,7 +79,7 @@ def ndtuples(*dims):
     cur : array_like
     """
     assert dims, 'no arguments given'
-    assert all(map(isinstance, dims, repeat(int, len(dims)))), \
+    assert all(map(isinstance, dims, itertools.repeat(int, len(dims)))), \
         'all arguments must be integers'
     dims = list(dims)
     n = dims.pop()
