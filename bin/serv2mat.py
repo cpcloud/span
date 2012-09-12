@@ -45,8 +45,8 @@ def parse_args():
     
 def main():
     # parse the arguments
-    args = parse_args()
-    dn = args.dirname
+    dn = parse_args()
+    print args
     dnbn = os.path.basename(dn)
     
     mat_filename = dnbn + os.extsep + 'mat'
