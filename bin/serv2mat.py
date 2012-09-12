@@ -34,8 +34,9 @@ def parse_args():
         parser.add_argument('dirname', metavar='DIRNAME', type=str,
                             help='a directory name from the server')
     except AttributeError:
-        parser.add_option('dirname', metavar='DIRNAME', type=str,
-                            help='a directory name from the server')
+        pass
+        # parser.add_option('dirname', metavar='DIRNAME', type=str,
+                            # help='a directory name from the server')
 
     try:
         _, args = parser.parse_args()
