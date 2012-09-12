@@ -70,7 +70,7 @@ def matrixcorrelate(x):
     raise NotImplementedError
 
 
-def xcorr(x, y=None, maxlags=None, detrend=detrend_none, normalize=False,gs
+def xcorr(x, y=None, maxlags=None, detrend=detrend_none, normalize=False,
           unbiased=False):
     """Compute the cross correlation of `x` and `y`.
 
