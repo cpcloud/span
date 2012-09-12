@@ -4,7 +4,11 @@
 """
 
 import os
-import argparse
+
+try:
+    from argparse import ArgumentParser
+except ImportError:
+    from optparse import OptionParser as ArgumentParser
 
 import scipy.io
 
@@ -26,16 +30,26 @@ def serv2mat(raw, output_filename, name='data'):
 
 def parse_args():
     """Parse command line arguments."""
-    parser = argparse.ArgumentParser(description='convert TDT to MATLAB')
-    parser.add_argument('dirname', metavar='DIRNAME', type=str,
-                        help='a directory name from the server')
-    return parser.parse_args()
+    parser = ArgumentParser(description='convert TDT to MATLAB')
+    try:
+        parser.add_argument('dirname', metavar='DIRNAME', type=str,
+                            help='a directory name from the server')
+    except AttributeError:
+        parser.add_option('dirname', metavar='DIRNAME', type=str,
+                            help='a directory name from the server')
+
+    try:
+        _, args = parser.parse_args()
+    except ValueError:
+        args = parser.parse_args()
+    return args
 
     
 def main():
     # parse the arguments
     args = parse_args()
     dn = args.dirname
+    dnbn = os.path.basename(dn)
     
     mat_filename = dnbn + os.extsep + 'mat'
 
