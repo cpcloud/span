@@ -8,10 +8,30 @@ import glob
 import string
 import itertools
 
+
+from functools import reduce
 from itertools import imap as map, izip as zip
 
 import numpy as np
 import pandas as pd
+
+try:
+    from pylab import detrend_none, detrend_mean, detrend_linear
+except RuntimeError:
+    def detrend_none(x):
+        return x
+    
+
+    def detrend_mean(x):
+        return x - x.mean()
+    
+
+    def detrend_linear(y):
+        x = np.arange(len(y), dtype=float)
+        c = np.cov(x, y, bias=1)
+        b = c[0, 1] / c[0, 0]
+        a = y.mean() - b * x.mean()
+        return y - (b * x + a)
 
 from span.tdt.functional import compose, composemap
 
@@ -295,24 +315,16 @@ def summary(group, func):
     assert func_is_valid, ("'func' must be a string or function: "
                            "type(func) == {0}".format(type(func)))
 
-    # if `func` is a string
     if hasattr(group, func):
         getter = operator.attrgetter(func)
         chan_func = getter(group)
         chan_func_t = getter(chan_func().T)
         return chan_func_t()
-
-    # else if it's a function and has the attribute `__name__`
-    elif hasattr(func, '__name__') and \
-            hasattr(group, func.__name__):
-        # recurse
+    elif hasattr(func, '__name__') and hasattr(group, func.__name__):
         return summary(func.__name__)
-
-    # else if it's just a regular ole' function
     else:
         f = lambda x: func(SpikeDataFrame.flatten(x))
 
-    # apply the function to the channel group
     return group.apply(f)
 
 
@@ -436,7 +448,16 @@ def iscomplex(x):
     r : bool
         Whether x's dtype is a sub dtype or equal to complex.
     """
-    return np.issubdtype(x.dtype, complex)
+    try:
+        return np.issubdtype(x.dtype, complex)
+    except AttributeError:
+        return any(map(np.issubdtype, x.dtypes, itertools.repeat(complex, x.dtypes.size)))
+
+
+def hascomplex(x):
+    """
+    """
+    return iscomplex(x) and not np.logical_not(x.imag).all()
     
 
 def get_fft_funcs(*arrays):
@@ -459,7 +480,17 @@ def get_fft_funcs(*arrays):
     return r
 
 
-def electrode_distance(fromij, toij, between_shank=125, within_shank=100):
+def electrode_distance_old(fromij, toij, between_shank=125, within_shank=100):
+
+    fromi, fromj = fromij
+    toi, toj = toij
+
+    col_diff = (toj - fromj) * between_shank
+    row_diff = (toi - fromi) * within_shank
+    return np.sqrt(col_diff ** 2 + row_diff ** 2)
+
+
+def electrode_distance(locs, bs=125.0, ws=100.0):
     """Compute the distance between two electrodes given an index and between and
     within shank distance.
 
@@ -475,15 +506,19 @@ def electrode_distance(fromij, toij, between_shank=125, within_shank=100):
     d : float
         The distance between electrodes at e_ij and e_kl.
     """
-    fromi, fromj = fromij
-    toi, toj = toij
+    assert locs.ndim == 2, 'invalid locations array'
+    ncols = locs.shape[1]
+    ncols2 = int(np.floor(ncols / 2.0))
+    d = ((locs[:, ncols2:ncols] - locs[:, :ncols2]) * [bs, ws]) ** 2.0
+    s = locs.shape[0]
+    si = int(np.sqrt(s))
+    dist = np.sqrt(d.sum(axis=1))
+    assert np.logical_not(dist[np.diag(np.r_[:s].reshape((si, si)))]).all(), \
+        'self distance is not 0'
+    return dist
 
-    col_diff = (toj - fromj) * between_shank
-    row_diff = (toi - fromi) * within_shank
-    return np.sqrt(col_diff ** 2 + row_diff ** 2)
 
-
-def distance_map(n=4):
+def distance_map(nshanks=4, electrodes_per_shank=4):
     """Create an electrode distance map.
 
     Parameters
@@ -494,9 +529,25 @@ def distance_map(n=4):
     -------
     ret : pandas.Series
     """
-    rangen = np.arange(n)
-    a, b, c, d = ndtuples(n, n, n, n).T
-    dists = np.asanyarray([electrode_distance((ai, bi), (ci, di))
-                           for ai, bi, ci, di in zip(a, b, c, d)])
-    index = pd.MultiIndex.from_arrays((a, b, c, d))
-    return pd.Series(dists, index=index, name='distance')
+    # a, b, c, d = ndtuples(n, n, n, n).T
+    indices = ndtuples(*itertools.repeat(electrodes_per_shank, nshanks))
+    dists = electrode_distance(indices)
+    # dists = np.asanyarray([electrode_distance((ai, bi), (ci, di))
+                           # for ai, bi, ci, di in zip(a, b, c, d)])
+    # index = pd.MultiIndex.from_arrays([x for x in indices.T])
+    nelectrodes = nshanks * electrodes_per_shank 
+    return pd.DataFrame(dists.reshape((nelectrodes, nelectrodes)))
+
+
+def isvector(x):
+    """Test whether `x` is a vector, i.e., ...
+
+    Parameters
+    ----------
+    x : array_like
+
+    Returns
+    -------
+    b : bool
+    """
+    return reduce(operator.mul, x.shape) == max(x.shape)
