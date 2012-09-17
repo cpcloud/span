@@ -2,17 +2,16 @@
 """
 
 import os
-import sys
 import abc
 import re
 import mmap
 import contextlib
 
-from itertools import imap as map
+from itertools import imap as map, izip as zip
 
-from spikeglobals import *
-from spikedataframe import SpikeDataFrame
-from decorate import thunkify, cached_property
+from span.tdt.spikeglobals import *
+from span.tdt.spikedataframe import SpikeDataFrame
+from span.tdt.decorate import thunkify, cached_property
 from span.utils import name2num
 
 class TdtTankBase(object):
@@ -25,7 +24,7 @@ class TdtTankBase(object):
     site_re = re.compile(r'.*s(?:ite)?(?:\s|_)*(\d+)')
     header_ext = 'tsq'
     raw_ext = 'tev'
-    tsq_dtype = np.dtype(list(zip(TsqFields, TsqNumpyTypes)))
+    tsq_dtype = np.dtype(list(zip(fields, np_types)))
     age_re = re.compile(r'.*[pP](\d+).*')
 
     def __init__(self, tankname):
@@ -35,6 +34,10 @@ class TdtTankBase(object):
         self.tankname = tankname
         self.animal_age = int(self.age_re.match(basename).group(1))
 
+        self.__date = self._parse_date(basename)
+        self.site = int(self.site_re.match(basename).group(1))
+
+    def _parse_date(self, basename):
         try:
             date = self.date_re.match(basename).group(1)
         except AttributeError:
@@ -45,8 +48,7 @@ class TdtTankBase(object):
                                                          date[1::2])).split(os.sep)
             month, day, year = map(int, datetmp)
 
-        self.__date = pd.datetime(year=year + 2000, month=month, day=day).date()
-        self.site = int(self.site_re.match(basename).group(1))
+        return pd.datetime(year=year + 2000, month=month, day=day).date()
 
     @property
     def date(self): return str(self.__date)
@@ -66,16 +68,12 @@ class TdtTankBase(object):
         return b.join(shank).join(side)
 
     @cached_property
-    def nchans(self): return self.tsq.channel.max() + 1
-
-    @cached_property
     def tsq(self): return self._read_tsq()()
 
-    @cached_property
-    def spikes(self): return self._read_tev('Spik')()
+    def tev(self, event_name): return self._read_tev(event_name)()
 
     @cached_property
-    def spike_fs(self): return self.fs.max()
+    def spikes(self): return self.tev('Spik')
 
 
 class PandasTank(TdtTankBase):
