@@ -4,21 +4,17 @@
 Module for reading TDT (Tucker-Davis Technologies) Tank files.
 """
 
+from future_builtins import filter
+
 import os
-import sys
 import glob
 
-from itertools import ifilter as filter
-
-import numpy as np
-import pandas as pd
-
-import tank
+import span.tdt.tank
 import span.utils
 
 
 def get_tank_names(path=os.path.expanduser(os.path.join('~', 'xcorr_data')),
-                   key=lambda x: span.utils.dirsize(x)):
+                   key=span.utils.dirsize):
     """Get the names of the tanks on the current machine.
 
     Parameters
@@ -65,9 +61,9 @@ def profile_spikes(pct_stats=0.05, sortby='time'):
 
 
 if __name__ == '__main__':
-    fns = get_tank_names()
+    fnames = get_tank_names()
     ind = 0
-    fn = fns[ind]
-    fn_small = os.path.join(fn, os.path.basename(fn))
-    t = tank.PandasTank(fn_small)
+    fname = fnames[ind]
+    fn_small = os.path.join(fname, os.path.basename(fname))
+    t = span.tdt.tank.PandasTank(fn_small)
     sp = t.spikes
