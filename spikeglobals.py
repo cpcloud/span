@@ -14,6 +14,7 @@ ElectrodeMap = pd.Series(np.array([[1, 3, 2, 6],
                                    [14, 16, 11, 15]]).ravel() - 1, name='Electrode Map')
 
 NShanks = 4
+ElectrodesPerShank = 4
 NSides = NShanks * 2
 ShankMap = pd.Series(np.outer(xrange(NShanks),
                               np.ones(NShanks)).astype(int).ravel(),
@@ -34,5 +35,6 @@ EventTypes = pd.Series({
     0x8801: 'mark'
 }, name='Event Types')
 
-DistanceMap = pd.Series(span.utils.distance_map(n=NShanks).ravel(),
+DistanceMap = pd.Series(span.utils.distance_map(nshanks=NShanks,
+                                                electrodes_per_shank=ElectrodesPerShank).values.ravel(),
                         name='Electrode Distance')
