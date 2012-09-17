@@ -4,10 +4,10 @@ import numpy as np
 from numpy.random import randint, rand, randn
 from numpy.testing import assert_allclose, assert_array_equal
 
-from ..utils import (cast, ndtuples, dirsize, ndlinspace, nans, remove_legend,
-                     name2num, group_indices, flatten, bin_data, summary,
-                     nextpow2, fractional, zeropad, pad_larger2, pad_larger,
-                     iscomplex)
+from span.utils import (cast, ndtuples, dirsize, ndlinspace, nans, remove_legend,
+                        name2num, group_indices, flatten, bin_data, summary,
+                        nextpow2, fractional, zeropad, pad_larger2, pad_larger,
+                        iscomplex, hascomplex, get_fft_funcs)
 
 
 def rand_array_delegate(func, n, ndims):
@@ -117,11 +117,11 @@ def test_get_fft_funcs():
     x = randn(100, 100)
     xc = x + 1j
     
-    fft, ifft = get_fft_funcs(xc)
+    ifft, fft = get_fft_funcs(xc)
     assert fft is np.fft.fft
     assert ifft is np.fft.ifft
 
-    fft, ifft = get_fft_funcs(x)
+    ifft, fft = get_fft_funcs(x)
     assert fft is np.fft.rfft
     assert ifft is np.fft.irfft
         
