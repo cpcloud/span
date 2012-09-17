@@ -288,10 +288,10 @@ class SpikeDataFrame(SpikeDataFrameBase):
         flat_upper_inds = np.ravel_multi_index(np.vstack(upper_inds),
                                                (nchannels, nchannels))
         axs_to_hide = axs.flat[flat_upper_inds]
-        list(map(lambda ax: ax.set_frame_on(False), axs_to_hide))
         list(map(lambda ax: map(lambda tax: tax.set_visible(False), (ax.xaxis, ax.yaxis)),
                  axs_to_hide))
-        list(map(remove_legend, axs_to_hide))
+        list(map(lambda ax: ax.set_frame_on(False), axs_to_hide))
+        list(map(remove_legend, axs.flat))
 
         min_value = xc.min().min()
         for indi, i in enumerate(elec_map):
@@ -301,13 +301,8 @@ class SpikeDataFrame(SpikeDataFrameBase):
                     ax.tick_params(labelsize=labelsize, left=True,
                                    right=False, top=False, bottom=True,
                                    direction='out')
-                    xcij = xc.ix[i, j].T # xcorr of chi with chj
+                    xcij = xc.ix[i, j].T
                     ax.vlines(xcij.index, min_value, xcij)
-                    remove_legend(ax=ax)
-                # else:
-                #     ax.set_frame_on(False)
-                #     for tax in (ax.xaxis, ax.yaxis):
-                #         tax.set_visible(False)
         fig.tight_layout()
         return fig, axs
 
