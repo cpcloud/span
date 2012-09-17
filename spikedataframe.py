@@ -1,28 +1,31 @@
 """
 """
 
-import sys
+from __future__ import division
+from future_builtins import map, zip
+
 import abc
+import itertools
 
 import numpy as np
+import scipy.stats
 import pandas as pd
 
 try:
-    from pylab import detrend_none, subplots
+    from pylab import subplots
 except RuntimeError:
-    detrend_none, subplots = lambda x: x, None
+    subplots = None
 
-import span
-from xcorr import xcorr
-from decorate import cached_property
+from span.tdt.decorate import cached_property
 
-from span.utils import summary, group_indices, flatten, cast, ndtuples
-from spikeglobals import DistanceMap, ShankMap
+from span.utils import (summary, group_indices, flatten, cast, ndtuples,
+                        detrend_mean, clear_refrac_out, Series, DataFrame,
+                        remove_legend)
+from span.tdt.spikeglobals import Indexer
 
 
-class SpikeDataFrameAbstractBase(pd.DataFrame):
-    """Abstract base class for all spike data frames.
-    """
+class SpikeDataFrameAbstractBase(DataFrame):
+    """Abstract base class for spike data frames."""
 
     __metaclass__ = abc.ABCMeta
 
@@ -37,22 +40,17 @@ class SpikeDataFrameAbstractBase(pd.DataFrame):
         """
         super(SpikeDataFrameAbstractBase, self).__init__(spikes, *args, **kwargs)
         self.meta = spikes.meta if meta is None else meta
-
-    @abc.abstractproperty
-    def fs(self):
-        """Sampling rate
-
-        Returns
-        -------
-        sampling_rate : float
-            The sampling rate of the recording.
-        """
-        pass
+        self.fs = self.meta.fs.max()
+        self.nchans = int(self.meta.channel.max() + 1)
 
     @abc.abstractproperty
     def raw(self):
-        """Retrieve the underlying raw NumPy array.
-        """
+        """Retrieve the underlying raw NumPy array."""
+        pass
+
+    @abc.abstractproperty
+    def channels(self):
+        """Retrieve the data organized as samples by channels."""
         pass
 
 
@@ -71,13 +69,13 @@ class SpikeDataFrameBase(SpikeDataFrameAbstractBase):
 
         # number of channels
         nch = inds.columns.size
-        
+
         # get indices of the sorted (descending) dimensions of vals
         shpsort = np.asanyarray(vals.shape).argsort()[::-1]
 
         # transpose vals to make a reshape into a samples x channels array
         valsr = vals.transpose(shpsort).reshape(vals.size // nch, nch)
-        return pd.DataFrame(valsr, columns=inds.columns)
+        return DataFrame(valsr, columns=inds.columns)
 
     @property
     def shanks(self):
@@ -86,57 +84,74 @@ class SpikeDataFrameBase(SpikeDataFrameAbstractBase):
         nsh = inds.columns.size
         shpsort = np.asanyarray(vals.shape).argsort()[::-1]
         valsr = vals.transpose(shpsort).reshape(vals.size // nsh, nsh)
-        return pd.DataFrame(valsr, columns=inds.columns)
+        return DataFrame(valsr, columns=inds.columns)
 
     @cached_property
     def channels_slow(self):
         channels = self.channel_group.apply(flatten).T
         channels.columns = cast(channels.columns, int)
         return channels
-    
-    def fs(self): return self.meta.fs.unique().max()
-    def nchans(self): return int(self.meta.channel.max() + 1)
 
+    @property
     def channel_indices(self): return group_indices(self.channel_group)
+
+    @property
     def shank_indices(self): return group_indices(self.shank_group)
+
+    @property
     def side_indices(self): return group_indices(self.side_group)
-    
+
+    @property
     def channel_group(self): return self.groupby(level=self.meta.channel.name)
+
+    @property
     def shank_group(self): return self.groupby(level=self.meta.shank.name)
+
+    @property
     def side_group(self): return self.groupby(level=self.meta.side.name)
 
+    @property
     def raw(self): return self.channels.values
-    
-    fs = cached_property(fs)
-    nchans = cached_property(nchans)
-
-    channel_indices = cached_property(channel_indices)
-    shank_indices = cached_property(shank_indices)
-    side_indices = cached_property(side_indices)
-
-    channel_group = property(channel_group)
-    shank_group = property(shank_group)
-    side_group = property(side_group)
-
-    raw = property(raw)
 
     def channel(self, i): return self.channels[i]
-    def mean(self): return self.channel_summary('mean')
-    def var(self): return self.channels.var()
-    def std(self): return self.channels.std()
-    def mad(self): return self.channels.mad()
-    def sem(self): return pd.Series(scipy.stats.sem(self.raw, axis=0))
-    def median(self): return self.channels.median()
-    def sum(self): return self.channel_summary('sum')
-    def max(self): return self.channel_summary('max')
-    def min(self): return self.channel_summary('min')
-    def channel_summary(self, func): return summary(self.channel_group, func)
+
+    def mean(self, axis=0, skipna=True, level=None):
+        return self.channel_summary('mean', axis=axis, skipna=skipna,
+                                    level=level)
+
+    def var(self, axis=0, skipna=True, level=None, ddof=1):
+        return self.channels.var(axis=axis, skipna=skipna, level=level, ddof=ddof)
+
+    def std(self, axis=0, skipna=True, level=None, ddof=1):
+        return self.channels.std(axis=axis, skipna=skipna, level=level, ddof=ddof)
+
+    def mad(self, axis=0, skipna=True, level=None):
+        return self.channels.mad(axis=axis, skipna=skipna, level=level)
+
+    def sem(self, axis=0, skipna=True, level=None):
+        return pd.Series(scipy.stats.sem(np.ma.masked_invalid(self.raw, np.nan),
+                                         axis=axis))
+
+    def median(self, axis=0, skipna=True, level=None):
+        return self.channels.median(axis=axis, skipna=skipna, level=level)
+
+    def sum(self, axis=0, skipna=True, level=None, numeric_only=None):
+        return self.channel_summary('sum', axis=axis, skipna=skipna, level=level)
+
+    def max(self, axis=0, skipna=True, level=None):
+        return self.channel_summary('max', axis=axis, skipna=skipna, level=level)
+
+    def min(self, axis=0, skipna=True, level=None):
+        return self.channel_summary('min', axis=axis, skipna=skipna, level=level)
+
+    def channel_summary(self, func, axis, skipna, level):
+        return summary(self.channel_group, func, axis, skipna, level)
 
 
 class SpikeDataFrame(SpikeDataFrameBase):
+    """ """
     def __init__(self, spikes, meta=None, *args, **kwargs):
         super(SpikeDataFrame, self).__init__(spikes, meta=meta, *args, **kwargs)
-        self.__xcorrs, self.__binned = None, None
 
     def __lt__(self, other): return self.lt(other)
     def __le__(self, other): return self.le(other)
@@ -144,10 +159,9 @@ class SpikeDataFrame(SpikeDataFrameBase):
     def __ge__(self, other): return self.ge(other)
     def __ne__(self, other): return self.ne(other)
     def __eq__(self, other): return self.eq(other)
-    def __bool__(self): return self.all().all()
 
     threshold = __gt__
-    
+
     def bin(self, threshes, ms=2.0, binsize=1000, conv=1e3):
         """Bin spike data by `ms` millisecond bins.
 
@@ -163,16 +177,15 @@ class SpikeDataFrame(SpikeDataFrameBase):
 
         Returns
         -------
-        df : pd.DataFrame
+        df : DataFrame
         """
         cleared = self.cleared(threshes, ms=ms).channels
         max_sample = self.channels.index[-1]
         bin_samples = cast(np.floor(binsize * self.fs / conv), int)
         bins = np.r_[:max_sample:bin_samples]
-        zipped_bins = list(zip(bins[:-1], bins[1:]))
-        v = cleared.values[[range(bi, bj) for bi, bj in zipped_bins]]
+        v = cleared.values[list(map(xrange, bins[:-1], bins[1:]))]
         axis, = np.where(np.asanyarray(v.shape) == bin_samples)
-        return pd.DataFrame(v.sum(axis))
+        return DataFrame(v.sum(axis))
 
     def refrac_window(self, ms=2.0, conv=1e3):
         """Compute the refractory window in samples.
@@ -195,50 +208,11 @@ class SpikeDataFrame(SpikeDataFrameBase):
         # TODO: fragile indexing here
         if clr.shape[0] < clr.shape[1]:
             clr = clr.T
-        span.utils.clear_refrac_out(clr.values, self.refrac_window(ms))
+        clear_refrac_out(clr.values, self.refrac_window(ms))
         return clr
 
-    @property
-    def xcorrs(self): return self.__xcorrs
-
-    @xcorrs.setter
-    def xcorrs(self, value):
-        self.__xcorrs = value
-
-    @property
-    def binned(self): return self.__binned
-
-    @binned.setter
-    def binned(self, value): self.__binned = value
-
-    def xcorr1(self, chi, chj, maxlags=100, detrend=detrend_none,
-               unbiased=False, normalize=False):
-        """Compute the cross correlation of two channels.
-
-        Parameters
-        ----------
-        i, j : int
-        threshes : array_like
-        ms : float, optional
-        binsize : float, optional
-        maxlags : int, optional
-        conv : float, optional
-        detrend : callable, optional
-        unbiased : bool, optional
-        normalize : bool, optional
-
-        Returns
-        -------
-        c : pandas.Series
-            The cross correlation of the spike counts in channels i and j.
-        """
-        return xcorr(chi, chj, maxlags=maxlags, detrend=detrend,
-                     unbiased=unbiased, normalize=normalize)
-
-    def xcorr(self, threshes, ms=2.0, binsize=1e3, conv=1e3, maxlags=100,
-              detrend=detrend_none, unbiased=False, normalize=False,
-              plot=False, figsize=(40, 25), dpi=80, titlesize=4, labelsize=3,
-              sharex=True, sharey=True):
+    def xcorr(self, threshes, ms=2.0, binsize=1000, conv=1000, maxlags=100,
+              detrend=detrend_mean, scale_type='normalize'):
         """
 
         Parameters
@@ -249,68 +223,93 @@ class SpikeDataFrame(SpikeDataFrameBase):
         maxlags : int, optional
         conv : float, optional
         detrend : callable, optional
-        unbiased : bool, optional
-        normalize : bool, optional
+        scale_type : str
 
         Returns
         -------
-        xc : pandas.DataFrame
+        xc : DataFrame
             The cross correlation of all the channels in the data
         """
-        if self.xcorrs is None:
-            if self.binned is None:
-                self.binned = self.bin(threshes, ms=ms, binsize=binsize,
-                                       conv=conv)
-            nchannels = self.binned.columns.size
-            ncorrs = nchannels ** 2
-            xctmp = np.empty((ncorrs, 2 * maxlags - 1))
 
-            left, right = ndtuples(nchannels, nchannels).T
-            lshank, rshank = ShankMap[left], ShankMap[right]
-            lshank.name, rshank.name = 'Left Shank', 'Right Shank'
+        binned = self.bin(threshes, ms=ms, binsize=binsize, conv=conv)
+        nchannels = binned.columns.size
+        left, right = ndtuples(nchannels, nchannels).T
+        left, right = map(Series, (left, right))
+        left.name, right.name = 'ch i', 'ch j'
+        sorted_indexer = Indexer.sort('channel').reset_index(drop=True)
+        lshank, rshank = sorted_indexer.shank[left], sorted_indexer.shank[right]
+        lshank.name, rshank.name = 'sh i', 'sh j'
+        index = pd.MultiIndex.from_arrays((left, right, lshank, rshank))
+        xc = binned.xcorr(maxlags=maxlags, detrend=detrend,
+                          scale_type=scale_type).T
+        xc.index = index
+        return xc
 
-            # TODO: use matrix xcorr for cases like these, it might be
-            # faster
-            # TODO: implement electrode distance indexing
-            k = 0
-            for i, _ in self.binned.iterkv():
-                for j, _ in self.binned.iterkv():
-                    c = self.xcorr1(self.binned[i], self.binned[j],
-                                    maxlags=maxlags, detrend=detrend,
-                                    unbiased=unbiased, normalize=normalize)
-                    xctmp[k] = c
-                    k += 1
-            
-            index = pd.MultiIndex.from_arrays((left, right, lshank, rshank))
-            self.xcorrs = pd.DataFrame(xctmp, index=index, columns=c.index)
-            
-        xc = self.xcorrs
+    @classmethod
+    def plot_xcorr(cls, xc, figsize=(40, 25), dpi=100, titlesize=4, labelsize=3,
+                   sharex=True, sharey=True):
+        # get the channel indexer
+        elec_map = Indexer.channel
 
-        # TODO: move this to another (possibly static) method.
-        if plot:
-            elec_map = ElectrodeMap
-            nchannels = self.nchans
-            fig, axs = subplots(nchannels, nchannels, sharex=sharex,
-                                sharey=sharey, figsize=figsize, dpi=dpi)
-            for indi, i in enumerate(elec_map):
-                for indj, j in enumerate(elec_map):
-                    ax = axs[indi, indj]
-                    if indi >= indj:
-                        ax.tick_params(labelsize=labelsize, left=True,
-                                       right=False, top=False, bottom=True,
-                                       direction='out')
-                        xcij = xc.ix[i, j].T
-                        ax.vlines(xcij.index, 0, xcij)
-                        ax.set_title('%i vs. %i' % (i + 1, j + 1),
-                                     fontsize=titlesize)
-                        ax.grid()
-                        remove_legend(ax=ax)
-                    else:
-                        ax.set_frame_on(False)
-                        for tax in (ax.xaxis, ax.yaxis):
-                            tax.set_visible(False)
-            fig.tight_layout()
-        return xc, DistanceMap
+        # number of channels
+        nchannels = elec_map.size
+
+        # the channel index labels
+        left, right, _, _ = xc.index.labels
+
+        # indices of a lower triangular nchannels by nchannels array
+        lower_inds = np.tril_indices(nchannels)
+
+        # flatted and linearly indexed
+        flat_lower_inds = np.ravel_multi_index(np.vstack(lower_inds),
+                                               (nchannels, nchannels))
+
+        # make a list of strings for titles
+        title_strings = cast(np.vstack((left + 1, right + 1)), str).T.tolist()
+        title_strings = np.asanyarray(list(map(' vs. '.join, title_strings)))
+
+        # get only the ones we want
+        title_strings = title_strings[flat_lower_inds]
+
+        # create the subplots with linked axes
+        fig, axs = subplots(nchannels, nchannels, sharex=sharex, sharey=sharey,
+                            figsize=figsize, dpi=dpi)
+
+        # get the axes objects that we want to show
+        axs_to_show = axs.flat[flat_lower_inds]
+
+        # set the title on the axes objects that we want to see
+        titler = lambda ax, s, fs: ax.set_title(s, fontsize=fs)
+        sizes = itertools.repeat(titlesize, axs_to_show.size)
+        list(map(titler, axs_to_show.flat, title_strings, sizes))
+
+        # hide the ones we don't want
+        upper_inds = np.triu_indices(nchannels, 1)
+        flat_upper_inds = np.ravel_multi_index(np.vstack(upper_inds),
+                                               (nchannels, nchannels))
+        axs_to_hide = axs.flat[flat_upper_inds]
+        list(map(lambda ax: ax.set_frame_on(False), axs_to_hide))
+        list(map(lambda ax: map(lambda tax: tax.set_visible(False), (ax.xaxis, ax.yaxis)),
+                 axs_to_hide))
+        list(map(remove_legend, axs_to_hide))
+
+        min_value = xc.min().min()
+        for indi, i in enumerate(elec_map):
+            for indj, j in enumerate(elec_map):
+                ax = axs[indi, indj]
+                if indi >= indj:
+                    ax.tick_params(labelsize=labelsize, left=True,
+                                   right=False, top=False, bottom=True,
+                                   direction='out')
+                    xcij = xc.ix[i, j].T # xcorr of chi with chj
+                    ax.vlines(xcij.index, min_value, xcij)
+                    remove_legend(ax=ax)
+                # else:
+                #     ax.set_frame_on(False)
+                #     for tax in (ax.xaxis, ax.yaxis):
+                #         tax.set_visible(False)
+        fig.tight_layout()
+        return fig, axs
 
     def astype(self, dtype):
         """Return a new instance of SpikeDataFrame with a (possibly) different
@@ -378,5 +377,5 @@ class SpikeDataFrame(SpikeDataFrameBase):
                 meta = args.pop(1)
             if 'meta' not in kwargs or kwargs['meta'] is None or meta is None:
                 kwargs['meta'] = self.meta
-            return type(self)(*args, **kwargs)
+            return SpikeDataFrame(*args, **kwargs)
         return construct
