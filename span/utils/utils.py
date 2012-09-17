@@ -1,6 +1,8 @@
 """A collection of utility functions.
 """
 
+from future_builtins import map, zip
+
 import os
 import types
 import operator
@@ -8,23 +10,21 @@ import glob
 import string
 import itertools
 
-
 from functools import reduce
-from itertools import imap as map, izip as zip
 
 import numpy as np
 import pandas as pd
 
 try:
-    from pylab import detrend_none, detrend_mean, detrend_linear
+    from pylab import detrend_none, detrend_mean, detrend_linear, gca
 except RuntimeError:
     def detrend_none(x):
         return x
-    
+
 
     def detrend_mean(x):
         return x - x.mean()
-    
+
 
     def detrend_linear(y):
         x = np.arange(len(y), dtype=float)
@@ -33,8 +33,9 @@ except RuntimeError:
         a = y.mean() - b * x.mean()
         return y - (b * x + a)
 
-from span.tdt.functional import compose, composemap
+    gca = NotImplemented
 
+from span.tdt.functional import composemap
 
 def get_names_and_threshes(f):
     """Read in an excel file and get the names of the recordings and the
@@ -152,7 +153,7 @@ def ndlinspace(ranges, *nelems):
     x = ndtuples(*nelems) + 1.0
     b = np.asanyarray(nelems)
     lbounds, ubounds = map(np.fromiter, zip(*((r[0], r[1]) for r in ranges)),
-                           (np.float64, np.float64))
+                           (float, float))
     return lbounds + (x - 1) / (b - 1) * (ubounds - lbounds)
 
 
@@ -200,7 +201,7 @@ def remove_legend(ax=None):
     ax : matplotlib.axes.Axes
     """
     if ax is None:
-        ax = pylab.gca()
+        ax = gca()
     ax.legend_ = None
 
 
@@ -297,7 +298,7 @@ def bin_data(data, bins):
 
 
 # TODO: Make this function less ugly!
-def summary(group, func):
+def summary(group, func, axis, skipna, level):
     """Perform a summary computation on a group.
 
     Parameters
@@ -310,8 +311,7 @@ def summary(group, func):
     sumry : pandas.DataFrame or pandas.Series
     """
     # check to make sure that `func` is a string or function
-    func_is_valid = any(map(isinstance, (func, func),
-                                  (str, types.FunctionType)))
+    func_is_valid = any(map(isinstance, (func, func), (str, types.FunctionType)))
     assert func_is_valid, ("'func' must be a string or function: "
                            "type(func) == {0}".format(type(func)))
 
@@ -319,13 +319,13 @@ def summary(group, func):
         getter = operator.attrgetter(func)
         chan_func = getter(group)
         chan_func_t = getter(chan_func().T)
-        return chan_func_t()
+        return chan_func_t(axis=axis, skipna=skipna, level=level)
     elif hasattr(func, '__name__') and hasattr(group, func.__name__):
-        return summary(func.__name__)
+        return summary(group, func.__name__, axis, skipna, level)
     else:
-        f = lambda x: func(SpikeDataFrame.flatten(x))
+        f = lambda x: func(flatten(x), skipna=skipna)
 
-    return group.apply(f)
+    return group.apply(f, axis=axis)
 
 
 def nextpow2(n):
@@ -423,7 +423,7 @@ def pad_larger(*arrays):
     """
     if len(arrays) == 2:
         return pad_larger2(*arrays)
-    size_getter = operater.attrgetter('size')
+    size_getter = operator.attrgetter('size')
     sizes = np.fromiter(map(size_getter, arrays), int)
     lsize = sizes.max()
 
@@ -458,7 +458,7 @@ def hascomplex(x):
     """
     """
     return iscomplex(x) and not np.logical_not(x.imag).all()
-    
+
 
 def get_fft_funcs(*arrays):
     """Get the correct fft functions for the input type.
@@ -535,7 +535,7 @@ def distance_map(nshanks=4, electrodes_per_shank=4):
     # dists = np.asanyarray([electrode_distance((ai, bi), (ci, di))
                            # for ai, bi, ci, di in zip(a, b, c, d)])
     # index = pd.MultiIndex.from_arrays([x for x in indices.T])
-    nelectrodes = nshanks * electrodes_per_shank 
+    nelectrodes = nshanks * electrodes_per_shank
     return pd.DataFrame(dists.reshape((nelectrodes, nelectrodes)))
 
 
