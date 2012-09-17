@@ -26,6 +26,7 @@ class ProgressBar(object):
         self.format = fmt
         self.incremental = incremental
         self.step = 100. / width
+        self.progress = None
         self.reset()
 
     def __iadd__(self, increment):
