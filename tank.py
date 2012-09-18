@@ -85,6 +85,8 @@ class PandasTank(TdtTankBase):
         """Read a TDT Tank tev files."""
         name = name2num(event_name)
         row = name == self.tsq.name
+        assert row.any(), 'no event named %s in tank: %s' % (event_name,
+                                                             self.tankname)
         table = ((np.float32, 1, np.float32),
                  (np.int32, 1, np.int32),
                  (np.int16, 2, np.int16),
@@ -100,7 +102,15 @@ class PandasTank(TdtTankBase):
         with open(tev_name, 'rb') as tev:
             with contextlib.closing(mmap.mmap(tev.fileno(), 0,
                                               access=mmap.ACCESS_READ)) as tev:
-                for i, offset in enumerate(fp_loc):
+                flags = ['buffered']
+                op_flags = [['readonly']]
+                op_dtypes = int
+                casting = 'safe'
+
+                for i, offset in enumerate(np.nditer(fp_loc, flags=flags,
+                                                     op_flags=op_flags,
+                                                     op_dtypes=op_dtypes,
+                                                     casting=casting)):
                     spikes[i] = np.frombuffer(tev, dtype, nsamples, offset)
         shanks, side = self.tsq.shank[row], self.tsq.side[row]
         index = pd.MultiIndex.from_arrays((shanks, chans, side))

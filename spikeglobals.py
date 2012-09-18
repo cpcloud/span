@@ -35,6 +35,7 @@ EventTypes = pd.Series({
     0x8801: 'mark'
 }, name='Event Types')
 
-DistanceMap = pd.Series(span.utils.distance_map(nshanks=NShanks,
-                                                electrodes_per_shank=ElectrodesPerShank).values.ravel(),
-                        name='Electrode Distance')
+RawDistance = span.utils.distance_map(nshanks=NShanks,
+                                      electrodes_per_shank=ElectrodesPerShank)
+DistanceMap = pd.DataFrame(RawDistance)
+DistanceMap.index, DistanceMap.columns = Indexer.channel, Indexer.channel

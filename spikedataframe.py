@@ -17,14 +17,14 @@ except RuntimeError:
     subplots = None
 
 from span.tdt.decorate import cached_property
+from span.tdt.xcorr import xcorr
 
 from span.utils import (summary, group_indices, flatten, cast, ndtuples,
-                        detrend_mean, clear_refrac_out, Series, DataFrame,
-                        remove_legend)
+                        detrend_mean, clear_refrac_out, remove_legend)
 from span.tdt.spikeglobals import Indexer
 
 
-class SpikeDataFrameAbstractBase(DataFrame):
+class SpikeDataFrameAbstractBase(pd.DataFrame):
     """Abstract base class for spike data frames."""
 
     __metaclass__ = abc.ABCMeta
@@ -75,7 +75,7 @@ class SpikeDataFrameBase(SpikeDataFrameAbstractBase):
 
         # transpose vals to make a reshape into a samples x channels array
         valsr = vals.transpose(shpsort).reshape(vals.size // nch, nch)
-        return DataFrame(valsr, columns=inds.columns)
+        return pd.DataFrame(valsr, columns=inds.columns)
 
     @property
     def shanks(self):
@@ -84,7 +84,7 @@ class SpikeDataFrameBase(SpikeDataFrameAbstractBase):
         nsh = inds.columns.size
         shpsort = np.asanyarray(vals.shape).argsort()[::-1]
         valsr = vals.transpose(shpsort).reshape(vals.size // nsh, nsh)
-        return DataFrame(valsr, columns=inds.columns)
+        return pd.DataFrame(valsr, columns=inds.columns)
 
     @cached_property
     def channels_slow(self):
@@ -185,7 +185,7 @@ class SpikeDataFrame(SpikeDataFrameBase):
         bins = np.r_[:max_sample:bin_samples]
         v = cleared.values[list(map(xrange, bins[:-1], bins[1:]))]
         axis, = np.where(np.asanyarray(v.shape) == bin_samples)
-        return DataFrame(v.sum(axis))
+        return pd.DataFrame(v.sum(axis))
 
     def refrac_window(self, ms=2.0, conv=1e3):
         """Compute the refractory window in samples.
@@ -234,14 +234,14 @@ class SpikeDataFrame(SpikeDataFrameBase):
         binned = self.bin(threshes, ms=ms, binsize=binsize, conv=conv)
         nchannels = binned.columns.size
         left, right = ndtuples(nchannels, nchannels).T
-        left, right = map(Series, (left, right))
+        left, right = map(pd.Series, (left, right))
         left.name, right.name = 'ch i', 'ch j'
         sorted_indexer = Indexer.sort('channel').reset_index(drop=True)
         lshank, rshank = sorted_indexer.shank[left], sorted_indexer.shank[right]
         lshank.name, rshank.name = 'sh i', 'sh j'
         index = pd.MultiIndex.from_arrays((left, right, lshank, rshank))
-        xc = binned.xcorr(maxlags=maxlags, detrend=detrend,
-                          scale_type=scale_type).T
+        xc = xcorr(binned, maxlags=maxlags, detrend=detrend,
+                   scale_type=scale_type).T
         xc.index = index
         return xc
 

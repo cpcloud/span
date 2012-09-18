@@ -5,9 +5,10 @@ Module for cross-correlation.
 """
 
 import numpy as np
+import pandas as pd
 
 from span.utils import (nextpow2, pad_larger, get_fft_funcs, detrend_mean,
-                        Series, DataFrame, isvector)
+                        isvector)
 
 
 def autocorr(x, n):
@@ -25,14 +26,13 @@ def autocorr(x, n):
     -------
     r : array_like
         The autocorrelation of `x`.
-    """        
+    """
     ifft, fft = get_fft_funcs(x)
     return ifft(np.abs(fft(x, n)) ** 2.0, n)
 
 
 def crosscorr(x, y, n):
     """Compute the cross correlation of `x` and `y` using a FFT.
-
 
     Parameters
     ----------
@@ -180,7 +180,7 @@ def xcorr(x, y=None, maxlags=None, detrend=detrend_mean, scale_type='normalize')
         The array to correlate.
 
     y : array_like, optional
-        If y is None or is equal to `x` or x and y reference the same object,
+        If y is None or equal to `x` or x and y reference the same object,
         the autocorrelation is computed.
 
     maxlags : int, optional
@@ -197,6 +197,10 @@ def xcorr(x, y=None, maxlags=None, detrend=detrend_mean, scale_type='normalize')
         lag 0 cross correlation i.e., the cross correlation scaled by the
         product of the standard deviations of the signals at lag 0.
 
+    Raises
+    ------
+    AssertionError
+
     Returns
     -------
     c : Series or DataFrame
@@ -205,7 +209,7 @@ def xcorr(x, y=None, maxlags=None, detrend=detrend_mean, scale_type='normalize')
         columns of x
     """
 
-    assert x.ndim in (1, 2), 'x must be a vector or matrix'
+    assert x.ndim in (1, 2), 'x must be a 1D or 2D array'
 
     x = detrend(x)
 
@@ -223,9 +227,10 @@ def xcorr(x, y=None, maxlags=None, detrend=detrend_mean, scale_type='normalize')
     if maxlags is None:
         maxlags = lsize
     else:
-        assert maxlags <= lsize, 'max lags must be less than or equal to %i' % lsize
+        assert maxlags <= lsize, ('max lags must be less than or equal to %i'
+                                  % lsize)
 
     lags = np.r_[1 - maxlags:maxlags]
-    return_type = DataFrame if ctmp.ndim == 2 else Series
+    return_type = pd.DataFrame if ctmp.ndim == 2 else pd.Series
     scaler = SCALE_FUNCTIONS[scale_type]
     return scaler(return_type(ctmp[lags], index=lags), lsize)
