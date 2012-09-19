@@ -16,11 +16,12 @@ try:
 except RuntimeError:
     subplots = None
 
-from span.tdt.decorate import cached_property
+from span.tdt.decorate import cached_property, thunkify
 from span.tdt.xcorr import xcorr
 
 from span.utils import (summary, group_indices, flatten, cast, ndtuples,
                         detrend_mean, clear_refrac_out, remove_legend)
+import span.utils
 from span.tdt.spikeglobals import Indexer
 
 
@@ -59,8 +60,8 @@ class SpikeDataFrameBase(SpikeDataFrameAbstractBase):
     def __init__(self, *args, **kwargs):
         super(SpikeDataFrameBase, self).__init__(*args, **kwargs)
 
-    @cached_property
-    def channels(self):
+    @thunkify
+    def _channels(self):
         # get the channel indices
         inds = self.channel_indices
 
@@ -76,6 +77,9 @@ class SpikeDataFrameBase(SpikeDataFrameAbstractBase):
         # transpose vals to make a reshape into a samples x channels array
         valsr = vals.transpose(shpsort).reshape(vals.size // nch, nch)
         return pd.DataFrame(valsr, columns=inds.columns)
+
+    @cached_property
+    def channels(self): return self._channels()()
 
     @property
     def shanks(self):
@@ -182,10 +186,10 @@ class SpikeDataFrame(SpikeDataFrameBase):
         cleared = self.cleared(threshes, ms=ms).channels
         max_sample = self.channels.index[-1]
         bin_samples = cast(np.floor(binsize * self.fs / conv), int)
-        bins = np.r_[:max_sample:bin_samples]
-        v = cleared.values[list(map(xrange, bins[:-1], bins[1:]))]
-        axis, = np.where(np.asanyarray(v.shape) == bin_samples)
-        return pd.DataFrame(v.sum(axis))
+        bins = cast(np.r_[:max_sample:bin_samples], int)
+        binned = span.utils.bin(cleared.values, bins)
+        shape = bins.size - 1, cleared.shape[1]
+        return pd.DataFrame(binned)
 
     def refrac_window(self, ms=2.0, conv=1e3):
         """Compute the refractory window in samples.
@@ -202,7 +206,23 @@ class SpikeDataFrame(SpikeDataFrameBase):
         return cast(np.floor(ms / conv * self.fs), int)
 
     def cleared(self, threshes, ms=2.0):
-        """Remove spikes from the refractory window of a channel."""
+        """Remove spikes from the refractory window of a channel.
+
+        Parameters
+        ----------
+        threshes : array_like
+            A single number for the whole array or a pd.Series object
+            that has size == number of channels of self.
+            FIXME: this doesn't work for an array of thresholds.
+        ms : float
+            The length of the refractory period in milliseconds.
+
+        Returns
+        -------
+        clr : array_like
+            The thresholded and refractory-period-cleared array of booleans
+            indicating the sample point at which a spike was above threshold.
+        """
         clr = self.threshold(threshes)
 
         # TODO: fragile indexing here
