@@ -1,12 +1,15 @@
 """
 """
 
+from future_builtins import map
 import abc
 import ftplib
 import getpass
 import os
 
-from progressbar import AnimatedProgressBar
+
+
+from span.tdt.progressbar import AnimatedProgressBar
 
 
 class AbstractServer(object):
@@ -14,10 +17,10 @@ class AbstractServer(object):
     """
 
     __metaclass__ = abc.ABCMeta
-    
+
     @abc.abstractmethod
-    def download_file(self, filename):
-        """
+    def download_file(self, filename, verbose=True):
+        """Download a file from the server
         """
         pass
 
@@ -38,7 +41,8 @@ class ArodServer(AbstractServer):
         super(ArodServer, self).__init__()
         self.username, self.hostname = username, hostname
         self.ftp = ftplib.FTP(self.hostname, self.username, getpass.getpass())
-        
+        self.progress_bar = None
+
     def __del__(self):
         self.ftp.close()
 
@@ -58,7 +62,7 @@ class ArodServer(AbstractServer):
         filename = os.path.join(os.sep, 'home', filename.lstrip('~' + os.sep))
         local_path = os.path.join(os.getcwd(), os.path.basename(filename))
         remote_filesize = self.ftp.size(filename)
-        
+
         if os.path.exists(local_path):
             if os.path.getsize(local_path) == remote_filesize:
                 return local_path
@@ -66,7 +70,7 @@ class ArodServer(AbstractServer):
         self.progress_bar = AnimatedProgressBar(end=remote_filesize, width=50)
         if verbose:
             print(os.path.basename(local_path))
-            
+
         with open(local_path, 'wb') as local_file:
             def callback(chunk):
                 """Callback function for RETR FTP operation.
@@ -79,14 +83,14 @@ class ArodServer(AbstractServer):
                 # yield len(chunk)
                 self.progress_bar += len(chunk)
                 self.progress_bar.show_progress()
-                
+
             self.ftp.retrbinary('RETR {0}'.format(filename), callback)
         print()
         return local_path
 
     def download_files(self, filenames):
         """Download files from the arod server using multithreading.
-            
+
         Parameters
         ----------
         server : ArodServer
@@ -98,5 +102,5 @@ class ArodServer(AbstractServer):
         r : list
             Names of the downloaded files
         """
-        return [self.download_file(filename) for filename in filenames]
-    
+
+        return list(map(self.download_file, filenames))
