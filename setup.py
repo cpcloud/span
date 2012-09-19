@@ -23,12 +23,17 @@ from Cython.Distutils.extension import Extension
 extra_compile_args = []
 if platform.system().lower() == 'linux':
     extra_compile_args.append('-march=native')
-    
+
 
 utils_dir = os.path.join('span', 'utils')
 ext_modules = [Extension('_clear_refrac',
                          [os.path.join(utils_dir,
                                        'clear_refrac%spyx' % os.extsep)],
+                         extra_compile_args=extra_compile_args,
+                         include_dirs=[np.get_include()]),
+               Extension('_bin',
+                         [os.path.join(utils_dir,
+                                       'bin%spyx' % os.extsep)],
                          extra_compile_args=extra_compile_args,
                          include_dirs=[np.get_include()])]
 
