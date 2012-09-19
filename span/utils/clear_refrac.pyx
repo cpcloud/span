@@ -3,82 +3,88 @@ cimport numpy as np
 cimport cython
 
 ctypedef np.uint8_t uint8
-ctypedef np.int64_t int64
-ctypedef np.float64_t float64
 
 
 @cython.wraparound(False)
 @cython.boundscheck(False)
-cdef _clear_refrac_out(np.ndarray[uint8, ndim=2, cast=True] a, int64 spike_window):
+cdef void _clear_refrac_out(np.ndarray[uint8, ndim=2, cast=True] a, long window):
     cdef:
-        int64 nchannels = a.shape[1], nsamples = a.shape[0], channel, i, sample
-        int64 sample_plus_one
+        long channel, i, sample, sample_plus_one, loc
+        long nchannels = a.shape[1], nsamples = a.shape[0]
+        uint8* a_data = <uint8*> a.data
 
     for channel in xrange(nchannels):
         sample = 0
         while sample < nsamples:
-            if a[sample, channel]:
+            if a_data[sample * nchannels + channel]:
                 sample_plus_one = sample + 1
-                for i in xrange(sample_plus_one,
-                                sample_plus_one + spike_window):
-                    a[i, channel] = False
-                sample += spike_window
+                for i in xrange(sample_plus_one, sample_plus_one + window):
+                    a_data[i * nchannels + channel] = 0
+                sample += window
             sample += 1
 
 
 @cython.wraparound(False)
 @cython.boundscheck(False)
-def clear_refrac_out(np.ndarray[uint8, ndim=2, cast=True] a, int64 spike_window):
-    _clear_refrac_out(a, spike_window)
+def clear_refrac_out(np.ndarray[uint8, ndim=2, cast=True] a not None,
+                     long window):
+    _clear_refrac_out(a, window)
 
 
 @cython.wraparound(False)
 @cython.boundscheck(False)
-cdef _thresh_out(np.ndarray[float64, ndim=2] a, np.ndarray[float64, ndim=1] thresh,
-               np.ndarray[uint8, ndim=2] o):
+cdef void _thresh_out(np.ndarray[double, ndim=2] a, np.ndarray[double, ndim=1] thresh,
+                      np.ndarray[uint8, ndim=2] o):
     cdef:
-        int64 channel, nchannels = a.shape[1]
-        int64 sample, nsamples = a.shape[0]
-        float64 thr
+        double thr
+        long loc, channel, sample
+        long nchannels = a.shape[1], nsamples = a.shape[0]
+
+        uint8* o_data = <uint8*> o.data
+        double* a_data = <double*> a.data
+        double* thr_data = <double*> thresh.data
 
     for channel in xrange(nchannels):
-        thr = thresh[channel]
+        thr = thr_data[channel]
+
         for sample in xrange(nsamples):
-            o[sample, channel] = a[sample, channel] > thr
-
-
-@cython.wraparound(False)
-@cython.boundscheck(False)            
-def thresh_out(np.ndarray[float64, ndim=2] a, np.ndarray[float64, ndim=1] thresh,
-               np.ndarray[uint8, ndim=2, cast=True] o):
-    _thresh_out(a, thresh, o)
+            loc = sample * nchannels + nsamples
+            o_data[loc] = a_data[loc] > thr
 
 
 @cython.wraparound(False)
 @cython.boundscheck(False)
-def thresh(np.ndarray[float64, ndim=2] a, np.ndarray[float64, ndim=1] thr):
-    cdef:
-        int64 nsamples = a.shape[0], nchannels = a.shape[1]
-        np.ndarray[uint8, ndim=2, cast=True] o = np.zeros((nsamples, nchannels),
-                                                          dtype=np.bool_)
-    thresh_out(a, thr, o)
+def thresh_out(np.ndarray[double, ndim=2] a not None,
+               np.ndarray[double, ndim=1] thresh not None,
+               np.ndarray[uint8, ndim=2] o=None):
+    if o is None:
+        o = np.empty((a.shape[0], a.shape[1]), np.uint8)
+    _thresh_out(a, thresh, o)
     return o
 
 
 @cython.wraparound(False)
 @cython.boundscheck(False)
-def clear_refrac(np.ndarray[uint8, ndim=2, cast=True] a, int64 spike_window):
-    cdef np.ndarray[uint8, ndim=2, cast=True] cleared = a.copy()
-    clear_refrac_out(cleared, spike_window)
+def thresh(np.ndarray[double, ndim=2] a not None,
+           np.ndarray[double, ndim=1] thr not None):
+    cdef long nsamples = a.shape[0], nchannels = a.shape[1]
+    cdef np.ndarray[uint8, ndim=2] o = np.empty((a.shape[0], a.shape[1]), np.uint8)
+    _thresh_out(a, thr, o)
+    return o
+
+
+@cython.wraparound(False)
+@cython.boundscheck(False)
+def clear_refrac(np.ndarray[uint8, ndim=2, cast=True] a, long window):
+    cdef np.ndarray[uint8, ndim=2] cleared = a.copy()
+    _clear_refrac_out(cleared, window)
     return cleared
 
 
 @cython.wraparound(False)
 @cython.boundscheck(False)
-def thresh_and_clear(np.ndarray[float64, ndim=2] a,
-                     np.ndarray[float64, ndim=2] thr,
-                     int64 spike_window):
-    cdef:
-        np.ndarray[uint8, ndim=2] threshed = thresh(a, thr)
-        np.ndarray[uint8, ndim=2] cleared = clear_refrac(threshed, spike_window)
+def thresh_and_clear(np.ndarray[double, ndim=2] a, np.ndarray[double, ndim=2] thr,
+                     long window):
+    cdef np.ndarray[uint8, ndim=2] threshed = thresh(a, thr)
+    cdef np.ndarray[uint8, ndim=2] cleared = clear_refrac(threshed, window)
     return cleared
