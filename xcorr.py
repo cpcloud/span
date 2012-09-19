@@ -5,13 +5,11 @@ Module for cross-correlation.
 """
 
 import numpy as np
-import pandas as pd
 
-from span.utils import (nextpow2, pad_larger, get_fft_funcs, detrend_mean,
-                        isvector)
+from span.utils import (detrend_mean, get_fft_funcs, isvector, nextpow2, pad_larger)
 
 
-def autocorr(x, n):
+def autocorr(x, nfft):
     """Compute the autocorrelation of `x` using a FFT.
 
     Parameters
@@ -28,10 +26,10 @@ def autocorr(x, n):
         The autocorrelation of `x`.
     """
     ifft, fft = get_fft_funcs(x)
-    return ifft(np.abs(fft(x, n)) ** 2.0, n)
+    return ifft(np.abs(fft(x, nfft)) ** 2.0, nfft)
 
 
-def crosscorr(x, y, n):
+def crosscorr(x, y, nfft):
     """Compute the cross correlation of `x` and `y` using a FFT.
 
     Parameters
@@ -48,7 +46,7 @@ def crosscorr(x, y, n):
         Cross correlation of `x` and `y`.
     """
     ifft, fft = get_fft_funcs(x, y)
-    return ifft(fft(x, n) * fft(y, n).conj(), n)
+    return ifft(fft(x, nfft) * fft(y, nfft).conj(), nfft)
 
 
 def matrixcorr(x, nfft=None):
@@ -79,7 +77,8 @@ def matrixcorr(x, nfft=None):
     c = np.empty((mx ** 2, nx), dtype=X.dtype)
     for i in xrange(n):
         c[i * n:(i + 1) * n] = X[i] * Xc
-    return ifft(c, nfft).T, m
+    r = ifft(c, nfft).T
+    return (r, m) if nfft is None else r
 
 
 def unbiased(c, lsize):
@@ -208,22 +207,26 @@ def xcorr(x, y=None, maxlags=None, detrend=detrend_mean, scale_type='normalize')
         x.shape[1] ** 2 pandas.DataFrame of all the cross correlations of the
         columns of x
     """
-
     assert x.ndim in (1, 2), 'x must be a 1D or 2D array'
 
     x = detrend(x)
 
     if x.ndim == 2 and np.greater(x.shape, 1).all():
         assert y is None, 'y argument not allowed when x is a 2D array'
-        ctmp, lsize = matrixcorr(x)
+        lsize = x.shape[0]
+        inputs = x,
+        corrfunc = matrixcorr
     elif y is None or y is x or np.array_equal(x, y):
         assert isvector(x), 'x must be 1D'
         lsize = max(x.shape)
-        ctmp = autocorr(x, int(2 ** nextpow2(2 * lsize - 1)))
+        inputs = x,
+        corrfunc = autocorr
     else:
         x, y, lsize = pad_larger(x, detrend(y))
-        ctmp = crosscorr(x, y, int(2 ** nextpow2(2 * lsize - 1)))
+        inputs = x, y
+        corrfunc = crosscorr
 
+    ctmp = corrfunc(*inputs, nfft=int(2 ** nextpow2(2 * lsize - 1)))
     if maxlags is None:
         maxlags = lsize
     else:
@@ -231,6 +234,6 @@ def xcorr(x, y=None, maxlags=None, detrend=detrend_mean, scale_type='normalize')
                                   % lsize)
 
     lags = np.r_[1 - maxlags:maxlags]
-    return_type = pd.DataFrame if ctmp.ndim == 2 else pd.Series
-    scaler = SCALE_FUNCTIONS[scale_type]
-    return scaler(return_type(ctmp[lags], index=lags), lsize)
+    return_type = type(x)
+    scale_function = SCALE_FUNCTIONS[scale_type]
+    return scale_function(return_type(ctmp[lags], index=lags), lsize)
