@@ -9,7 +9,7 @@ import os
 
 
 
-from span.tdt.progressbar import AnimatedProgressBar
+from span.utils.progressbar import AnimatedProgressBar
 
 
 class AbstractServer(object):
