@@ -24,13 +24,32 @@ def flip(f):
 
 
 def ilast(i):
-    """
+    """Return the last element of a sequence.
+
+    Parameters
+    ----------
+    i : sequence
+
+    Returns
+    -------
+    last : element of i
+        The last element of i
     """
     return reduce(lambda _, x: x, i)
 
 
 def iscanl(f, v, seq):
-    """
+    """Yield the value of f applied to the elements of `seq`.
+
+    Parameters
+    ----------
+    f : callable
+    v : object
+    seq : sequence
+
+    Returns
+    -------
+    gen : iterator
     """
     yield v
     for a in seq:
@@ -39,25 +58,22 @@ def iscanl(f, v, seq):
 
 
 def scanl(*args, **kwargs):
-    """
-    """
+    """Apply a function to a sequence and return the sequence."""
     return list(iscanl(*args, **kwargs))
 
 
 def foldl(*args, **kwargs):
-    """
-    """
+    """Apply a fold over a list."""
     return ilast(iscanl(*args, **kwargs))
 
 
 def iscanr(f, v, seq):
-    """
-    """
+    """Apply a function `f` over a sequence `seq` starting at value `v`."""
     return iscanl(flip(f), v, seq)
 
 
 def scanr(*args, **kwargs):
-    """
+    """Same as `iscanr` except return a list, not an iterator.
     """
     result = list(iscanr(*args, **kwargs))
     result.reverse()
@@ -65,8 +81,7 @@ def scanr(*args, **kwargs):
 
 
 def foldr(*args, **kwargs):
-    """
-    """
+    """Apply a fold over the reversed input sequence."""
     return ilast(iscanr(*args, **kwargs))
 
 
@@ -111,9 +126,6 @@ def composemap(*args):
     Returns
     -------
     h : callable
-         
+
     """
     return reduce(compose2, map(partial, repeat(map, len(args)), args))
-
-
-

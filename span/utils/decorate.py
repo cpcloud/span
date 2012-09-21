@@ -26,6 +26,7 @@ def thunkify(f):
         wait_event = threading.Event()
         result = [None]
         exc = [False, None]
+
         def worker():
             """The worker thread with which to run `f`."""
             try:
@@ -34,6 +35,7 @@ def thunkify(f):
                 exc[0], exc[1] = True, sys.exc_info()
             finally:
                 wait_event.set()
+
         def thunk():
             """The actual thunk.
 

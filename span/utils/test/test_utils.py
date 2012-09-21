@@ -16,10 +16,10 @@ def rand_array_delegate(func, n, ndims):
     return func(*randint(n, size=ndims).tolist())
 
 
-def rand_array(n=100, ndims=3):
-    """
-    """
-    return rand_array_delegate(rand, n, ndims)
+# def rand_array(n=100, ndims=3):
+#     """
+#     """
+#     return rand_array_delegate(rand, n, ndims)
 
 
 def randn_array(n=100, ndims=3):

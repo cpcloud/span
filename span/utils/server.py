@@ -2,11 +2,11 @@
 """
 
 from future_builtins import map
+
 import abc
 import ftplib
 import getpass
 import os
-
 
 
 from span.utils.progressbar import AnimatedProgressBar
@@ -26,9 +26,10 @@ class AbstractServer(object):
 
 
 class ArodServer(AbstractServer):
+    """Encapsulate the ARC lab's server
     """
-    """
-    def __init__(self, username='Adrian', hostname='192.168.70.4'):
+    def __init__(self, username='Adrian', hostname='192.168.70.4',
+                 password=None):
         """Constructor.
 
         Parameters
@@ -40,7 +41,9 @@ class ArodServer(AbstractServer):
         """
         super(ArodServer, self).__init__()
         self.username, self.hostname = username, hostname
-        self.ftp = ftplib.FTP(self.hostname, self.username, getpass.getpass())
+        if password is None:
+            password = getpass.getpass()
+        self.ftp = ftplib.FTP(self.hostname, self.username, password)
         self.progress_bar = None
 
     def __del__(self):
@@ -61,6 +64,7 @@ class ArodServer(AbstractServer):
         """
         filename = os.path.join(os.sep, 'home', filename.lstrip('~' + os.sep))
         local_path = os.path.join(os.getcwd(), os.path.basename(filename))
+        print filename
         remote_filesize = self.ftp.size(filename)
 
         if os.path.exists(local_path):
@@ -69,7 +73,7 @@ class ArodServer(AbstractServer):
 
         self.progress_bar = AnimatedProgressBar(end=remote_filesize, width=50)
         if verbose:
-            print(os.path.basename(local_path))
+            print os.path.basename(local_path)
 
         with open(local_path, 'wb') as local_file:
             def callback(chunk):
@@ -80,12 +84,11 @@ class ArodServer(AbstractServer):
                 chunk : str
                 """
                 local_file.write(chunk)
-                # yield len(chunk)
                 self.progress_bar += len(chunk)
                 self.progress_bar.show_progress()
 
             self.ftp.retrbinary('RETR {0}'.format(filename), callback)
-        print()
+        print
         return local_path
 
     def download_files(self, filenames):

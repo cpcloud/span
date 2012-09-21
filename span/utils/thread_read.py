@@ -1,8 +1,8 @@
 #!/usr/bin/env python
 
 import threading
-import queue
 import multiprocessing
+import Queue
 import warnings
 
 from numpy import vstack
@@ -61,8 +61,8 @@ def load_data(f, where=None, raw_name='raw',
             output_queue.put((raw.read(), i))
             input_queue.task_done()
 
-    input_queue = queue.Queue()
-    output_queue = queue.Queue()
+    input_queue = Queue.Queue()
+    output_queue = Queue.Queue()
     for i, shank in enumerate(f.iterNodes(where)):
         input_queue.put((getattr(shank, raw_name), i))
 
