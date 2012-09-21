@@ -4,10 +4,10 @@ import numpy as np
 from numpy.random import randint, rand, randn
 from numpy.testing import assert_allclose, assert_array_equal
 
-from span.utils import (cast, ndtuples, dirsize, ndlinspace, nans, remove_legend,
-                        name2num, group_indices, flatten, bin_data, summary,
-                        nextpow2, fractional, zeropad, pad_larger2, pad_larger,
-                        iscomplex, get_fft_funcs)
+from span.utils import (
+    bin_data, cast, dirsize, fractional, get_fft_funcs, group_indices,
+    iscomplex, name2num, nans, ndlinspace, ndtuples, nextpow2, pad_larger,
+    pad_larger2, remove_legend, summary, zeropad)
 
 
 def rand_array_delegate(func, n, ndims):
