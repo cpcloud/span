@@ -1,5 +1,4 @@
-"""A collection of utility functions.
-"""
+"""A collection of utility functions."""
 
 from future_builtins import map, zip
 
@@ -9,6 +8,7 @@ import operator
 import glob
 import string
 import itertools
+import functools
 
 from functools import reduce
 
@@ -19,35 +19,84 @@ try:
     from pylab import detrend_none, detrend_mean, detrend_linear, gca
 except RuntimeError:
     def detrend_none(x):
+        """Return the input array.
+
+        Parameters
+        ----------
+        x : array_like
+            The input array.
+
+        Returns
+        -------
+        x : array_like
+            The input array.
+        """
         return x
 
 
     def detrend_mean(x):
+        """Subtract the mean of `x` from itself.
+
+        Parameters
+        ----------
+        x : array_like
+            The array to mean center.
+
+        Returns
+        -------
+        c : array_like
+            The mean centered `x`.
+        """
         return x - x.mean()
 
 
+    def detrend_mean_inplace(x):
+        """Center x in place.
+
+        Parameters
+        ----------
+        x : array_like
+
+        See Also
+        --------
+        detrend_mean
+        """
+        x -= x.mean()
+
+
     def detrend_linear(y):
+        """Linearly detrend `y`.
+
+        Parameters
+        ----------
+        y : array_like
+
+        Returns
+        -------
+        d : array_like
+        """
         x = np.arange(len(y), dtype=float)
-        c = np.cov(x, y, bias=1)
+        c = np.cov(x, y, bias=1.0)
         b = c[0, 1] / c[0, 0]
         a = y.mean() - b * x.mean()
         return y - (b * x + a)
 
     gca = NotImplemented
 
-from span.tdt.functional import composemap
 
 def get_names_and_threshes(f):
-    """Read in an excel file and get the names of the recordings and the
-    threshold.
+    """Read in an excel file and get the names of the recordings and their
+    respective thresholds.
 
     Parameters
     ----------
     f : str
+        The name of the Excel file to read.
 
     Returns
     -------
     dd : pandas.DataFrame
+        A Pandas DataFrame corresponding to valid recordings.
     """
     et = pd.io.parsers.ExcelFile(f)
     nms = et.parse(et.sheet_names[-1])
@@ -56,19 +105,30 @@ def get_names_and_threshes(f):
     return dd
 
 
-def cast(a, dtype=None, order='K', casting='unsafe', subok=True, copy=False):
+def cast(a, dtype, order='K', casting='unsafe', subok=True, copy=False):
     """Cast `a` to dtype `dtype`.
 
-    Attempt to cast `a` to a different dtype `dtype` without copying
+    Attempt to cast `a` to a different dtype `dtype` without copying.
 
     Parameters
     ----------
     a : array_like
-    dtype : dtype, optional
+        The array to cast.
+
+    dtype : numpy.dtype
+        The dtype to cast the input array to.
+
     order : str, optional
+        The order in memory of the array.
+
     casting : str, optional
+        Rules to use for casting.
+
     subok : bool, optional
+        Whether or not to pass subclasses through.
+
     copy : bool, optional
+        Whether to copy the data given the previous arguments.
 
     Raises
     ------
@@ -77,10 +137,14 @@ def cast(a, dtype=None, order='K', casting='unsafe', subok=True, copy=False):
     Returns
     -------
     r : array_like
+        The array `a` casted to type dtype
     """
     assert hasattr(a, 'dtype'), 'first argument has no "dtype" attribute'
-    if dtype is None:
-        dtype = a.dtype
+    assert hasattr(a, 'astype'), 'first argument has no "astype" attribute'
+
+    if a.dtype == dtype:
+        return a
+
     try:
         r = a.astype(dtype, order=order, casting=casting, subok=subok, copy=copy)
     except TypeError:
@@ -154,22 +218,26 @@ def ndlinspace(ranges, *nelems):
     b = np.asanyarray(nelems)
     lbounds, ubounds = map(np.fromiter, zip(*((r[0], r[1]) for r in ranges)),
                            (float, float))
-    return lbounds + (x - 1) / (b - 1) * (ubounds - lbounds)
+    return lbounds + (x - 1.0) / (b - 1.0) * (ubounds - lbounds)
 
 
-def nans(size, dtype=float):
+def nans(shape, dtype=float):
     """Create an array of NaNs
 
     Parameters
     ----------
-    size : tuple
-    dtype : descriptor, optional
+    shape : tuple
+        The shape tuple of the array of nans to create.
+
+    dtype : numpy.dtype, optional
+        The dtype of the new nan array. Defaults to float because only
+        float nan arrays are support by NumPy.
 
     Returns
     -------
     a : array_like
     """
-    a = np.zeros(size, dtype=dtype)
+    a = np.empty(shape, dtype=dtype)
     a.fill(np.nan)
     return a
 
@@ -212,6 +280,7 @@ def name2num(name, base=256):
     ----------
     name : str
         The name of the event.
+
     base : int, optional
         The base to use to compute the numerical representation of `name`.
 
@@ -263,40 +332,6 @@ def group_indices(group, dtype=int):
     return inds
 
 
-def flatten(data):
-    """Flatten a DataFrame.
-
-    Parameters
-    ----------
-    data : pandas.DataFrame
-
-    Returns
-    -------
-    flattened : pandas.DataFrame or pandas.Series
-    """
-    try:
-        # FIX: `stack` method is potentially very fragile
-        return data.stack().reset_index(drop=True)
-    except MemoryError:
-        raise MemoryError('out of memory while trying to flatten')
-
-
-def bin_data(data, bins):
-    """Put data in bins.
-
-    Parameters
-    ----------
-    data : pandas.DataFrame
-    """
-    nchannels = data.columns.size
-    counts = pd.DataFrame(np.empty((bins.size - 1, nchannels)))
-    zbins = list(zip(bins[:-1], bins[1:]))
-    for column, dcolumn in data.iterkv():
-        counts[column] = pd.Series([dcolumn.ix[bi:bj].sum()
-                                    for bi, bj in zbins], name=column)
-    return counts
-
-
 # TODO: Make this function less ugly!
 def summary(group, func, axis, skipna, level):
     """Perform a summary computation on a group.
@@ -323,7 +358,7 @@ def summary(group, func, axis, skipna, level):
     elif hasattr(func, '__name__') and hasattr(group, func.__name__):
         return summary(group, func.__name__, axis, skipna, level)
     else:
-        f = lambda x: func(flatten(x), skipna=skipna)
+        f = lambda x: func(x, skipna=skipna)
 
     return group.apply(f, axis=axis)
 
@@ -423,16 +458,15 @@ def pad_larger(*arrays):
     """
     if len(arrays) == 2:
         return pad_larger2(*arrays)
-    size_getter = operator.attrgetter('size')
-    sizes = np.fromiter(map(size_getter, arrays), int)
+
+    sizes = np.fromiter(map(operator.attrgetter('size'), arrays), int)
     lsize = sizes.max()
 
-    ret = []
+    ret = ()
     for array, size in zip(arrays, sizes):
         size_diff = lsize - size
-        ret.append(zeropad(array, size_diff))
-
-    ret.append(lsize)
+        ret += zeropad(array, size_diff),
+    ret += lsize,
     return ret
 
 
@@ -455,7 +489,7 @@ def iscomplex(x):
 
 
 def hascomplex(x):
-    """
+    """Check whether an array has all complex entries.
     """
     return iscomplex(x) and not np.logical_not(x.imag).all()
 
@@ -474,14 +508,13 @@ def get_fft_funcs(*arrays):
         The fft and ifft appropriate for the dtype of input.
     """
     r = np.fft.irfft, np.fft.rfft
-    arecomplex = composemap(iscomplex)
+    arecomplex = functools.partial(map, iscomplex)#composemap(iscomplex)
     if any(arecomplex(arrays)):
         r = np.fft.ifft, np.fft.fft
     return r
 
 
 def electrode_distance_old(fromij, toij, between_shank=125, within_shank=100):
-
     fromi, fromj = fromij
     toi, toj = toij
 
@@ -529,12 +562,8 @@ def distance_map(nshanks=4, electrodes_per_shank=4):
     -------
     ret : pandas.Series
     """
-    # a, b, c, d = ndtuples(n, n, n, n).T
     indices = ndtuples(*itertools.repeat(electrodes_per_shank, nshanks))
     dists = electrode_distance(indices)
-    # dists = np.asanyarray([electrode_distance((ai, bi), (ci, di))
-                           # for ai, bi, ci, di in zip(a, b, c, d)])
-    # index = pd.MultiIndex.from_arrays([x for x in indices.T])
     nelectrodes = nshanks * electrodes_per_shank
     return pd.DataFrame(dists.reshape((nelectrodes, nelectrodes)))
 
@@ -546,8 +575,13 @@ def isvector(x):
     ----------
     x : array_like
 
+    Raises
+    ------
+    AssertionError
+
     Returns
     -------
     b : bool
     """
+    assert hasattr(x, 'shape'), 'x has no shape attribute'
     return reduce(operator.mul, x.shape) == max(x.shape)

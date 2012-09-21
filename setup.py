@@ -31,9 +31,9 @@ ext_modules = [Extension('_clear_refrac',
                                        'clear_refrac%spyx' % os.extsep)],
                          extra_compile_args=extra_compile_args,
                          include_dirs=[np.get_include()]),
-               Extension('_bin',
+               Extension('_bin_data',
                          [os.path.join(utils_dir,
-                                       'bin%spyx' % os.extsep)],
+                                       'bin_data%spyx' % os.extsep)],
                          extra_compile_args=extra_compile_args,
                          include_dirs=[np.get_include()])]
 
