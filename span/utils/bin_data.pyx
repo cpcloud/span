@@ -4,13 +4,15 @@
 import numpy as np
 cimport numpy as np
 cimport cython
+# from cython.parallel cimport parallel, prange
 
 ctypedef np.uint8_t uint8
 
 
 @cython.wraparound(False)
 @cython.boundscheck(False)
-cdef void _bin_data(np.ndarray[uint8, ndim=2, cast=True] a, np.ndarray[long, ndim=1] bins,
+cdef void _bin_data(np.ndarray[uint8, ndim=2, cast=True] a,
+                    np.ndarray[long, ndim=1] bins,
                     np.ndarray[long, ndim=2] out):
     """Sum the counts of spikes in `a` in each of the bins.
 
@@ -21,23 +23,21 @@ cdef void _bin_data(np.ndarray[uint8, ndim=2, cast=True] a, np.ndarray[long, ndi
     out : array_like
     """
     cdef:
-        long i, j, k, v, n = a.shape[1], nbins = bins.size
+        long i, j, k
+        long nbins_m_1 = out.shape[0], n = out.shape[1]
+        long *out_data = <long*> out.data, *bin_data = <long*> bins.data
         uint8* a_data = <uint8*> a.data
-        long* out_data = <long*> out.data
 
     for k in xrange(n):
-        for i in xrange(nbins - 1):
-            v = 0
-            for j in xrange(bins[i], bins[i + 1]):
-                v += a_data[j * n + k]
-            out_data[i * n + k] = v
+        for i in xrange(nbins_m_1):
+            for j in xrange(bin_data[i], bin_data[i + 1]):
+                out_data[i * n + k] += a_data[j * n + k]
 
 
 @cython.wraparound(False)
 @cython.boundscheck(False)
 def bin_data(np.ndarray[uint8, ndim=2, cast=True] a not None,
-             np.ndarray[long, ndim=1] bins not None,
-             np.ndarray[long, ndim=2] out=None):
+             np.ndarray[long, ndim=1] bins not None):
     """Wrapper around bin_data._bin_data.
 
     Parameters
@@ -53,14 +53,7 @@ def bin_data(np.ndarray[uint8, ndim=2, cast=True] a not None,
     out : array_like
         The binned data from `a`.
     """
-    cdef:
-        long m, n
-        tuple shape
-
-    if out is None:
-        m = bins.size - 1
-        n = a.shape[1]
-        shape = (m, n)
-        out = np.empty(shape, dtype=np.long)
+    cdef np.ndarray[long, ndim=2] out = np.zeros((bins.shape[0] - 1, a.shape[1]),
+                                                 dtype=np.long)
     _bin_data(a, bins, out)
     return out
