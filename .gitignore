@@ -6,3 +6,4 @@ build/
 *.tar.gz
 dist/
 /dist/*
+/span/utils/test/test_server.py
