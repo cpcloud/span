@@ -1,6 +1,5 @@
 import unittest
-
-import numpy as np
+from numpy.random import randint
 
 from span.utils.progressbar import ProgressBar, AnimatedProgressBar
 
@@ -22,10 +21,10 @@ class TestProgressBar(unittest.TestCase):
         s = str(self.progbar)
 
     def test__get_progress(self):
-        pass
+        p = self.progbar._get_progress(randint(1, 100))
 
 
-class TestAnimatedProgressBar(TestProgressBar):
+class TestAnimatedProgressBar(unittest.TestCase):
     def setUp(self):
         self.progbar = AnimatedProgressBar()
 
