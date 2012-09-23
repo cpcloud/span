@@ -3,20 +3,21 @@
 from future_builtins import map, zip
 
 import os
-import types
 import operator
 import glob
 import string
 import itertools
 import functools
 
-from functools import reduce
-
 import numpy as np
 import pandas as pd
 
+# from span.utils.functional import compose
+# from span.tdt import Indexer
+
 try:
-    from pylab import detrend_none, detrend_mean, detrend_linear, gca
+    from pylab import (
+    detrend_linear, detrend_mean, detrend_none, figure, gca, subplots)
 except RuntimeError:
     def detrend_none(x):
         """Return the input array.
@@ -81,7 +82,9 @@ except RuntimeError:
         a = y.mean() - b * x.mean()
         return y - (b * x + a)
 
-    gca = NotImplemented
+    gca = NotImplemented,
+    figure = NotImplemented
+    subplots = NotImplemented
 
 
 def get_names_and_threshes(f):
@@ -105,7 +108,7 @@ def get_names_and_threshes(f):
     return dd
 
 
-def cast(a, dtype, order='K', casting='unsafe', subok=True, copy=False):
+def cast(a, dtype, copy=False):
     """Cast `a` to dtype `dtype`.
 
     Attempt to cast `a` to a different dtype `dtype` without copying.
@@ -117,15 +120,6 @@ def cast(a, dtype, order='K', casting='unsafe', subok=True, copy=False):
 
     dtype : numpy.dtype
         The dtype to cast the input array to.
-
-    order : str, optional
-        The order in memory of the array.
-
-    casting : str, optional
-        Rules to use for casting.
-
-    subok : bool, optional
-        Whether or not to pass subclasses through.
 
     copy : bool, optional
         Whether to copy the data given the previous arguments.
@@ -146,7 +140,7 @@ def cast(a, dtype, order='K', casting='unsafe', subok=True, copy=False):
         return a
 
     try:
-        r = a.astype(dtype, order=order, casting=casting, subok=subok, copy=copy)
+        r = a.astype(dtype, order='K', casting='safe', subok=True, copy=copy)
     except TypeError:
         r = a.astype(dtype)
     return r
@@ -164,8 +158,6 @@ def ndtuples(*dims):
     cur : array_like
     """
     assert dims, 'no arguments given'
-    assert all(map(isinstance, dims, itertools.repeat(int, len(dims)))), \
-        'all arguments must be integers'
     dims = list(dims)
     n = dims.pop()
     cur = np.arange(n)[:, np.newaxis]
@@ -176,6 +168,32 @@ def ndtuples(*dims):
         cur = np.hstack((front, cur))
         n *= d
     return cast(cur, int)
+
+
+def cartesian(arrays, out=None):
+    """Cartesian product of arrays.
+
+    Parameters
+    ----------
+    arrays : tuple of array_like
+    out : array_like
+
+    Returns
+    -------
+    out : array_like
+    """
+    arrays = tuple(map(np.asarray, arrays))
+    dtype = np.object_
+    n = np.prod([x.size for x in arrays])
+    if out is None:
+        out = np.empty([n, len(arrays)], dtype=dtype)
+    m = n / arrays[0].size
+    out[:, 0] = np.repeat(arrays[0], m)
+    if arrays[1:]:
+        cartesian(arrays[1:], out=out[:m, 1:])
+        for j in xrange(1, arrays[0].size):
+            out[j * m:(j + 1) * m, 1:] = out[:m, 1:]
+    return out
 
 
 def dirsize(d='.'):
@@ -221,7 +239,7 @@ def ndlinspace(ranges, *nelems):
     return lbounds + (x - 1.0) / (b - 1.0) * (ubounds - lbounds)
 
 
-def nans(shape, dtype=float):
+def nans(shape):
     """Create an array of NaNs
 
     Parameters
@@ -237,36 +255,18 @@ def nans(shape, dtype=float):
     -------
     a : array_like
     """
-    a = np.empty(shape, dtype=dtype)
+    a = np.empty(shape)
     a.fill(np.nan)
     return a
 
 
-def nans_like(a, dtype=None, order='K', subok=True):
-    """Create an array of nans with dtype, order, and class like `a`.
-
-    Parameters
-    ----------
-    a : array_like
-    dtype : np.dtype, optional
-    order : str, optional
-    subok : bool, optional
-
-    Returns
-    -------
-    res : array_like
-    """
-    res = np.empty_like(a, dtype=dtype, order=order, subok=subok)
-    np.copyto(res, np.nan, casting='unsafe')
-    return res
-
-
 def remove_legend(ax=None):
-    """Remove legend for ax or the current axes.
+    """Remove legend for ax or the current axes if ax is None.
 
     Parameters
     ----------
     ax : matplotlib.axes.Axes
+        Axis whose legend will be hidden
     """
     if ax is None:
         ax = gca()
@@ -332,37 +332,6 @@ def group_indices(group, dtype=int):
     return inds
 
 
-# TODO: Make this function less ugly!
-def summary(group, func, axis, skipna, level):
-    """Perform a summary computation on a group.
-
-    Parameters
-    ----------
-    group : pandas.Grouper
-    func : str or callable
-
-    Returns
-    -------
-    sumry : pandas.DataFrame or pandas.Series
-    """
-    # check to make sure that `func` is a string or function
-    func_is_valid = any(map(isinstance, (func, func), (str, types.FunctionType)))
-    assert func_is_valid, ("'func' must be a string or function: "
-                           "type(func) == {0}".format(type(func)))
-
-    if hasattr(group, func):
-        getter = operator.attrgetter(func)
-        chan_func = getter(group)
-        chan_func_t = getter(chan_func().T)
-        return chan_func_t(axis=axis, skipna=skipna, level=level)
-    elif hasattr(func, '__name__') and hasattr(group, func.__name__):
-        return summary(group, func.__name__, axis, skipna, level)
-    else:
-        f = lambda x: func(x, skipna=skipna)
-
-    return group.apply(f, axis=axis)
-
-
 def nextpow2(n):
     """Return the next power of 2 of a number.
 
@@ -374,7 +343,7 @@ def nextpow2(n):
     -------
     ret : array_like
     """
-    return np.ceil(np.log2(np.absolute(np.asanyarray(n))))
+    return np.ceil(np.log2(np.abs(np.asanyarray(n))))
 
 
 def fractional(x):
@@ -390,31 +359,7 @@ def fractional(x):
         Whether the elements of x have a fractional part.
     """
     frac, _ = np.modf(np.asanyarray(x))
-    return frac.any()
-
-
-def zeropad(x, s=0):
-    """Pad an array, `x`, with `s` zeros.
-
-    Parameters
-    ----------
-    x : array_like
-    s : int
-
-    Raises
-    ------
-    AssertionError
-
-    Returns
-    -------
-    ret : `x` padded with `s` zeros.
-    """
-    assert not fractional(s), \
-        's must be an integer or floating point number with no fractional part'
-    assert s >= 0, 's cannot be negative'
-    if not s:
-        return x
-    return np.pad(x, s, mode='constant', constant_values=(0,))
+    return frac
 
 
 def pad_larger2(x, y):
@@ -436,10 +381,13 @@ def pad_larger2(x, y):
     if xsize != ysize:
         size_diff = lsize - min(xsize, ysize)
 
+        pad_func = lambda a: np.pad(a, (0, size_diff), mode='constant',
+                               constant_values=(0,))
+
         if xsize > ysize:
-            y = zeropad(y, size_diff)
+            y = pad_func(y)
         else:
-            x = zeropad(x, size_diff)
+            x = pad_func(x)
 
     return x, y, lsize
 
@@ -451,11 +399,18 @@ def pad_larger(*arrays):
     ----------
     arrays : tuple of array_like
 
+    Raises
+    ------
+    AssertionError
+
     Returns
     -------
     ret : list
-        List of zero padded arrays
+        List of zero padded arrays.
     """
+    assert all(map(isinstance, arrays, itertools.repeat(np.ndarray,
+                                                        len(arrays)))), \
+    'all arguments must be instances of ndarray or implement the ndarray interface'
     if len(arrays) == 2:
         return pad_larger2(*arrays)
 
@@ -465,7 +420,7 @@ def pad_larger(*arrays):
     ret = ()
     for array, size in zip(arrays, sizes):
         size_diff = lsize - size
-        ret += zeropad(array, size_diff),
+        ret += np.pad(array, (0, size_diff), 'constant', constant_values=(0,)),
     ret += lsize,
     return ret
 
@@ -483,13 +438,22 @@ def iscomplex(x):
         Whether x's dtype is a sub dtype or equal to complex.
     """
     try:
-        return np.issubdtype(x.dtype, complex)
+        return np.issubdtype(x.dtype, np.complexfloating)
     except AttributeError:
-        return any(map(np.issubdtype, x.dtypes, itertools.repeat(complex, x.dtypes.size)))
+        return any(map(np.issubdtype, x.dtypes, itertools.repeat(np.complexfloating,
+                                                                 x.dtypes.size)))
 
 
 def hascomplex(x):
     """Check whether an array has all complex entries.
+
+    Parameters
+    ----------
+    x : array_like
+
+    Returns
+    -------
+    r : bool
     """
     return iscomplex(x) and not np.logical_not(x.imag).all()
 
@@ -499,7 +463,7 @@ def get_fft_funcs(*arrays):
 
     Parameters
     ----------
-    arrays : tuple
+    arrays : tuple of array_like
         Arrays to be checked for complex dtype.
 
     Returns
@@ -508,7 +472,7 @@ def get_fft_funcs(*arrays):
         The fft and ifft appropriate for the dtype of input.
     """
     r = np.fft.irfft, np.fft.rfft
-    arecomplex = functools.partial(map, iscomplex)#composemap(iscomplex)
+    arecomplex = functools.partial(map, iscomplex)
     if any(arecomplex(arrays)):
         r = np.fft.ifft, np.fft.fft
     return r
@@ -556,7 +520,8 @@ def distance_map(nshanks=4, electrodes_per_shank=4):
 
     Parameters
     ----------
-    n : int
+    nshanks : int, optional
+    electrodes_per_shank : int, optional
 
     Returns
     -------
@@ -583,5 +548,126 @@ def isvector(x):
     -------
     b : bool
     """
-    assert hasattr(x, 'shape'), 'x has no shape attribute'
-    return reduce(operator.mul, x.shape) == max(x.shape)
+    return functools.reduce(operator.mul, x.shape) == max(x.shape)
+
+
+# def plot_xcorr(xc, figsize=(40, 25), dpi=100, titlesize=4, labelsize=3,
+#                sharex=True, sharey=True):
+#     ###########################
+#     # TODO: rewrite this crap #
+#     ###########################
+
+#     # create as many possible things as we can before
+#     # instantiating any matplotlib figures and friends
+
+#     # get the channel indexer
+#     elec_map = Indexer.channel
+
+#     # number of channels
+#     nchannels = elec_map.size
+
+#     # the channel index labels
+#     left, right, _, _ = xc.index.labels
+
+#     # indices of a lower triangular nchannels by nchannels array
+#     lower_inds = np.tril_indices(nchannels)
+
+#     # flatted and linearly indexed
+#     flat_lower_inds = np.ravel_multi_index(np.vstack(lower_inds),
+#                                            (nchannels, nchannels))
+
+#     # make a list of strings for titles
+#     title_strings = cast(np.vstack((left + 1, right + 1)), str).T.tolist()
+#     title_strings = np.asanyarray(list(map(' vs. '.join, title_strings)))
+
+#     # get only the ones we want
+#     title_strings = title_strings[flat_lower_inds]
+
+#     # create the subplots with linked axes
+#     fig, axs = subplots(nchannels, nchannels, sharex=sharex, sharey=sharey,
+#                         figsize=figsize, dpi=dpi)
+
+#     # get the axes objects that we want to show
+#     axs_to_show = axs.flat[flat_lower_inds]
+
+#     # set the title on the axes objects that we want to see
+#     titler = lambda ax, s, fs: ax.set_title(s, fontsize=fs)
+#     sizes = itertools.repeat(titlesize, axs_to_show.size)
+#     list(map(titler, axs_to_show.flat, title_strings, sizes))
+
+#     # hide the ones we don't want
+#     upper_inds = np.triu_indices(nchannels, 1)
+#     flat_upper_inds = np.ravel_multi_index(np.vstack(upper_inds),
+#                                            (nchannels, nchannels))
+#     axs_to_hide = axs.flat[flat_upper_inds]
+#     list(map(lambda ax: map(lambda tax: tax.set_visible(False), (ax.xaxis, ax.yaxis)),
+#              axs_to_hide))
+#     list(map(lambda ax: ax.set_frame_on(False), axs_to_hide))
+#     list(map(remove_legend, axs.flat))
+
+#     min_value = xc.min().min()
+#     for indi, i in enumerate(elec_map):
+#         for indj, j in enumerate(elec_map):
+#             if indi >= indj:
+#                 ax = axs[indi, indj]
+#                 ax.tick_params(labelsize=labelsize, left=True,
+#                                right=False, top=False, bottom=True,
+#                                direction='out')
+#                 xcij = xc.ix[i, j].T
+#                 ax.vlines(xcij.index, min_value, xcij)
+#     fig.tight_layout()
+#     return fig, axs
+
+
+def blob(x, y, area, color, ax):
+    """Fill a square of area `area` with color `color` on axis `ax`.
+
+    Parameters
+    ----------
+    x, y, area : number
+    color : str
+    ax : matplotlib.axes.Axes
+    """
+    hs = np.sqrt(area) / 2.0
+    xcorn = np.array([x - hs, x + hs, x + hs, x - hs])
+    ycorn = np.array([y - hs, y - hs, y + hs, y + hs])
+    ax.fill(xcorn, ycorn, color, edgecolor=color)
+
+
+def hinton(w, max_weight, ax):
+    """Plot a Hinton diagram.
+
+    Parameters
+    ----------
+    w : array_like
+    max_weight : array_like
+    ax : matplotlib.axes.Axes
+    """
+    w = np.asanyarray(w)
+    if max_weight is None:
+        f = compose(np.ceil, np.log2, np.max, np.abs)
+        max_weight = 2 ** f(w)
+        # max_weight = 2 ** np.ceil(np.log2(np.max(np.abs(w))))
+        # max_weight = 2 ** np.ceil(np.log(np.max(np.abs(w))) / np.log(2))
+
+    if ax is None:
+        fig = figure()
+        ax = fig.add_subplot(111)
+
+    height, width = w.shape
+
+    ax.fill(np.array([0, width, width, 0]),
+            np.array([0, 0, height, height]), 'gray')
+    ax.axis('off')
+    ax.axis('equal')
+
+    colors = {1: 'white', -1: 'black'}
+
+    for x in xrange(width):
+        for y in xrange(height):
+            xx = x + 1
+            yy = y + 1
+            wyx = w[y, x]
+            s = np.sign(wyx)
+            blob(xx - 0.5, height - yy + 0.5, min(1, s * wyx / max_weight),
+                 colors[s], ax)
