@@ -8,9 +8,6 @@ class TestProgressBar(unittest.TestCase):
     def setUp(self):
         self.progbar = ProgressBar()
 
-    def test___init__(self):
-        pass
-
     def test___iadd__(self):
         self.progbar.progress = 0
         self.progbar += 10

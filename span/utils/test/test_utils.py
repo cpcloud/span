@@ -2,12 +2,16 @@ import unittest
 import string
 import random
 import itertools
+import operator
+import functools
 
 import numpy as np
 from numpy.random import randint, rand, randn
 from numpy.testing import assert_allclose, assert_array_equal
 
 import pandas as pd
+
+from pylab import gca
 
 from span.utils import (
     bin_data, cast, dirsize, fractional, get_fft_funcs, group_indices,
@@ -53,7 +57,10 @@ def test_ndtuples():
 
 
 def test_cartesian():
-    c = cartesian((randn(10), randn(10)))
+    sizes = [randint(5, 10) for _ in xrange(4)]
+    prod_arrays = map(randn, sizes)
+    c = cartesian(prod_arrays)
+    assert c.size == functools.reduce(operator.mul, sizes)
 
 
 def test_dirsize():
@@ -65,11 +72,16 @@ def test_ndlinspace():
 
 
 def test_nans():
-    assert False
+    m, n = 1000, 10
+    x = nans((m, n))
+    assert np.isnan(x).all(), 'not all values are nans'
+    assert x.dtype == np.float64
 
 
 def test_remove_legend():
-    assert False
+    ax = gca()
+    remove_legend(ax)
+    assert ax.legend_ is None
 
 
 def test_num2name():
