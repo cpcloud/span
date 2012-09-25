@@ -14,8 +14,8 @@ from distutils.core import setup
 from Cython.Distutils import build_ext
 from Cython.Distutils.extension import Extension
 
-extra_compile_args = []
-extra_link_args = []
+extra_compile_args = ['-fopenmp']
+extra_link_args = ['-fopenmp']
 
 if platform.system().lower() == 'linux':
     extra_compile_args.append('-march=native')
