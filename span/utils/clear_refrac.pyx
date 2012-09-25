@@ -20,8 +20,7 @@ cdef void _clear_refrac(np.ndarray[uint8, ndim=2, cast=True] a, long window):
                 for i in xrange(sample, sample + window):
                     a_data[i * nchannels + channel] = 0
                 sample += window
-            else:
-                sample += 1
+            sample += 1
 
 
 @cython.wraparound(False)
