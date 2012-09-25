@@ -9,7 +9,8 @@ import warnings
 import numpy as np
 import pandas as pd
 
-from span.utils import (detrend_mean, get_fft_funcs, isvector, nextpow2, pad_larger)
+from span.utils import (
+    cast, detrend_mean, get_fft_funcs, isvector, nextpow2, pad_larger)
 
 
 def autocorr(x, nfft):
@@ -20,7 +21,7 @@ def autocorr(x, nfft):
     x : array_like
         Input array.
 
-    n : int
+    nfft : int
         Number of FFT points.
 
     Returns
@@ -29,7 +30,7 @@ def autocorr(x, nfft):
         The autocorrelation of `x`.
     """
     ifft, fft = get_fft_funcs(x)
-    return ifft(np.abs(fft(x, nfft)) ** 2.0, nfft)
+    return ifft(np.abs(fft(x, nfft))** 2.0, nfft)
 
 
 def crosscorr(x, y, nfft):
@@ -40,7 +41,7 @@ def crosscorr(x, y, nfft):
     x, y : array_like
         The arrays of which to compute the cross correlation.
 
-    n : int
+    nfft : int
         The number of fft points.
 
     Returns
@@ -75,7 +76,7 @@ def matrixcorr(x, nfft):
     X = fft(x.T, nfft)
     Xc = X.conj()
     mx, nx = X.shape
-    c = np.empty((mx ** 2, nx), dtype=X.dtype)
+    c = np.empty((mx** 2, nx), dtype=X.dtype)
     for i in xrange(n):
         c[i * n:(i + 1) * n] = X[i] * Xc
     r = ifft(c, nfft).T
@@ -102,11 +103,8 @@ def unbiased(c, lsize):
     c : array_like
         The unbiased estimate of the cross correlation.
     """
-    d = lsize - np.abs(c.index.values)
-    if c.ndim == 2:
-        denom = np.tile(d[:, np.newaxis], (1, c.shape[1]))
-    else:
-        denom = d
+    d = lsize - c.index.abs().values
+    denom = np.tile(d[:, np.newaxis], (1, c.shape[1])) if c.ndim == 2 else d
     return type(c)(c.values / denom, index=c.index)
 
 
@@ -209,15 +207,18 @@ def xcorr(x, y=None, maxlags=None, detrend=detrend_mean, scale_type='normalize')
     Raises
     ------
     AssertionError
+        If `y` is not None and `x` is a matrix
+        If `x` is not a vector when y is None or y is x or all(x == y)
 
     Returns
     -------
     c : Series or DataFrame
-        The 2 * `maxlags` - 1 length pandas.Series or the 2 * `maxlags` - 1 by
-        x.shape[1] ** 2 pandas.DataFrame of all the cross correlations of the
-        columns of x
+        The 2 * `maxlags` - 1 length pandas.Series or the  by x.shape[1] ** 2
+        2 * `maxlags` - 1 pandas.DataFrame of all the cross correlations of the
+        columns of `x`.
     """
     assert x.ndim in (1, 2), 'x must be a 1D or 2D array'
+    assert callable(detrend), 'detrend must be a callable object'
 
     x = detrend(x)
 
@@ -243,7 +244,7 @@ def xcorr(x, y=None, maxlags=None, detrend=detrend_mean, scale_type='normalize')
         assert maxlags <= lsize, ('max lags must be less than or equal to %i'
                                   % lsize)
 
-    lags = pd.Int64Index(np.r_[1 - maxlags:maxlags])
+    lags = cast(np.r_[1 - maxlags:maxlags], int)
     return_type = pd.DataFrame if x.ndim == 2 else pd.Series
     scale_function = SCALE_FUNCTIONS[scale_type]
     return scale_function(return_type(ctmp[lags], index=lags), lsize)
