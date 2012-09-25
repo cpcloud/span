@@ -11,7 +11,7 @@ ctypedef np.uint8_t uint8
 @cython.boundscheck(False)
 cdef void _clear_refrac(np.ndarray[uint8, ndim=2, cast=True] a, long window):
     cdef:
-        long channel, i, sample, sp1
+        long channel, i, sample
         long nsamples = a.shape[0], nchannels = a.shape[1]
         uint8* a_data = <uint8*> a.data
 
