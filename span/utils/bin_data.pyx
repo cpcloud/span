@@ -24,12 +24,13 @@ cdef void _bin_data(np.ndarray[uint8, ndim=2, cast=True] a,
     """
     cdef:
         long i, j, k
-        long nbins_m_1 = out.shape[0], n = out.shape[1]
-        long *out_data = <long*> out.data, *bin_data = <long*> bins.data
+        long nbins = bins.shape[0], n = out.shape[1]
+        long* out_data = <long*> out.data
+        long* bin_data = <long*> bins.data
         uint8* a_data = <uint8*> a.data
 
     for k in xrange(n):
-        for i in xrange(nbins_m_1):
+        for i in xrange(nbins - 1):
             for j in xrange(bin_data[i], bin_data[i + 1]):
                 out_data[i * n + k] += a_data[j * n + k]
 
