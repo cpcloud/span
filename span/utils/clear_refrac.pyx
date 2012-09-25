@@ -17,7 +17,7 @@ cdef void _clear_refrac(np.ndarray[uint8, ndim=2, cast=True] a, long window):
         sample = 0
         while sample + window < nsamples:
             if a_data[sample * nchannels + channel]:
-                for i in xrange(sample, sample + window):
+                for i in xrange(sample + 1, sample + window + 1):
                     a_data[i * nchannels + channel] = 0
                 sample += window
             sample += 1

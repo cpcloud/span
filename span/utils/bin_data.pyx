@@ -23,7 +23,7 @@ cdef void _bin_data(np.ndarray[uint8, ndim=2, cast=True] a,
     out : array_like
     """
     cdef:
-        long i, j, k
+        long i, j, k, v
         long nbins = bins.shape[0], n = out.shape[1]
         long* out_data = <long*> out.data
         long* bin_data = <long*> bins.data
@@ -31,8 +31,12 @@ cdef void _bin_data(np.ndarray[uint8, ndim=2, cast=True] a,
 
     for k in xrange(n):
         for i in xrange(nbins - 1):
+            v = 0
+
             for j in xrange(bin_data[i], bin_data[i + 1]):
-                out_data[i * n + k] += a_data[j * n + k]
+                v += a_data[j * n + k]
+
+            out_data[i * n + k] = v
 
 
 @cython.wraparound(False)
@@ -54,7 +58,7 @@ def bin_data(np.ndarray[uint8, ndim=2, cast=True] a not None,
     out : array_like
         The binned data from `a`.
     """
-    cdef np.ndarray[long, ndim=2] out = np.zeros((bins.shape[0] - 1, a.shape[1]),
+    cdef np.ndarray[long, ndim=2] out = np.empty((bins.shape[0] - 1, a.shape[1]),
                                                  dtype=np.long)
     _bin_data(a, bins, out)
     return out
