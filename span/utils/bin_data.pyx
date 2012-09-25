@@ -23,8 +23,8 @@ cdef void _bin_data(np.ndarray[uint8, ndim=2, cast=True] a,
     out : array_like
     """
     cdef:
-        long i, j, k, v
-        long nbins = bins.shape[0], n = out.shape[1]
+        long i, j, k
+        long n = out.shape[1], nbinsm1 = bins.shape[0]
         long* out_data, *bin_data
         uint8* a_data
 
@@ -34,7 +34,7 @@ cdef void _bin_data(np.ndarray[uint8, ndim=2, cast=True] a,
         a_data = <uint8*> a.data
 
         for k in prange(n):
-            for i in xrange(nbins - 1):
+            for i in xrange(nbinsm1):
                 for j in prange(bin_data[i], bin_data[i + 1]):
                     out_data[i * n + k] += a_data[j * n + k]
 
