@@ -287,7 +287,7 @@ class SpikeDataFrame(SpikeDataFrameBase):
         clear_refrac(clr.values, self.refrac_window(ms))
         return clr
 
-    def fr(self, threshes, level='channel', binsize=1000, ms=2):
+    def fr(self, threshes, level='channel', axis=1, binsize=1000, ms=2):
         """Compute the firing rate over a given level.
 
         Parameters
@@ -302,9 +302,9 @@ class SpikeDataFrame(SpikeDataFrameBase):
         fr : array_like
         """
         binned = self.bin(threshes, binsize=binsize, ms=ms)
-        raw_count = binned.sum().groupby(level=level).sum()
-        nbins = float(max(binned.shape))
-        return raw_count / nbins
+        group = binned.groupby(axis=axis, level=level)
+        sqrtn = np.sqrt(max(binned.shape))
+        return group.mean().mean(), group.sum().std() / sqrtn
 
 
     def xcorr(self, threshes, ms=2, binsize=1000, maxlags=100,
