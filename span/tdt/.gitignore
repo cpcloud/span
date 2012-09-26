@@ -1,0 +1,8 @@
+*.c
+*.so
+*.pyc
+build/
+*.html
+*.tar.gz
+dist/
+/dist/*
