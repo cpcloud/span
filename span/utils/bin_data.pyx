@@ -12,8 +12,7 @@ ctypedef np.uint8_t uint8
 @cython.wraparound(False)
 @cython.boundscheck(False)
 cdef void _bin_data(np.ndarray[uint8, ndim=2, cast=True] a,
-                    np.ndarray[long, ndim=1] bins,
-                    np.ndarray[long, ndim=2] out):
+                    np.ndarray[long, ndim=1] bins, np.ndarray[long, ndim=2] out):
     """Sum the counts of spikes in `a` in each of the bins.
 
     Parameters
@@ -58,7 +57,9 @@ def bin_data(np.ndarray[uint8, ndim=2, cast=True] a not None,
     out : array_like
         The binned data from `a`.
     """
-    cdef np.ndarray[long, ndim=2] out = np.zeros((bins.shape[0] - 1, a.shape[1]),
-                                                 dtype=np.long)
+    cdef:
+        long m = bins.shape[0] - 1, n = a.shape[1]
+        tuple shape = (m, n)
+        np.ndarray[long, ndim=2] out = np.zeros(shape, dtype=np.long)
     _bin_data(a, bins, out)
     return out
