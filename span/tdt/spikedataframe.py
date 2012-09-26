@@ -138,6 +138,7 @@ class SpikeDataFrameBase(SpikeDataFrameAbstractBase):
     @cached_property
     def nchans(self): return cast(self.meta.channel.max() + 1, int)
 
+
     @property
     @thunkify
     def _channels(self):
@@ -285,6 +286,26 @@ class SpikeDataFrame(SpikeDataFrameBase):
         # input
         clear_refrac(clr.values, self.refrac_window(ms))
         return clr
+
+    def fr(self, threshes, level='channel', binsize=1000, ms=2):
+        """Compute the firing rate over a given level.
+
+        Parameters
+        ----------
+        threshes : array_like
+        level : str, optional
+        binsize : int, optional
+        ms : int, optional
+
+        Returns
+        -------
+        fr : array_like
+        """
+        binned = self.bin(threshes, binsize=binsize, ms=ms)
+        raw_count = binned.sum().groupby(level=level).sum()
+        nbins = float(max(binned.shape))
+        return raw_count / nbins
+
 
     def xcorr(self, threshes, ms=2, binsize=1000, maxlags=100,
               detrend=detrend_mean, scale_type='normalize'):
