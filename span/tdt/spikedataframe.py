@@ -303,10 +303,8 @@ class SpikeDataFrame(SpikeDataFrameBase):
         """
         binned = self.bin(threshes, binsize=binsize, ms=ms)
         group = binned.groupby(axis=axis, level=level)
-        s = group.sum()
-        sqrtn = np.sqrt(s.sum())
-        return group.mean().mean(), s.std() / sqrtn
-
+        sqrtn = np.sqrt(max(binned.shape))
+        return group.mean().mean(), group.sum().std() / sqrtn
 
     def xcorr(self, threshes, ms=2, binsize=1000, maxlags=100,
               detrend=detrend_mean, scale_type='normalize'):
