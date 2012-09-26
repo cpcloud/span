@@ -293,13 +293,25 @@ class SpikeDataFrame(SpikeDataFrameBase):
         Parameters
         ----------
         threshes : array_like
+            Threshold or threshold array.
+
         level : str, optional
+            The level of the data set on which to run the analyses.
+
+        axis : int, optional
+            The axis on which to look for the level, defaults to 1.
+
         binsize : int, optional
+            Bin size in milliseconds.
+
         ms : int, optional
+            Length of the refractory period in milliseconds
 
         Returns
         -------
-        fr : array_like
+        fr, sem : array_like, array_like
+            The average firing rate in spikes per binsize milliseconds and the
+            standard error of the mean of the spike counts for a given level.
         """
         binned = self.bin(threshes, binsize=binsize, ms=ms)
         group = binned.groupby(axis=axis, level=level)
