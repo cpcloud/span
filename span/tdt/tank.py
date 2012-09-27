@@ -15,7 +15,7 @@ import numpy as np
 import pandas as pd
 
 from span.tdt.spikeglobals import TsqFields, TsqNumpyTypes, Indexer
-from span.tdt.spikedataframe import SpikeDataFrame
+from span.tdt.spikedataframe import SpikeDataFrame, LfpDataFrame
 from span.utils import name2num, thunkify, cached_property
 
 TYPES_TABLE = ((np.float32, 1, np.float32),
@@ -142,8 +142,9 @@ class TdtTankBase(object):
                                      dtype=self.tsq_dtype))
         b.channel = (b.channel - 1).astype(float)
         b.channel[b.channel == -1] = np.nan
-        shank = Indexer.shank[b.channel].reset_index(drop=True)
-        side = Indexer.side[b.channel].reset_index(drop=True)
+        srt = Indexer.sort('channel').reset_index(drop=True)
+        shank = srt.shank[b.channel].reset_index(drop=True)
+        side = srt.side[b.channel].reset_index(drop=True)
         return b.join(shank).join(side)
 
     @cached_property
@@ -155,6 +156,9 @@ class TdtTankBase(object):
 
     @cached_property
     def spikes(self): return self.tev('Spik')
+
+    @cached_property
+    def lfps(self): return self.tev('LFPs')
 
 
 class PandasTank(TdtTankBase):
