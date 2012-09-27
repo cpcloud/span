@@ -33,7 +33,6 @@ Examples
 from future_builtins import map, zip
 
 import abc
-import itertools
 
 import numpy as np
 import pandas as pd
@@ -44,13 +43,11 @@ try:
 except RuntimeError:
     subplots = None
 
-from span.xcorr import xcorr
-from span.tdt.spikeglobals import Indexer, ChannelIndex
+import span
 
+from span.tdt.spikeglobals import Indexer, ChannelIndex
 from span.utils.decorate import cached_property, thunkify
-from span.utils import (
-    bin_data, cast, clear_refrac, detrend_mean, group_indices, ndtuples,
-    remove_legend)
+from span.utils import cast, group_indices
 
 
 class SpikeDataFrameAbstractBase(pd.DataFrame):
@@ -68,7 +65,6 @@ class SpikeDataFrameAbstractBase(pd.DataFrame):
 
     Attributes
     ----------
-    raw
     channels
     fs
     nchans
@@ -90,11 +86,6 @@ class SpikeDataFrameAbstractBase(pd.DataFrame):
         """
         super(SpikeDataFrameAbstractBase, self).__init__(data, *args, **kwargs)
         self.meta = meta
-
-    @abc.abstractproperty
-    def raw(self):
-        """Retrieve the underlying raw NumPy array."""
-        raise NotImplementedError
 
     @abc.abstractproperty
     def channels(self):
@@ -141,11 +132,10 @@ class SpikeDataFrameBase(SpikeDataFrameAbstractBase):
     @property
     @thunkify
     def _channels(self):
-        inds = self.channel_indices
-        vals = self.values[inds]
-        nch = inds.columns.size
+        vals = self.values[self.channel_indices]
         shpsort = np.argsort(vals.shape)[::-1]
-        valsr = vals.transpose(shpsort).reshape((int(vals.size // nch), nch))
+        newshp = int(vals.size // self.nchans), self.nchans
+        valsr = vals.transpose(shpsort).reshape(newshp)
         return pd.DataFrame(valsr, columns=ChannelIndex)
 
     @cached_property
@@ -169,10 +159,7 @@ class SpikeDataFrameBase(SpikeDataFrameAbstractBase):
     @property
     def side_group(self): return self.groupby(level=self.meta.side.name)
 
-    @property
-    def raw(self): return self.channels.values
-
-    def threshold(self, threshes): return self.channels > threshes
+    def threshold(self, threshes): return (self > threshes).channels
 
 
 class SpikeDataFrame(SpikeDataFrameBase):
@@ -224,7 +211,7 @@ class SpikeDataFrame(SpikeDataFrameBase):
         max_sample = self.channels.index[-1]
         bin_samples = int(np.floor(binsize * self.fs / conv))
         bins = np.r_[:max_sample:bin_samples]
-        binned = bin_data(cleared.values, bins)
+        binned = span.utils.bin_data(cleared.values, bins)
         return pd.DataFrame(binned, columns=ChannelIndex)
 
     def refrac_window(self, ms):
@@ -265,7 +252,7 @@ class SpikeDataFrame(SpikeDataFrameBase):
         clr = self.threshold(threshes)
 
         # TODO: make sure samples by channels is shape
-        clear_refrac(clr.values, self.refrac_window(ms))
+        span.utils.clear_refrac(clr.values, self.refrac_window(ms))
         return clr
 
     def fr(self, threshes, level='channel', axis=1, binsize=1000, ms=2):
@@ -300,7 +287,7 @@ class SpikeDataFrame(SpikeDataFrameBase):
         return group.mean().mean(), group.sum().std() / sqrtn
 
     def xcorr(self, threshes, ms=2, binsize=1000, maxlags=100,
-              detrend=detrend_mean, scale_type='normalize'):
+              detrend=span.utils.detrend_mean, scale_type='normalize'):
         """Compute the cross correlation of binned data.
 
         Parameters
@@ -353,14 +340,19 @@ class SpikeDataFrame(SpikeDataFrameBase):
         ms, binsize = map(float, (ms, binsize))
         binned = self.bin(threshes, ms=ms, binsize=binsize)
         nchannels = binned.columns.values.size
-        left, right = ndtuples(nchannels, nchannels).T
+        left, right = span.utils.ndtuples(nchannels, nchannels).T
         left, right = map(pd.Series, (left, right))
         left.name, right.name = 'channel i', 'channel j'
         sorted_indexer = Indexer.sort('channel').reset_index(drop=True)
         lshank, rshank = sorted_indexer.shank[left], sorted_indexer.shank[right]
         lshank.name, rshank.name = 'shank i', 'shank j'
         index = pd.MultiIndex.from_arrays((left, right, lshank, rshank))
-        xc = xcorr(binned, maxlags=maxlags, detrend=detrend,
-                   scale_type=scale_type).T
+        xc = span.xcorr.xcorr(binned, maxlags=maxlags, detrend=detrend,
+                              scale_type=scale_type).T
         xc.index = index
         return xc
+
+
+class LfpDataFrame(SpikeDataFrame):
+    @cached_property
+    def fs(self): return self.meta.fs.min()
