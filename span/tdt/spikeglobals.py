@@ -27,6 +27,11 @@ MedialLateral = pd.Series(MedLatRaw, name='Side Map')
 Indexer = pd.DataFrame(dict(zip(('channel', 'shank', 'side'),
                                 (ElectrodeMap, ShankMap, MedialLateral))))
 
+SortedIndexer = Indexer.sort('channel').reset_index(drop=True)
+ChannelIndex = pd.MultiIndex.from_arrays((SortedIndexer.channel,
+                                          SortedIndexer.shank,
+                                          SortedIndexer.side))
+
 EventTypes = pd.Series({
     0x0: np.nan,
     0x101: 'strobe_on',
