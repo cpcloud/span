@@ -45,7 +45,7 @@ except RuntimeError:
     subplots = None
 
 from span.xcorr import xcorr
-from span.tdt.spikeglobals import Indexer
+from span.tdt.spikeglobals import Indexer, ChannelIndex
 
 from span.utils.decorate import cached_property, thunkify
 from span.utils import (
@@ -141,29 +141,15 @@ class SpikeDataFrameBase(SpikeDataFrameAbstractBase):
     @property
     @thunkify
     def _channels(self):
-        # get the channel indices
         inds = self.channel_indices
-
-        # get the 3D array of raw values
         vals = self.values[inds.values]
-
-        # number of channels
         nch = inds.columns.values.size
-
-        # get indices of the sorted (descending) dimensions of vals
         shpsort = np.asanyarray(vals.shape).argsort()[::-1]
-
-        # transpose vals to make a reshape into a samples x channels array
         valsr = vals.transpose(shpsort).reshape(vals.size // nch, nch)
-
-        # columns = inds.columns
         return pd.DataFrame(valsr, columns=self.channel_index)
 
     @cached_property
-    def channel_index(self):
-        srt_idx = Indexer.sort('channel').reset_index(drop=True)
-        channel, shank, side = srt_idx.channel, srt_idx.shank, srt_idx.side
-        return pd.MultiIndex.from_arrays((channel, shank, side))
+    def channel_index(self): return ChannelIndex
 
     @cached_property
     def channels(self): return self._channels()
