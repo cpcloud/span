@@ -142,14 +142,11 @@ class SpikeDataFrameBase(SpikeDataFrameAbstractBase):
     @thunkify
     def _channels(self):
         inds = self.channel_indices
-        vals = self.values[inds.values]
-        nch = inds.columns.values.size
-        shpsort = np.asanyarray(vals.shape).argsort()[::-1]
-        valsr = vals.transpose(shpsort).reshape(vals.size // nch, nch)
-        return pd.DataFrame(valsr, columns=self.channel_index)
-
-    @cached_property
-    def channel_index(self): return ChannelIndex
+        vals = self.values[inds]
+        nch = inds.columns.size
+        shpsort = np.argsort(vals.shape)[::-1]
+        valsr = vals.transpose(shpsort).reshape((int(vals.size // nch), nch))
+        return pd.DataFrame(valsr, columns=ChannelIndex)
 
     @cached_property
     def channels(self): return self._channels()
@@ -228,7 +225,7 @@ class SpikeDataFrame(SpikeDataFrameBase):
         bin_samples = int(np.floor(binsize * self.fs / conv))
         bins = np.r_[:max_sample:bin_samples]
         binned = bin_data(cleared.values, bins)
-        return pd.DataFrame(binned, columns=self.channel_index)
+        return pd.DataFrame(binned, columns=ChannelIndex)
 
     def refrac_window(self, ms):
         """Compute the refractory period in samples given a period of `ms`
@@ -267,8 +264,7 @@ class SpikeDataFrame(SpikeDataFrameBase):
         """
         clr = self.threshold(threshes)
 
-        # TODO: fragile indexing here make sure samples by channels is shape of
-        # input
+        # TODO: make sure samples by channels is shape
         clear_refrac(clr.values, self.refrac_window(ms))
         return clr
 
