@@ -138,7 +138,6 @@ class SpikeDataFrameBase(SpikeDataFrameAbstractBase):
     @cached_property
     def nchans(self): return cast(self.meta.channel.max() + 1, int)
 
-
     @property
     @thunkify
     def _channels(self):
