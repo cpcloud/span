@@ -61,8 +61,7 @@ class TdtTankBase(object):
 
     def __init__(self, tankname):
         super(TdtTankBase, self).__init__()
-        assert isinstance(tankname, basestring), ("tankname must be a subclass of "
-                                                  "'basestring'")
+        assert isinstance(tankname, basestring), "tankname must be a string"
         basename = os.path.basename(tankname)
 
         self.tankname = tankname
