@@ -32,11 +32,11 @@ cdef void _bin_data(np.ndarray[uint8, ndim=2, cast=True] a,
         bin_data = <long*> bins.data
         a_data = <uint8*> a.data
 
-        for k in prange(n):
+        for k in prange(n, schedule='guided'):
             for i in xrange(nbinsm1):
                 loc = i * n + k
                 
-                for j in prange(bin_data[i], bin_data[i + 1]):
+                for j in prange(bin_data[i], bin_data[i + 1], schedule='guided'):
                     out_data[loc] += a_data[j * n + k]
 
 
