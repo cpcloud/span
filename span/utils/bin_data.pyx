@@ -22,7 +22,7 @@ cdef void _bin_data(np.ndarray[uint8, ndim=2, cast=True] a,
     out : array_like
     """
     cdef:
-        long i, j, k
+        long i, j, k, loc
         long n = out.shape[1], nbinsm1 = bins.shape[0]
         long* out_data, *bin_data
         uint8* a_data
@@ -34,8 +34,10 @@ cdef void _bin_data(np.ndarray[uint8, ndim=2, cast=True] a,
 
         for k in prange(n):
             for i in xrange(nbinsm1):
+                loc = i * n + k
+                
                 for j in prange(bin_data[i], bin_data[i + 1]):
-                    out_data[i * n + k] += a_data[j * n + k]
+                    out_data[loc] += a_data[j * n + k]
 
 
 @cython.wraparound(False)
