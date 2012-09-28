@@ -154,7 +154,7 @@ def normalize(c, lsize):
         jkl = np.diag(np.r_[:nc].reshape((ncsqrt, ncsqrt)))
 
         with warnings.catch_warnings():
-            warnings.simplefilter('ignore')
+            warnings.simplefilter('ignore', category=FutureWarning)
             tmp = np.sqrt(c.ix[0, jkl])
 
         cdiv = np.outer(tmp, tmp).ravel()
