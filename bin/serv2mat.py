@@ -48,12 +48,10 @@ def parse_args():
 def main():
     dn = parse_args()
     dnbn = os.path.basename(dn)
-    mat_filename = os.path.join(dn, dnbn + os.extsep + 'mat')
-    print '\nConverting TDT Tank to MATLAB: {0}'.format(mat_filename)
-
-    # save to the current directory
     tev, = glob.glob(os.path.join(dn, '*.tev'))
-    tev_name, _ = os.path.splitext(tev)
+    tev_name, _ = os.path.splitext(tev)    
+    mat_filename = os.path.join(tev_name + os.extsep + 'mat')
+    print '\nConverting TDT Tank to MATLAB: {0}'.format(mat_filename)
     serv2mat(span.tdt.PandasTank(tev_name).spikes.channels.values,
              mat_filename)
     print 'Done!'
