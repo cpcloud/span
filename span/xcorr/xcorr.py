@@ -70,17 +70,17 @@ def matrixcorr(x, nfft):
     -------
     c : array_like
         The cross correlation of the columns `x`.
+    m : 
     """
-    m, n = x.shape
+    _, n = x.shape
     ifft, fft = get_fft_funcs(x)
     X = fft(x.T, nfft)
     Xc = X.conj()
     mx, nx = X.shape
-    c = np.empty((mx** 2, nx), dtype=X.dtype)
+    c = np.empty((mx ** 2, nx), dtype=X.dtype)
     for i in xrange(n):
         c[i * n:(i + 1) * n] = X[i] * Xc
-    r = ifft(c, nfft).T
-    return (r, m) if nfft is None else r
+    return ifft(c, nfft).T
 
 
 def unbiased(c, lsize):
