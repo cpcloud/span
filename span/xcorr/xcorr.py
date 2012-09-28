@@ -70,7 +70,6 @@ def matrixcorr(x, nfft):
     -------
     c : array_like
         The cross correlation of the columns `x`.
-    m : 
     """
     _, n = x.shape
     ifft, fft = get_fft_funcs(x)
