@@ -51,20 +51,6 @@ except RuntimeError:
         return x - x.mean()
 
 
-    def detrend_mean_inplace(x):
-        """Center x in place.
-
-        Parameters
-        ----------
-        x : array_like
-
-        See Also
-        --------
-        detrend_mean
-        """
-        x -= x.mean()
-
-
     def detrend_linear(y):
         """Linearly detrend `y`.
 
@@ -76,13 +62,13 @@ except RuntimeError:
         -------
         d : array_like
         """
-        x = np.arange(len(y), dtype=float)
+        x = np.arange(y.size, dtype=float)
         c = np.cov(x, y, bias=1.0)
         b = c[0, 1] / c[0, 0]
         a = y.mean() - b * x.mean()
         return y - (b * x + a)
 
-    gca = NotImplemented,
+    gca = NotImplemented
     figure = NotImplemented
     subplots = NotImplemented
 
