@@ -62,7 +62,7 @@ except RuntimeError:
         -------
         d : array_like
         """
-        x = np.arange(y.size, dtype=float)
+        x = np.arange(len(y), dtype=float)
         c = np.cov(x, y, bias=1.0)
         b = c[0, 1] / c[0, 0]
         a = y.mean() - b * x.mean()

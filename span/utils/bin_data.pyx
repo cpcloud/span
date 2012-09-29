@@ -23,7 +23,7 @@ cdef void _bin_data(np.ndarray[uint8, ndim=2, cast=True] a,
     """
     cdef:
         long i, j, k, loc
-        long n = out.shape[1], nbinsm1 = bins.shape[0]
+        long n = out.shape[1], nbinsm1 = bins.shape[0] - 1
         long* out_data, *bin_data
         uint8* a_data
 
