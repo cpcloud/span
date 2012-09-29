@@ -12,7 +12,7 @@ import functools
 import numpy as np
 import pandas as pd
 
-# from span.utils.functional import compose
+from span.utils.functional import compose
 # from span.tdt import Indexer
 
 try:
