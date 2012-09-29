@@ -344,8 +344,8 @@ class SpikeDataFrame(SpikeDataFrameBase):
 
         ms, binsize = float(ms), float(binsize)
         binned = self.bin(threshes, ms=ms, binsize=binsize)
-        bad_chan = np.where(binned.sum().values < reject_count)[0]
-        binned.ix[:, bad_chan] = np.nan
+        # bad_chan, = np.where(binned.sum().values < reject_count)
+        # binned.ix[:, bad_chan] = np.nan
 
         nchannels = binned.columns.values.size
         left, right = span.utils.ndtuples(nchannels, nchannels).T
