@@ -65,6 +65,7 @@ class TestSpikeDataFrameBase(unittest.TestCase):
         chn = self.spikes._channels
         self.assert_(callable(chn))
 
+    @slow
     def test_channels(self):
         chn = self.spikes.channels
         cols = self.spikes.channels.columns
