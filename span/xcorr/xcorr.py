@@ -221,7 +221,8 @@ def xcorr(x, y=None, maxlags=None, detrend=detrend_mean, scale_type='normalize')
     """
     assert x.ndim in (1, 2), 'x must be a 1D or 2D array'
     assert callable(detrend), 'detrend must be a callable object'
-    assert isinstance(scale_type, basestring), '"scale_type" must be a string'
+    assert isinstance(scale_type, basestring) or scale_type is None, \
+        '"scale_type" must be a string or None'
 
     x = detrend(x)
 
