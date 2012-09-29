@@ -343,22 +343,26 @@ class SpikeDataFrame(SpikeDataFrameBase):
         assert isinstance(scale_type, basestring), 'scale_type must be a string'
 
         ms, binsize = float(ms), float(binsize)
-        binned = self.bin(threshes, ms=ms, binsize=binsize)
-        # bad_chan, = np.where(binned.sum().values < reject_count)
-        # binned.ix[:, bad_chan] = np.nan
+        binned = cast(self.bin(threshes, ms=ms, binsize=binsize), float)
+        binned.ix[:, binned.sum() < reject_count] = np.nan
 
         nchannels = binned.columns.values.size
+        
         left, right = span.utils.ndtuples(nchannels, nchannels).T
         left, right = map(pd.Series, (left, right))
         left.name, right.name = 'channel i', 'channel j'
+
         sorted_indexer = Indexer.sort('channel').reset_index(drop=True)
+
         lshank, rshank = sorted_indexer.shank[left], sorted_indexer.shank[right]
         lshank.name, rshank.name = 'shank i', 'shank j'
+
         index = pd.MultiIndex.from_arrays((left, right, lshank, rshank))
+
         xc = span.xcorr.xcorr(binned, maxlags=maxlags, detrend=detrend,
                               scale_type=scale_type).T
         xc.index = index
-        return xc
+        return xc, binned
 
 
 class LfpDataFrame(SpikeDataFrame):
