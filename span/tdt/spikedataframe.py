@@ -343,7 +343,7 @@ class SpikeDataFrame(SpikeDataFrameBase):
         assert isinstance(scale_type, basestring), 'scale_type must be a string'
 
         ms, binsize = float(ms), float(binsize)
-        binned = cast(self.bin(threshes, ms=ms, binsize=binsize), float)
+        binned = self.bin(threshes, ms=ms, binsize=binsize).astype(float)
         binned.ix[:, binned.sum() < reject_count] = np.nan
 
         nchannels = binned.columns.values.size
