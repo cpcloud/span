@@ -105,7 +105,7 @@ def unbiased(c, lsize):
     c : array_like
         The unbiased estimate of the cross correlation.
     """
-    d = lsize - c.index.abs().values
+    d = lsize - np.abs(c.index).values
     denom = np.tile(d[:, np.newaxis], (1, c.shape[1])) if c.ndim == 2 else d
     return type(c)(c.values / denom, index=c.index)
 
