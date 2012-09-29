@@ -25,6 +25,7 @@ npy_includes = np.get_include()
 include_dirs = [npy_includes]
 
 utils_dir = os.path.join('span', 'utils')
+xcorr_dir = os.path.join('span', 'xcorr')
 ext_modules = [Extension('_clear_refrac',
                          [os.path.join(utils_dir,
                                        'clear_refrac{sep}pyx'.format(sep=os.extsep))],
@@ -36,7 +37,14 @@ ext_modules = [Extension('_clear_refrac',
                                        'bin_data{sep}pyx'.format(sep=os.extsep))],
                          extra_compile_args=extra_compile_args,
                          extra_link_args=extra_link_args,
+                         include_dirs=include_dirs),
+               Extension('_mult_mat_xcorr',
+                         [os.path.join(xcorr_dir,
+                                       '_mult_mat_xcorr{sep}pyx'.format(sep=os.extsep))],
+                         extra_compile_args=extra_compile_args,
+                         extra_link_args=extra_link_args,
                          include_dirs=include_dirs)]
+
 
 if __name__ == '__main__':
     readme_filename = glob.glob('README*')[0]
