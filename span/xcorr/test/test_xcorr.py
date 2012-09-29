@@ -3,7 +3,8 @@ import unittest
 import numpy as np
 from numpy.testing import assert_allclose
 
-from span.tdt.xcorr import xcorr
+from span.xcorr import xcorr, mult_mat_xcorr
+from span.utils import nextpow2, get_fft_funcs
 
 
 class TestXCorr(unittest.TestCase):
@@ -66,3 +67,21 @@ class TestXCorr(unittest.TestCase):
                 # lag 0s must be 1.0 for normalized
                 assert_allclose(c.ix[0, jkl], 1.0)
                 assert v.ix[0] == 1.0
+
+
+def test_mult_mat_xcorr():
+    x = np.random.randn(np.random.randint(500, 701), np.random.randint(2, 21))
+    m, n = x.shape
+    ifft, fft = get_fft_funcs(x)
+    nfft = int(2 ** nextpow2(m))
+    X = fft(x.T, nfft)
+    Xc = X.conj()
+    mx, nx = X.shape
+    c = np.empty((mx ** 2, nx), dtype=X.dtype)
+    oc = c.copy()
+    mult_mat_xcorr(X, Xc, oc, n, nx)
+    for i in xrange(n):
+        c[i * n:(i + 1) * n] = X[i] * Xc
+    assert_allclose(c, oc)
+    cc, occ = ifft(c, nfft).T, ifft(oc, nfft).T
+    assert_allclose(cc, occ)
