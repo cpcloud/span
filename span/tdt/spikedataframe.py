@@ -294,7 +294,7 @@ class SpikeDataFrame(SpikeDataFrameBase):
         Parameters
         ----------
         threshes : array_like
-            Threshold(s) to use for spike detection
+            Threshold(s) to use for spike detection.
 
         ms : float, optional
             The refractory period of a channel. Defaults to 2 ms.
@@ -342,7 +342,7 @@ class SpikeDataFrame(SpikeDataFrameBase):
         assert callable(detrend), 'detrend must be a callable class or function'
         assert isinstance(scale_type, basestring), 'scale_type must be a string'
 
-        ms, binsize = map(float, (ms, binsize))
+        ms, binsize = float(ms), float(binsize)
         binned = self.bin(threshes, ms=ms, binsize=binsize)
         binned.values[binned.values < reject_count] = np.nan
         nchannels = binned.columns.values.size
