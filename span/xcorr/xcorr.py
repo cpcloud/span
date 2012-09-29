@@ -9,8 +9,11 @@ import warnings
 import numpy as np
 import pandas as pd
 
+
 from span.utils import (
     cast, detrend_mean, get_fft_funcs, isvector, nextpow2, pad_larger)
+
+from span.xcorr._mult_mat_xcorr import mult_mat_xcorr
 
 
 def autocorr(x, nfft):
@@ -30,7 +33,8 @@ def autocorr(x, nfft):
         The autocorrelation of `x`.
     """
     ifft, fft = get_fft_funcs(x)
-    return ifft(np.abs(fft(x, nfft))** 2.0, nfft)
+    a = np.abs(fft(x, nfft))
+    return ifft(a * a, nfft)
 
 
 def crosscorr(x, y, nfft):
@@ -77,8 +81,7 @@ def matrixcorr(x, nfft):
     Xc = X.conj()
     mx, nx = X.shape
     c = np.empty((mx ** 2, nx), dtype=X.dtype)
-    for i in xrange(n):
-        c[i * n:(i + 1) * n] = X[i] * Xc
+    mult_mat_xcorr(X, Xc, c, n, nx)
     return ifft(c, nfft).T
 
 
