@@ -287,7 +287,8 @@ class SpikeDataFrame(SpikeDataFrameBase):
         return group.mean().mean(), group.sum().std() / sqrtn
 
     def xcorr(self, threshes, ms=2, binsize=1000, maxlags=100,
-              detrend=span.utils.detrend_mean, scale_type='normalize'):
+              detrend=span.utils.detrend_mean, scale_type='normalize',
+              reject_count=100):
         """Compute the cross correlation of binned data.
 
         Parameters
@@ -311,6 +312,10 @@ class SpikeDataFrame(SpikeDataFrameBase):
 
         scale_type : str, optional
             Method of scaling. Defaults to 'normalize'.
+
+        reject_count : int, optional
+            Bins whose count is less than this will be assigned NaN. Defaults to
+            100.
 
         Raises
         ------
@@ -339,6 +344,7 @@ class SpikeDataFrame(SpikeDataFrameBase):
 
         ms, binsize = map(float, (ms, binsize))
         binned = self.bin(threshes, ms=ms, binsize=binsize)
+        binned.values[binned.values < reject_count] = np.nan
         nchannels = binned.columns.values.size
         left, right = span.utils.ndtuples(nchannels, nchannels).T
         left, right = map(pd.Series, (left, right))
