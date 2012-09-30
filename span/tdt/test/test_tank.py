@@ -12,7 +12,7 @@ from span.tdt import SpikeDataFrame
 
 class TestTdtTankBase(unittest.TestCase):
     def test___init__(self):
-        self.assertRaises(TypeError, TdtTankBase, '')
+        self.assertRaises(TypeError, TdtTankBase, pd.util.testing.rands(10))
 
 
 class TestPandasTank(unittest.TestCase):
