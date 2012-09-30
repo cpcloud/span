@@ -125,9 +125,9 @@ class TestSpikeDataFrame(TestSpikeDataFrameAbstractBase):
             self.assertEqual(sem.size, sz)
 
     def test_refrac_window(self):
-        args = np.arange(100)
-        r = map(type, [self.spikes.refrac_window(arg) for arg in args])
-        self.assertListEqual(list(r), list(itertools.repeat(int, len(r))))
+        args = np.arange(10)
+        r = list(map(type, [self.spikes.refrac_window(arg) for arg in args]))
+        self.assertListEqual(r, list(itertools.repeat(int, len(r))))
 
     # @nottest
     @slow
