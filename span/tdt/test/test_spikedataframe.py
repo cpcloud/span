@@ -1,3 +1,5 @@
+from future_builtins import map
+
 import os
 import unittest
 import itertools
@@ -107,10 +109,25 @@ class TestSpikeDataFrame(TestSpikeDataFrameAbstractBase):
                                                  self.spikes.channels.shape[1]))
             assert_all_dtypes(binned, np.int64)
 
+    @nottest
+    @slow
+    def test_fr(self):
+        index = self.spikes.index
+        levels = index.names
+        axes = 0, 1, None
+        arg_sets = itertools.product(self.threshes, levels, axes, self.binsizes,
+                                    self.mses)
+        for arg_set in arg_sets:
+            thresh, level, axis, binsize, ms = arg_set
+            fr, sem = self.spikes.fr(thresh, level, axis, binsize, ms)
+            sz = index.levels[levels.index(level)].size
+            self.assertEqual(fr.size, sz)
+            self.assertEqual(sem.size, sz)
+
     def test_refrac_window(self):
         args = np.arange(100)
-        r = [self.spikes.refrac_window(arg) for arg in args]
-        self.assertListEqual(map(type, r), list(itertools.repeat(int, len(r))))
+        r = map(type, [self.spikes.refrac_window(arg) for arg in args])
+        self.assertListEqual(list(r), list(itertools.repeat(int, len(r))))
 
     # @nottest
     @slow
@@ -143,6 +160,24 @@ class TestSpikeDataFrame(TestSpikeDataFrameAbstractBase):
             self.assertTupleEqual(xc.values.shape, (self.spikes.nchans ** 2,
                                                     2 * maxlag - 1))
             assert_all_dtypes(xc, np.float64)
+
+
+class TestLfpDataFrame(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        tankname = os.path.join(os.path.expanduser('~'), 'Data', 'xcorr_data',
+                                'Spont_Spikes_091210_p17rat_s4_657umV')
+        tn = os.path.join(tankname, os.path.basename(tankname))
+        tank = PandasTank(tn)
+        rows, _ = tank.lfps.shape
+        cls.lfps = tank.lfps
+        cls.meta = cls.lfps.meta
+        cls.threshes = 2e-5, 3e-5
+        cls.mses = 2.0, 3.0
+        cls.binsizes = 1, 10, 100
+
+    def test_fs(self):
+        fs = self.lfps.fs
 
 
 class TestDetrend(unittest.TestCase):
