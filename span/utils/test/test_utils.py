@@ -16,7 +16,7 @@ from pylab import gca
 from span.utils import (
     bin_data, cast, dirsize, fractional, get_fft_funcs, group_indices,
     iscomplex, isvector, name2num, nans, ndlinspace, ndtuples, nextpow2,
-    pad_larger, pad_larger2, remove_legend, cartesian)
+    pad_larger, pad_larger2, remove_legend, cartesian, trimmean)
 
 
 def rand_array_delegate(func, n, ndims):
