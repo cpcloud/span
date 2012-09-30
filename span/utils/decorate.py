@@ -31,7 +31,7 @@ def thunkify(f):
             """The worker thread with which to run `f`."""
             try:
                 result[0] = f(*args, **kwargs)
-            except Exception as e:
+            except Exception:
                 exc[0], exc[1] = True, sys.exc_info()
             finally:
                 wait_event.set()
@@ -63,6 +63,8 @@ def cached_property(f):
     -------
     getter : callable
     """
+    assert callable(f), 'f must be callable'
+    
     @property
     @functools.wraps(f)
     def getter(self):
