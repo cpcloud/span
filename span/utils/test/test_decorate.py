@@ -48,7 +48,7 @@ class TestThunkify(unittest.TestCase):
         call_thunky(100)
         t2 = time.time() - t0
 
-        assert_allclose(t1, t2, rtol=1e-3)
+        assert_allclose(t1, t2, rtol=1e-2)
 
         @thunkify
         def thrower():
