@@ -52,15 +52,18 @@ def test_fractional():
 def test_ndtuples():
     t = rand_int_tuple()
     k = ndtuples(*t)
-    set_k = set(np.unique(k.ravel()))
-    assert False
+    set_k = np.unique(k.ravel())
+    set_k.sort()
+    assert np.array_equal(set_k, np.arange(max(t)))
 
 
-def test_cartesian():
-    sizes = [randint(5, 10) for _ in xrange(4)]
-    prod_arrays = map(randn, sizes)
-    c = cartesian(prod_arrays)
-    assert c.size == functools.reduce(operator.mul, sizes)
+class TestCartesian(unittest.TestCase):
+    def test_cartesian(self):
+        ncols = randint(2, 6)
+        sizes = [randint(5, 10) for _ in xrange(ncols)]
+        prod_arrays = map(randn, sizes)
+        c = cartesian(prod_arrays)
+        self.assertEqual(c.size, np.prod(sizes) * ncols)
 
 
 def test_dirsize():
@@ -201,9 +204,5 @@ def test_distance_map():
     assert False
 
 
-def test_blob():
-    assert False
-
-
-def test_hinton():
+def test_trimmean():
     assert False
