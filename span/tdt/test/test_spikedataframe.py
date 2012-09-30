@@ -27,25 +27,26 @@ def get_unified_dytpe(df, dtype):
 
 
 class TestSpikeDataFrameAbstractBase(unittest.TestCase):
-    def test_init(self):
-        self.assertRaises(TypeError, SpikeDataFrameAbstractBase,
-                          pd.DataFrame(np.random.randn(10, 13)),
-                          pd.DataFrame(np.random.rand(1080, 17)))
-
-
-class TestSpikeDataFrameBase(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         tankname = os.path.join(os.path.expanduser('~'), 'Data', 'xcorr_data',
                                 'Spont_Spikes_091210_p17rat_s4_657umV')
         tn = os.path.join(tankname, os.path.basename(tankname))
         tank = PandasTank(tn)
+        rows, _ = tank.spikes.shape
         cls.spikes = tank.spikes
         cls.meta = cls.spikes.meta
-        cls.threshes = 1e-5, 2e-5, 3e-5, 4e-5
-        cls.mses = 2.0, 3.0, 4.0, 5.0
-        cls.binsizes = 1, 10, 100, 1000
+        cls.threshes = 2e-5, 3e-5
+        cls.mses = 2.0, 3.0
+        cls.binsizes = 1, 10, 100
 
+    def test_init(self):
+        self.assertRaises(TypeError, SpikeDataFrameAbstractBase,
+                          pd.DataFrame(np.random.randn(10, 13)),
+                          pd.DataFrame(np.random.rand(1080, 17)))
+
+
+class TestSpikeDataFrameBase(TestSpikeDataFrameAbstractBase):
     def test_fs(self):
         fs = self.spikes.fs
         self.assertEqual(fs, self.meta.fs.max())
@@ -68,7 +69,7 @@ class TestSpikeDataFrameBase(unittest.TestCase):
     @slow
     def test_channels(self):
         chn = self.spikes.channels
-        cols = self.spikes.channels.columns
+        cols = chn.columns
         values = cols.levels[cols.names.index('channel')]
         self.assertRaises(ValueError, operator.add, values.max(), 1)
         self.assertEqual(self.spikes.nchans, values.values.max() + 1)
@@ -81,22 +82,11 @@ class TestSpikeDataFrameBase(unittest.TestCase):
             indices = getattr(self.spikes, ind + '_indices')
             grp = getattr(self.spikes, ind + '_group')
             self.assertIsInstance(indices, (pd.DataFrame, pd.Series))
-            # self.assertIsInstance(grp, (pd.DataFrame, pd.Series))
+            self.assertIsInstance(grp, (pd.core.groupby.DataFrameGroupBy,
+                                        pd.core.groupby.SeriesGroupBy))
 
 
-class TestSpikeDataFrame(unittest.TestCase):
-    @classmethod
-    def setUpClass(cls):
-        tankname = os.path.join(os.path.expanduser('~'), 'Data', 'xcorr_data',
-                                'Spont_Spikes_091210_p17rat_s4_657umV')
-        tn = os.path.join(tankname, os.path.basename(tankname))
-        tank = PandasTank(tn)
-        cls.spikes = tank.spikes
-        cls.meta = cls.spikes.meta
-        cls.threshes = 1e-5, 2e-5, 3e-5, 4e-5, 5e-5
-        cls.mses = 2.0, 3.0, 4.0, 5.0, 6.0
-        cls.binsizes = 1, 10, 100, 1000, 10000
-
+class TestSpikeDataFrame(TestSpikeDataFrameAbstractBase):
     def test_threshold(self):
         shp = self.spikes.channels.shape
         for thresh in self.threshes:
@@ -104,6 +94,7 @@ class TestSpikeDataFrame(unittest.TestCase):
             assert_all_dtypes(threshed, np.bool_)
             self.assertTupleEqual(threshed.shape, shp)
 
+    @nottest
     @slow
     def test_bin(self):
         max_sample = self.spikes.channels.index[-1]
@@ -121,6 +112,7 @@ class TestSpikeDataFrame(unittest.TestCase):
         r = [self.spikes.refrac_window(arg) for arg in args]
         self.assertListEqual(map(type, r), list(itertools.repeat(int, len(r))))
 
+    # @nottest
     @slow
     def test_cleared(self):
         for arg_set in itertools.product(self.threshes, self.mses):
@@ -137,6 +129,7 @@ class TestSpikeDataFrame(unittest.TestCase):
         self.assertIsInstance(s, pd.DataFrame)
         self.assertIsInstance(s_new, pd.DataFrame)
 
+    @nottest
     @slow
     def test_xcorr(self):
         maxlags = 50, 100, 150, 200, 250, 300, None
@@ -154,7 +147,7 @@ class TestSpikeDataFrame(unittest.TestCase):
 
 class TestDetrend(unittest.TestCase):
     def test_detrend_none(self):
-        x = np.random.randn(10, 11, 12)
+        x = np.random.randn(10, 11)
         dtx = detrend_none(x)
         assert_array_equal(x, dtx)
 
@@ -176,7 +169,7 @@ class TestDetrend(unittest.TestCase):
         print m.values.squeeze().size
 
     def test_detrend_linear(self):
-        n = 1000
+        n = 100
         x = np.random.randn(n)
         dtx = detrend_linear(x)
         eps = np.finfo(dtx.dtype).eps
@@ -186,7 +179,7 @@ class TestDetrend(unittest.TestCase):
         assert_allclose(dtx.std(), 1.0, rtol=rtol, atol=eps)
 
     def test_detrend_linear_series(self):
-        n = 1000
+        n = 100
         x = pd.Series(np.random.randn(n))
         dtx = detrend_linear(x)
         m = dtx.mean()

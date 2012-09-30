@@ -3,7 +3,8 @@ import unittest
 import numpy as np
 from numpy.testing import assert_allclose
 
-from span.xcorr import xcorr, mult_mat_xcorr
+from span.xcorr import mult_mat_xcorr
+from span.xcorr.xcorr import xcorr
 from span.utils import nextpow2, get_fft_funcs
 
 

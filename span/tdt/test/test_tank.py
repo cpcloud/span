@@ -26,9 +26,9 @@ class TestPandasTank(unittest.TestCase):
     def test__parse_date(self):
         d = self.tank._parse_date('')
         now = pd.datetime.now()
-        assert d.month == now.month
-        assert d.day == now.day
-        assert d.year == now.year + 2000
+        self.assertEqual(d.month, now.month)
+        self.assertEqual(d.day, now.day)
+        self.assertEqual(d.year, now.year + 2000)
 
         # date-like string case
         s = self.tank.tankname
@@ -36,29 +36,31 @@ class TestPandasTank(unittest.TestCase):
 
     def test_date(self):
         assert hasattr(self.tank, 'date')
-        assert isinstance(self.tank.date, (basestring, datetime.date))
+        self.assertIsInstance(self.tank.date, (basestring, datetime.date))
 
     def test__read_tev(self):
         tev = self.tank._read_tev('Spik')()
-        assert tev is not None
-        assert isinstance(tev, SpikeDataFrame)
+        self.assertIsNotNone(tev)
+        self.assertIsInstance(tev, SpikeDataFrame)
 
         tev = self.tank._read_tev('LFPs')()
-        assert tev is not None
-        assert isinstance(tev, SpikeDataFrame)
+        self.assertIsNotNone(tev)
+        self.assertIsInstance(tev, SpikeDataFrame)
 
     def test__read_tsq(self):
         tsq = self.tank._read_tsq()
-        assert tsq is not None
-        assert isinstance(tsq, pd.DataFrame)
+        self.assertIsNotNone(tsq)
+        self.assertIsInstance(tsq, pd.DataFrame)
 
     def test_tsq(self):
-        assert self.tank.tsq is not None
+        self.assertIsNotNone(self.tank.tsq)
 
     def test_tev(self):
-        assert self.tank.tev('Spik') is not None
-        assert self.tank.tev('LFPs') is not None
-        # assert self.tank.tev('Tick') is not None
+        self.assertIsNotNone(self.tank.tev('Spik'))
+        self.assertIsNotNone(self.tank.tev('LFPs'))
 
     def test_spikes(self):
-        assert self.tank.spikes is not None
+        self.assertIsNotNone(self.tank.spikes)
+
+    def test_lfps(self):
+        self.assertIsNotNone(self.tank.lfps)
