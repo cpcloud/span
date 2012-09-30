@@ -204,5 +204,18 @@ def test_distance_map():
     assert False
 
 
-def test_trimmean():
-    assert False
+class TestTrimmean(unittest.TestCase):
+    def test_1d_array(self):
+        assert False
+
+    def test_2d_array(self):
+        assert False
+
+    def test_ndarray(self):
+        assert False
+
+    def test_series(self):
+        assert False
+
+    def test_dataframe(self):
+        assert False
