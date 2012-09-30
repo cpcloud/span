@@ -11,9 +11,8 @@ import functools
 
 import numpy as np
 import pandas as pd
+import scipy.stats
 
-from span.utils.functional import compose
-# from span.tdt import Indexer
 
 try:
     from pylab import (
@@ -168,7 +167,7 @@ def cartesian(arrays, out=None):
     -------
     out : array_like
     """
-    arrays = tuple(map(np.asarray, arrays))
+    arrays = list(map(np.asarray, arrays))
     dtype = np.object_
     n = np.prod([x.size for x in arrays])
     if out is None:
@@ -220,9 +219,9 @@ def ndlinspace(ranges, *nelems):
     """
     x = ndtuples(*nelems) + 1.0
     b = np.asanyarray(nelems)
-    lbounds, ubounds = map(np.fromiter, zip(*((r[0], r[1]) for r in ranges)),
-                           (float, float))
-    return lbounds + (x - 1.0) / (b - 1.0) * (ubounds - lbounds)
+    zipped = zip(*((r[0], r[1]) for r in ranges))
+    lbounds, ubounds = map(np.fromiter, zipped, (float, float))
+    return lbounds + (x - 1) / (b - 1) * (ubounds - lbounds)
 
 
 def nans(shape):
@@ -537,123 +536,81 @@ def isvector(x):
     return functools.reduce(operator.mul, x.shape) == max(x.shape)
 
 
-# def plot_xcorr(xc, figsize=(40, 25), dpi=100, titlesize=4, labelsize=3,
-#                sharex=True, sharey=True):
-#     ###########################
-#     # TODO: rewrite this crap #
-#     ###########################
-
-#     # create as many possible things as we can before
-#     # instantiating any matplotlib figures and friends
-
-#     # get the channel indexer
-#     elec_map = Indexer.channel
-
-#     # number of channels
-#     nchannels = elec_map.size
-
-#     # the channel index labels
-#     left, right, _, _ = xc.index.labels
-
-#     # indices of a lower triangular nchannels by nchannels array
-#     lower_inds = np.tril_indices(nchannels)
-
-#     # flatted and linearly indexed
-#     flat_lower_inds = np.ravel_multi_index(np.vstack(lower_inds),
-#                                            (nchannels, nchannels))
-
-#     # make a list of strings for titles
-#     title_strings = cast(np.vstack((left + 1, right + 1)), str).T.tolist()
-#     title_strings = np.asanyarray(list(map(' vs. '.join, title_strings)))
-
-#     # get only the ones we want
-#     title_strings = title_strings[flat_lower_inds]
-
-#     # create the subplots with linked axes
-#     fig, axs = subplots(nchannels, nchannels, sharex=sharex, sharey=sharey,
-#                         figsize=figsize, dpi=dpi)
-
-#     # get the axes objects that we want to show
-#     axs_to_show = axs.flat[flat_lower_inds]
-
-#     # set the title on the axes objects that we want to see
-#     titler = lambda ax, s, fs: ax.set_title(s, fontsize=fs)
-#     sizes = itertools.repeat(titlesize, axs_to_show.size)
-#     list(map(titler, axs_to_show.flat, title_strings, sizes))
-
-#     # hide the ones we don't want
-#     upper_inds = np.triu_indices(nchannels, 1)
-#     flat_upper_inds = np.ravel_multi_index(np.vstack(upper_inds),
-#                                            (nchannels, nchannels))
-#     axs_to_hide = axs.flat[flat_upper_inds]
-#     list(map(lambda ax: map(lambda tax: tax.set_visible(False), (ax.xaxis, ax.yaxis)),
-#              axs_to_hide))
-#     list(map(lambda ax: ax.set_frame_on(False), axs_to_hide))
-#     list(map(remove_legend, axs.flat))
-
-#     min_value = xc.min().min()
-#     for indi, i in enumerate(elec_map):
-#         for indj, j in enumerate(elec_map):
-#             if indi >= indj:
-#                 ax = axs[indi, indj]
-#                 ax.tick_params(labelsize=labelsize, left=True,
-#                                right=False, top=False, bottom=True,
-#                                direction='out')
-#                 xcij = xc.ix[i, j].T
-#                 ax.vlines(xcij.index, min_value, xcij)
-#     fig.tight_layout()
-#     return fig, axs
-
-
-def blob(x, y, area, color, ax):
-    """Fill a square of area `area` with color `color` on axis `ax`.
+def compose2(f, g):
+    """Return a function that computes the composition of two functions.
 
     Parameters
     ----------
-    x, y, area : number
-    color : str
-    ax : matplotlib.axes.Axes
+    f, g : callable
+
+    Returns
+    -------
+    h : callable
     """
-    hs = np.sqrt(area) / 2.0
-    xcorn = np.array([x - hs, x + hs, x + hs, x - hs])
-    ycorn = np.array([y - hs, y - hs, y + hs, y + hs])
-    ax.fill(xcorn, ycorn, color, edgecolor=color)
+    if not all(map(callable, (f, g))):
+        raise TypeError('f and g must both be callable')
+    return lambda *args, **kwargs: f(g(*args, **kwargs))
 
 
-def hinton(w, max_weight, ax):
-    """Plot a Hinton diagram.
+def compose(*args):
+    """Compose an arbitrary number of functions.
 
     Parameters
     ----------
-    w : array_like
-    max_weight : array_like
-    ax : matplotlib.axes.Axes
+    args : tuple of callables
+
+    Returns
+    -------
+    h : callable
+        Composition of callables in `args`.
     """
-    w = np.asanyarray(w)
-    if max_weight is None:
-        f = compose(np.ceil, np.log2, np.max, np.abs)
-        max_weight = 2 ** f(w)
-        # max_weight = 2 ** np.ceil(np.log2(np.max(np.abs(w))))
-        # max_weight = 2 ** np.ceil(np.log(np.max(np.abs(w))) / np.log(2))
+    return functools.partial(functools.reduce, compose2)(args)
 
-    if ax is None:
-        fig = figure()
-        ax = fig.add_subplot(111)
 
-    height, width = w.shape
+def composemap(*args):
+    """Compose an arbitrary number of mapped functions.
 
-    ax.fill(np.array([0, width, width, 0]),
-            np.array([0, 0, height, height]), 'gray')
-    ax.axis('off')
-    ax.axis('equal')
+    Parameters
+    ----------
+    args : tuple of callables
 
-    colors = {1: 'white', -1: 'black'}
+    Returns
+    -------
+    h : callable
 
-    for x in xrange(width):
-        for y in xrange(height):
-            xx = x + 1
-            yy = y + 1
-            wyx = w[y, x]
-            s = np.sign(wyx)
-            blob(xx - 0.5, height - yy + 0.5, min(1, s * wyx / max_weight),
-                 colors[s], ax)
+    """
+    maps = itertools.repeat(map, len(args))
+    return functools.reduce(compose2, map(functools.partial, maps, args))
+
+
+def trimmean(x, alpha, inclusive=(False, False), axis=None):
+    """Compute the `alpha`-trimmed mean of an array `x`.
+
+    Parameters
+    ----------
+    x : array_like
+        The array on which to operate.
+
+    alpha : float or int
+        A number between 0 and 100, left inclusive indicating the percentage of
+        values to cut from `x`.
+
+    inclusive : tuple of bools, optional
+        Whether to round (True, True) or truncate the values (False, False).
+        Defaults to truncation.
+       
+    axis : int or None, optional
+        The axis over which to operate.
+
+    Returns
+    -------
+    m : Series
+        The `alpha`-trimmed mean of `x` along axis `axis`.
+    """
+    assert 0 <= alpha < 100, 'alpha must be in the interval [0, 100)'
+    assert len(inclusive) == 2, 'inclusive must have only 2 elements'
+    assert axis is None or 0 <= axis < x.ndim, \
+        'axis must be None or less than x.ndim:{0}'.format(x.ndim)
+    return pd.Series(scipy.stats.mstats.trimboth(x, proportiontocut=alpha / 100.0,
+                                                 inclusive=inclusive,
+                                                 axis=axis).mean(axis))
