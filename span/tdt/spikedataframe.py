@@ -45,6 +45,7 @@ except RuntimeError:
 
 import span
 
+from span.xcorr import xcorr
 from span.tdt.spikeglobals import Indexer, ChannelIndex
 from span.utils.decorate import cached_property, thunkify
 from span.utils import cast, group_indices
@@ -340,7 +341,8 @@ class SpikeDataFrame(SpikeDataFrameBase):
             Clear the refractory period of a channel.
         """
         assert callable(detrend), 'detrend must be a callable class or function'
-        assert isinstance(scale_type, basestring), 'scale_type must be a string'
+        assert isinstance(scale_type, basestring)or scale_type is None, \
+            'scale_type must be a string or None'
 
         ms, binsize = float(ms), float(binsize)
         binned = self.bin(threshes, ms=ms, binsize=binsize).astype(float)
@@ -357,10 +359,13 @@ class SpikeDataFrame(SpikeDataFrameBase):
         lshank, rshank = sorted_indexer.shank[left], sorted_indexer.shank[right]
         lshank.name, rshank.name = 'shank i', 'shank j'
 
-        index = pd.MultiIndex.from_arrays((left, right, lshank, rshank))
+        lside, rside = sorted_indexer.side[left], sorted_indexer.side[right]
+        lside.name, rside.name = 'side i', 'side j'
 
-        xc = span.xcorr.xcorr(binned, maxlags=maxlags, detrend=detrend,
-                              scale_type=scale_type).T
+        index = pd.MultiIndex.from_arrays((left, right, lshank, rshank, lside, rside))
+
+        xc = xcorr(binned, maxlags=maxlags, detrend=detrend,
+                   scale_type=scale_type).T
         xc.index = index
         return xc, binned
 
