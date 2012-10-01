@@ -68,6 +68,9 @@ except RuntimeError:
         a = y.mean() - b * x.mean()
         return y - (b * x + a)
 
+    def remove_legend(ax=None):
+        raise NotImplementedError
+
     gca = NotImplemented
     figure = NotImplemented
     subplots = NotImplemented
@@ -509,7 +512,7 @@ def electrode_distance(locs, bs=125.0, ws=100.0):
     s = locs.shape[0]
     si = int(np.sqrt(s))
     dist = np.sqrt(d.sum(axis=1))
-    assert np.logical_not(dist[np.diag(np.r_[:s].reshape((si, si)))]).all(), \
+    assert ~(dist[np.diag(np.r_[:s].reshape((si, si)))]).all(), \
         'self distance is not 0'
     return dist
 
