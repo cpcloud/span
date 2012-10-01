@@ -355,16 +355,16 @@ class SpikeDataFrame(SpikeDataFrameBase):
 
         nchannels = binned.columns.values.size
         
-        left, right = span.utils.ndtuples(nchannels, nchannels).T
-        left, right = map(pd.Series, (left, right))
-        left.name, right.name = 'channel i', 'channel j'
+        lr = pd.DataFrame(span.utils.ndtuples(nchannels, nchannels),
+                          columns=('channel i', 'channel j'))
+        left, right = lr['channel i'], lr['channel j']
 
-        sorted_indexer = Indexer.sort('channel').reset_index(drop=True)
+        srt_idx = Indexer.sort('channel').reset_index(drop=True)
 
-        lshank, rshank = sorted_indexer.shank[left], sorted_indexer.shank[right]
+        lshank, rshank = srt_idx.shank[left], srt_idx.shank[right]
         lshank.name, rshank.name = 'shank i', 'shank j'
 
-        lside, rside = sorted_indexer.side[left], sorted_indexer.side[right]
+        lside, rside = srt_idx.side[left], srt_idx.side[right]
         lside.name, rside.name = 'side i', 'side j'
 
         index = pd.MultiIndex.from_arrays((left, right, lshank, rshank, lside,
