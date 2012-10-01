@@ -225,7 +225,7 @@ class SpikeDataFrame(SpikeDataFrameBase):
         milliseconds.
 
         Parameters
-        ----------
+        ---------- 
         ms : float
             The refractory period in milliseconds.
 
