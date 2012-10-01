@@ -30,7 +30,7 @@ Examples
 
 """
 
-from future_builtins import map, zip
+from future_builtins import map
 
 import abc
 
@@ -82,31 +82,28 @@ class SpikeDataFrameAbstractBase(pd.DataFrame):
     __metaclass__ = abc.ABCMeta
 
     def __init__(self, data, meta, *args, **kwargs):
-        """Constructor.
-
-        """
         super(SpikeDataFrameAbstractBase, self).__init__(data, *args, **kwargs)
         self.meta = meta
 
     @abc.abstractproperty
     def channels(self):
         """Retrieve the data organized as a samples by channels DataFrame."""
-        raise NotImplementedError
+        pass
 
     @abc.abstractproperty
     def fs(self):
         """The sampling rate of the event."""
-        raise NotImplementedError
+        pass
 
     @abc.abstractproperty
     def nchans(self):
         """The number of channels in the array."""
-        raise NotImplementedError
+        pass
 
     @abc.abstractmethod
     def threshold(self, threshes):
         """Thresholding function for spike detection."""
-        raise NotImplementedError
+        pass
 
 
 class SpikeDataFrameBase(SpikeDataFrameAbstractBase):
@@ -160,7 +157,15 @@ class SpikeDataFrameBase(SpikeDataFrameAbstractBase):
     @property
     def side_group(self): return self.groupby(level=self.meta.side.name)
 
-    def threshold(self, threshes): return (self > threshes).channels
+    def threshold(self, threshes):
+        cols = self.channels.columns
+        threshes = np.asanyarray(threshes)
+
+        assert threshes.size == 1 or threshes.size == cols.size, \
+            'number of threshold values must be 1 (same for all channels) or {}'\
+            ', different threshold for each channel'
+        
+        return self.channels.gt(pd.Series(threshes, index=cols), axis='columns')
 
 
 class SpikeDataFrame(SpikeDataFrameBase):
@@ -368,8 +373,3 @@ class SpikeDataFrame(SpikeDataFrameBase):
                    scale_type=scale_type).T
         xc.index = index
         return xc, binned
-
-
-class LfpDataFrame(SpikeDataFrame):
-    @cached_property
-    def fs(self): return self.meta.fs.min()
