@@ -373,4 +373,7 @@ class SpikeDataFrame(SpikeDataFrameBase):
         xc = xcorr(binned, maxlags=maxlags, detrend=detrend,
                    scale_type=scale_type).T
         xc.index = index
+        n = index.values.size
+        sqrtn = int(np.sqrt(n))
+        xc.lag0inds = pd.Series(np.diag(np.r_[:n].reshape(sqrtn, sqrtn)))
         return xc, binned
