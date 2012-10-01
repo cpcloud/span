@@ -7,4 +7,3 @@ from utils import (
 from decorate import thunkify, cached_property
 from span.utils._clear_refrac import clear_refrac
 from span.utils._bin_data import bin_data
-from span.utils.trimmean import trimmean
