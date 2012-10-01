@@ -15,7 +15,7 @@ import numpy as np
 import pandas as pd
 
 from span.tdt.spikeglobals import TsqFields, TsqNumpyTypes, Indexer
-from span.tdt.spikedataframe import SpikeDataFrame, LfpDataFrame
+from span.tdt.spikedataframe import SpikeDataFrame
 from span.utils import name2num, thunkify, cached_property
 
 TYPES_TABLE = ((np.float32, 1, np.float32),
@@ -126,7 +126,7 @@ class TdtTankBase(object):
             An instance of span.tdt.SpikeDataFrame with a few extra methods
             that are commonly used in spike analysis.
         """
-        raise NotImplementedError
+        pass
 
     @property
     @thunkify
@@ -167,6 +167,12 @@ class PandasTank(TdtTankBase):
     Parameters
     ----------
     tankname : str
+        Name of the tank files without the tsq or tev extension.
+
+    See Also
+    --------
+    TdtTankBase
+        Base class implementing metadata reading and properties
     """
     def __init__(self, tankname):
         super(PandasTank, self).__init__(tankname)
