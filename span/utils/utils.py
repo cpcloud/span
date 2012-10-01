@@ -8,6 +8,7 @@ import glob
 import string
 import itertools
 import functools
+import numbers
 
 import numpy as np
 import pandas as pd
@@ -15,8 +16,8 @@ import scipy.stats
 
 
 try:
-    from pylab import (
-    detrend_linear, detrend_mean, detrend_none, figure, gca, subplots)
+    from pylab import (detrend_linear, detrend_mean, detrend_none, figure, gca,
+                       subplots)
 except RuntimeError:
     def detrend_none(x):
         """Return the input array.
@@ -72,27 +73,6 @@ except RuntimeError:
     subplots = NotImplemented
 
 
-def get_names_and_threshes(f):
-    """Read in an excel file and get the names of the recordings and their
-    respective thresholds.
-
-    Parameters
-    ----------
-    f : str
-        The name of the Excel file to read.
-
-    Returns
-    -------
-    dd : pandas.DataFrame
-        A Pandas DataFrame corresponding to valid recordings.
-    """
-    et = pd.io.parsers.ExcelFile(f)
-    nms = et.parse(et.sheet_names[-1])
-    dd = pd.DataFrame(nms['Block']).join(nms['Base Theshold']).drop_duplicates()
-    dd.columns = pd.Index(['block', 'threshold'])
-    return dd
-
-
 def cast(a, dtype, copy=False):
     """Cast `a` to dtype `dtype`.
 
@@ -132,15 +112,29 @@ def cast(a, dtype, copy=False):
 
 
 def ndtuples(*dims):
-    """Create a bunch of tuples with `dims` dimensions.
+    """Create an array of arrays with `dims` dimensions.
+
+    Return an array of the Cartesisan product of each of
+    np.arange(dims[0]), ..., np.arange(dims[1]).
 
     Parameters
     ----------
     dims : tuple of int
+        A tuple of dimensions to use to create the arange of each element.
+
+    Raises
+    ------
+    AssertionError
+        If no arguments are given
 
     Returns
     -------
     cur : array_like
+
+    See Also
+    --------
+    cartesian
+        `ndtuples` is a special case of the Cartesian product
     """
     assert dims, 'no arguments given'
     dims = list(dims)
@@ -148,14 +142,14 @@ def ndtuples(*dims):
     cur = np.arange(n)[:, np.newaxis]
     while dims:
         d = dims.pop()
-        cur = np.kron(np.ones((d, 1)), cur)
+        cur = np.kron(np.ones((d, 1), int), cur)
         front = np.arange(d).repeat(n)[:, np.newaxis]
         cur = np.hstack((front, cur))
         n *= d
-    return cast(cur, int)
+    return cur
 
 
-def cartesian(arrays, out=None):
+def cartesian(arrays, out=None, dtype=None):
     """Cartesian product of arrays.
 
     Parameters
@@ -167,17 +161,26 @@ def cartesian(arrays, out=None):
     -------
     out : array_like
     """
-    arrays = list(map(np.asarray, arrays))
-    dtype = np.object_
-    n = np.prod([x.size for x in arrays])
+    arrays = tuple(map(np.asanyarray, arrays))
+    dtypes = tuple(map(operator.attrgetter('dtype'), arrays))
+    all_dtypes_same = all(map(operator.eq, dtypes,
+                              itertools.repeat(dtypes[0], len(dtypes))))
+    dtype = dtypes[0] if all_dtypes_same else np.object_
+    
+    n = np.prod(tuple(map(operator.attrgetter('size'), arrays)))
+
     if out is None:
-        out = np.empty([n, len(arrays)], dtype=dtype)
+        out = np.empty((n, len(arrays)), dtype=dtype)
+
     m = n / arrays[0].size
     out[:, 0] = np.repeat(arrays[0], m)
+
     if arrays[1:]:
         cartesian(arrays[1:], out=out[:m, 1:])
+
         for j in xrange(1, arrays[0].size):
             out[j * m:(j + 1) * m, 1:] = out[:m, 1:]
+
     return out
 
 
@@ -206,7 +209,8 @@ def dirsize(d='.'):
 
 
 def ndlinspace(ranges, *nelems):
-    """Create `n` linspaces between the ranges of `ranges` with `nelems` elements.
+    """Create `n` linspaces between the ranges of `ranges` with `nelems`
+    elements.
 
     Parameters
     ----------
@@ -221,7 +225,7 @@ def ndlinspace(ranges, *nelems):
     b = np.asanyarray(nelems)
     zipped = zip(*((r[0], r[1]) for r in ranges))
     lbounds, ubounds = map(np.fromiter, zipped, (float, float))
-    return lbounds + (x - 1) / (b - 1) * (ubounds - lbounds)
+    return (lbounds + (x - 1) / (b - 1) * (ubounds - lbounds)).T
 
 
 def nans(shape):
@@ -285,12 +289,18 @@ def num2name(num, base=256, slen=4):
     Parameters
     ----------
     num : int
+        The number to convert to a valid string.
+
     base : int, optional
+        The base to use for conversion.
+
     slen : int, optional
+        The allowable length of the word.
 
     Returns
     -------
     ret : str
+        The string associated with `num`.
     """
     letters = string.ascii_letters
     x = pd.Series(dict(zip(letters, map(ord, letters))))
@@ -425,7 +435,8 @@ def iscomplex(x):
     try:
         return np.issubdtype(x.dtype, np.complexfloating)
     except AttributeError:
-        return any(map(np.issubdtype, x.dtypes, itertools.repeat(np.complexfloating,
+        cfloat = np.complexfloating
+        return any(map(np.issubdtype, x.dtypes, itertools.repeat(cfloat,
                                                                  x.dtypes.size)))
 
 
@@ -440,7 +451,10 @@ def hascomplex(x):
     -------
     r : bool
     """
-    return iscomplex(x) and not np.logical_not(x.imag).all()
+    try:
+        return iscomplex(x) and not np.logical_not(x.imag).all()
+    except AttributeError:
+        return iscomplex(x) and not np.logical_not(x.values.imag).all()
 
 
 def get_fft_funcs(*arrays):
@@ -463,13 +477,13 @@ def get_fft_funcs(*arrays):
     return r
 
 
-def electrode_distance_old(fromij, toij, between_shank=125, within_shank=100):
-    fromi, fromj = fromij
-    toi, toj = toij
+# def electrode_distance_old(fromij, toij, between_shank=125, within_shank=100):
+#     fromi, fromj = fromij
+#     toi, toj = toij
 
-    col_diff = (toj - fromj) * between_shank
-    row_diff = (toi - fromi) * within_shank
-    return np.sqrt(col_diff ** 2 + row_diff ** 2)
+#     col_diff = (toj - fromj) * between_shank
+#     row_diff = (toi - fromi) * within_shank
+#     return np.sqrt(col_diff ** 2 + row_diff ** 2)
 
 
 def electrode_distance(locs, bs=125.0, ws=100.0):
@@ -609,8 +623,13 @@ def trimmean(x, alpha, inclusive=(False, False), axis=None):
     """
     assert 0 <= alpha < 100, 'alpha must be in the interval [0, 100)'
     assert len(inclusive) == 2, 'inclusive must have only 2 elements'
+
+    if isinstance(x, numbers.Number) or (hasattr(x, 'size') and x.size == 1):
+        return float(x)
+        
     assert axis is None or 0 <= axis < x.ndim, \
         'axis must be None or less than x.ndim:{0}'.format(x.ndim)
+    
     return pd.Series(scipy.stats.mstats.trimboth(x, proportiontocut=alpha / 100.0,
                                                  inclusive=inclusive,
                                                  axis=axis).mean(axis))
