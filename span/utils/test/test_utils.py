@@ -29,7 +29,7 @@ def rand_array_delegate(func, n, ndims):
 def randn_array(n=100, ndims=3): return rand_array_delegate(randn, n, ndims)
 
 
-def rand_int_tuple(m=5, n=10): return randint(1, m, size=n)
+def rand_int_tuple(m=5, n=10): return tuple(randint(1, m, size=n).tolist())
 
 
 def test_nextpow2():
@@ -54,9 +54,9 @@ def test_fractional():
 def test_ndtuples():
     t = rand_int_tuple()
     k = ndtuples(*t)
-    set_k = np.unique(k.ravel())
-    set_k.sort()
-    assert np.array_equal(set_k, np.arange(max(t)))
+    uk = np.unique(k.ravel())
+    uk.sort()
+    assert_array_equal(uk, np.arange(max(t)))
 
 
 class TestCartesian(unittest.TestCase):
@@ -440,4 +440,8 @@ class TestCompose(unittest.TestCase):
 
 class TestComposeMap(unittest.TestCase):
     def test_composemap(self):
-        assert False
+        f, g = np.log, np.exp
+        x, y = randn(11), randn(10)
+        xnew, ynew = composemap(np.log, np.exp)((x, y))
+        assert_allclose(x, xnew)
+        assert_allclose(y, ynew)
