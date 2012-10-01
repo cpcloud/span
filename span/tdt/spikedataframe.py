@@ -367,7 +367,8 @@ class SpikeDataFrame(SpikeDataFrameBase):
         lside, rside = sorted_indexer.side[left], sorted_indexer.side[right]
         lside.name, rside.name = 'side i', 'side j'
 
-        index = pd.MultiIndex.from_arrays((left, right, lshank, rshank, lside, rside))
+        index = pd.MultiIndex.from_arrays((left, right, lshank, rshank, lside,
+                                           rside))
 
         xc = xcorr(binned, maxlags=maxlags, detrend=detrend,
                    scale_type=scale_type).T
