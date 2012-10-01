@@ -8,7 +8,7 @@ import operator
 from nose.tools import nottest
 
 import numpy as np
-from numpy.testing import assert_array_equal, assert_allclose
+from numpy.testing import assert_array_equal
 from numpy.testing.decorators import slow
 
 import pandas as pd
@@ -186,49 +186,3 @@ class TestLfpDataFrame(unittest.TestCase):
 
     def test_fs(self):
         fs = self.lfps.fs
-
-
-class TestDetrend(unittest.TestCase):
-    def test_detrend_none(self):
-        x = np.random.randn(10, 11)
-        dtx = detrend_none(x)
-        assert_array_equal(x, dtx)
-
-    def test_detrend_mean(self):
-        x = np.random.randn(10, 9)
-        dtx = detrend_mean(x)
-        expect = x - x.mean()
-        assert expect.dtype == dtx.dtype
-        assert_array_equal(dtx, expect)
-        assert_allclose(dtx.mean(), 0.0, atol=np.finfo(dtx.dtype).eps)
-
-    def test_detrend_mean_dataframe(self):
-        x = pd.DataFrame(np.random.randn(10, 13))
-        dtx = detrend_mean(x)
-        m = dtx.mean()
-        eps = np.finfo(float).eps
-        assert_allclose(m.values.squeeze(), np.zeros(m.shape),
-                        atol=eps)
-        print m.values.squeeze().size
-
-    def test_detrend_linear(self):
-        n = 100
-        x = np.random.randn(n)
-        dtx = detrend_linear(x)
-        eps = np.finfo(dtx.dtype).eps
-        ord_mag = int(np.floor(np.log10(n)))
-        rtol = 10.0 ** (1 - ord_mag) + (ord_mag - 1)
-        assert_allclose(dtx.mean(), 0.0, rtol=rtol, atol=eps)
-        assert_allclose(dtx.std(), 1.0, rtol=rtol, atol=eps)
-
-    def test_detrend_linear_series(self):
-        n = 100
-        x = pd.Series(np.random.randn(n))
-        dtx = detrend_linear(x)
-        m = dtx.mean()
-        s = dtx.std()
-        ord_mag = int(np.floor(np.log10(n)))
-        rtol = 10.0 ** (1 - ord_mag) + (ord_mag - 1)
-        eps = np.finfo(float).eps
-        assert_allclose(m, 0.0, rtol=rtol, atol=eps)
-        assert_allclose(s, 1.0, rtol=rtol, atol=eps)
