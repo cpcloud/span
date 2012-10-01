@@ -346,7 +346,7 @@ class SpikeDataFrame(SpikeDataFrameBase):
             Clear the refractory period of a channel.
         """
         assert callable(detrend), 'detrend must be a callable class or function'
-        assert isinstance(scale_type, basestring)or scale_type is None, \
+        assert isinstance(scale_type, basestring) or scale_type is None, \
             'scale_type must be a string or None'
 
         ms, binsize = float(ms), float(binsize)
