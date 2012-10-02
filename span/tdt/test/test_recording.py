@@ -19,6 +19,3 @@ class TestRecording(unittest.TestCase):
 
     def test_show(self):
         assert False
-
-
-
