@@ -3,8 +3,11 @@ import unittest
 import numpy as np
 import pandas as pd
 
+def test_distance_map():
+    assert False
 
-class TestRecording(unittest.TestCase):
+
+class TestElectrodeMap(unittest.TestCase):
     def test_1d_map(self):
         assert False
 
