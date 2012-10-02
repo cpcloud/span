@@ -1,13 +1,10 @@
+from functools import partial
+
 import numpy as np
 import pandas as pd
 
 from span.utils import distance_map
 
-TsqFields = ('size', 'type', 'name', 'channel', 'sort_code', 'timestamp',
-             'fp_loc', 'format', 'fs')
-
-TsqNumpyTypes = (np.int32, np.int32, np.uint32, np.uint16, np.uint16, np.float64,
-                 np.int64, np.int32, np.float32)
 
 ElectrodeMap = pd.Series(np.array([[1, 3, 2, 6],
                                    [7, 4, 5, 8],
@@ -42,7 +39,4 @@ EventTypes = pd.Series({
     0x8801: 'mark'
 }, name='Event Types')
 
-RawDistance = distance_map(nshanks=NShanks,
-                           electrodes_per_shank=ElectrodesPerShank)
-DistanceMap = pd.DataFrame(RawDistance)
-DistanceMap.index, DistanceMap.columns = Indexer.channel, Indexer.channel
+DistanceMap = partial(distance_map, NShanks, ElectrodesPerShank)
