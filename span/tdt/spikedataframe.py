@@ -32,17 +32,15 @@ Examples
 
 from future_builtins import map
 
-import abc
+from abc import ABCMeta, abstractproperty, abstractmethod
 
 import numpy as np
 from pandas import Series, DataFrame, MultiIndex
 
 import span
-
 from span.xcorr import xcorr
 from span.tdt.spikeglobals import Indexer, ChannelIndex
 from span.utils.decorate import cached_property, thunkify
-from span.utils import cast, group_indices
 
 
 class SpikeDataFrameAbstractBase(DataFrame):
@@ -73,28 +71,28 @@ class SpikeDataFrameAbstractBase(DataFrame):
         The basis for numerics in Python
     """
 
-    __metaclass__ = abc.ABCMeta
+    __metaclass__ = ABCMeta
 
     def __init__(self, data, meta, *args, **kwargs):
         super(SpikeDataFrameAbstractBase, self).__init__(data, *args, **kwargs)
         self.meta = meta
 
-    @abc.abstractproperty
+    @abstractproperty
     def channels(self):
         """Retrieve the data organized as a samples by channels DataFrame."""
         pass
 
-    @abc.abstractproperty
+    @abstractproperty
     def fs(self):
         """The sampling rate of the event."""
         pass
 
-    @abc.abstractproperty
+    @abstractproperty
     def nchans(self):
         """The number of channels in the array."""
         pass
 
-    @abc.abstractmethod
+    @abstractmethod
     def threshold(self, threshes):
         """Thresholding function for spike detection."""
         pass
@@ -119,7 +117,7 @@ class SpikeDataFrameBase(SpikeDataFrameAbstractBase):
     def fs(self): return self.meta.fs.max()
 
     @cached_property
-    def nchans(self): return cast(self.meta.channel.max() + 1, int)
+    def nchans(self): return span.utils.cast(self.meta.channel.max() + 1, int)
 
     @property
     @thunkify
@@ -134,13 +132,14 @@ class SpikeDataFrameBase(SpikeDataFrameAbstractBase):
     def channels(self): return self._channels()
 
     @property
-    def channel_indices(self): return group_indices(self.channel_group)
+    def channel_indices(self):
+        return span.utils.group_indices(self.channel_group)
 
     @property
-    def shank_indices(self): return group_indices(self.shank_group)
+    def shank_indices(self): return span.utils.group_indices(self.shank_group)
 
     @property
-    def side_indices(self): return group_indices(self.side_group, str)
+    def side_indices(self): return span.utils.group_indices(self.side_group, str)
 
     @property
     def channel_group(self): return self.groupby(level=self.meta.channel.name)
