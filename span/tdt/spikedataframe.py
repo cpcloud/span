@@ -35,13 +35,7 @@ from future_builtins import map
 import abc
 
 import numpy as np
-import pandas as pd
-
-try:
-    import pylab
-    subplots = pylab.subplots
-except RuntimeError:
-    subplots = None
+from pandas import Series, DataFrame, MultiIndex
 
 import span
 
@@ -51,7 +45,7 @@ from span.utils.decorate import cached_property, thunkify
 from span.utils import cast, group_indices
 
 
-class SpikeDataFrameAbstractBase(pd.DataFrame):
+class SpikeDataFrameAbstractBase(DataFrame):
     """Abstract base class for spike data frames.
 
     Parameters
@@ -62,7 +56,7 @@ class SpikeDataFrameAbstractBase(pd.DataFrame):
         TDT tsq file meta data. Defaults to None
 
     args, kwargs : tuple, dict
-        Arguments to pd.DataFrame
+        Arguments to DataFrame
 
     Attributes
     ----------
@@ -134,7 +128,7 @@ class SpikeDataFrameBase(SpikeDataFrameAbstractBase):
         shpsort = np.argsort(vals.shape)[::-1]
         newshp = int(vals.size // self.nchans), self.nchans
         valsr = vals.transpose(shpsort).reshape(newshp)
-        return pd.DataFrame(valsr, columns=ChannelIndex)
+        return DataFrame(valsr, columns=ChannelIndex)
 
     @cached_property
     def channels(self): return self._channels()
@@ -165,7 +159,7 @@ class SpikeDataFrameBase(SpikeDataFrameAbstractBase):
             'number of threshold values must be 1 (same for all channels) or {}'\
             ', different threshold for each channel'
         
-        return self.channels.gt(pd.Series(threshes, index=cols), axis='columns')
+        return self.channels.gt(Series(threshes, index=cols), axis='columns')
 
 
 class SpikeDataFrame(SpikeDataFrameBase):
@@ -218,7 +212,7 @@ class SpikeDataFrame(SpikeDataFrameBase):
         bin_samples = int(np.floor(binsize * self.fs / conv))
         bins = np.r_[:max_sample:bin_samples]
         binned = span.utils.bin_data(cleared.values, bins)
-        return pd.DataFrame(binned, columns=ChannelIndex)
+        return DataFrame(binned, columns=ChannelIndex)
 
     def refrac_window(self, ms):
         """Compute the refractory period in samples given a period of `ms`
@@ -251,7 +245,7 @@ class SpikeDataFrame(SpikeDataFrameBase):
 
         Returns
         -------
-        clr : pd.DataFrame
+        clr : DataFrame
             The thresholded and refractory-period-cleared array of booleans
             indicating the sample point at which a spike was above threshold.
         """
@@ -355,7 +349,7 @@ class SpikeDataFrame(SpikeDataFrameBase):
 
         nchannels = binned.columns.values.size
         
-        lr = pd.DataFrame(span.utils.ndtuples(nchannels, nchannels),
+        lr = DataFrame(span.utils.ndtuples(nchannels, nchannels),
                           columns=('channel i', 'channel j'))
         left, right = lr['channel i'], lr['channel j']
 
@@ -367,13 +361,15 @@ class SpikeDataFrame(SpikeDataFrameBase):
         lside, rside = srt_idx.side[left], srt_idx.side[right]
         lside.name, rside.name = 'side i', 'side j'
 
-        index = pd.MultiIndex.from_arrays((left, right, lshank, rshank, lside,
-                                           rside))
+        index = MultiIndex.from_arrays((left, right, lshank, rshank, lside,
+                                        rside))
 
         xc = xcorr(binned, maxlags=maxlags, detrend=detrend,
                    scale_type=scale_type).T
         xc.index = index
+
         n = index.values.size
         sqrtn = int(np.sqrt(n))
-        xc.lag0inds = pd.Series(np.diag(np.r_[:n].reshape(sqrtn, sqrtn)))
+        xc.lag0inds = Series(np.diag(np.r_[:n].reshape(sqrtn, sqrtn)))
+
         return xc, binned
