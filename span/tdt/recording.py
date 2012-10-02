@@ -7,7 +7,28 @@ import operator
 import numpy as np
 from pandas import Series, DataFrame, Int64Index, MultiIndex
 
-from span.utils import distance_map
+from span.utils import ndtuples
+from scipy.spatial.distance import squareform, pdist
+
+
+def distance_map(nshanks, electrodes_per_shank, between_shank, within_shank):
+    """Create an electrode distance map.
+
+    Parameters
+    ----------
+    nshanks, electrodes_per_shank : int
+
+    between_shank, within_shank : float
+
+    Returns
+    -------
+    dists : DataFrame
+    """
+    assert nshanks >= 1, 'must have at least one shank'
+    assert electrodes_per_shank >= 1, 'must have at least one electrode per shank'
+    locations = ndtuples(electrodes_per_shank, nshanks)
+    weights = np.asanyarray((between_shank, within_shank), dtype=float)
+    return squareform(pdist(locations, 'wminkowski', p=2.0, w=weights))
 
 
 class ElectrodeMap(DataFrame):
