@@ -5,7 +5,6 @@ from future_builtins import map, zip
 import os
 import operator
 import glob
-import string
 import itertools
 import functools
 import numbers
@@ -69,7 +68,7 @@ except RuntimeError:
         return y - (b * x + a)
 
     def remove_legend(ax=None):
-        raise NotImplementedError
+        pass
 
     gca = NotImplemented
     figure = NotImplemented
@@ -166,8 +165,7 @@ def cartesian(arrays, out=None, dtype=None):
     """
     arrays = tuple(map(np.asanyarray, arrays))
     dtypes = tuple(map(operator.attrgetter('dtype'), arrays))
-    all_dtypes_same = all(map(operator.eq, dtypes,
-                              itertools.repeat(dtypes[0], len(dtypes))))
+    all_dtypes_same = all(map(operator.eq, dtypes, itertools.repeat(dtypes[0])))
     dtype = dtypes[0] if all_dtypes_same else np.object_
     
     n = np.prod(tuple(map(operator.attrgetter('size'), arrays)))
@@ -305,6 +303,7 @@ def num2name(num, base=256, slen=4):
     ret : str
         The string associated with `num`.
     """
+    import string
     letters = string.ascii_letters
     x = pd.Series(dict(zip(letters, map(ord, letters))))
     base_vec = base ** np.r_[:slen]
@@ -406,8 +405,7 @@ def pad_larger(*arrays):
     ret : list
         List of zero padded arrays.
     """
-    assert all(map(isinstance, arrays, itertools.repeat(np.ndarray,
-                                                        len(arrays)))), \
+    assert all(map(isinstance, arrays, itertools.repeat(np.ndarray))), \
     'all arguments must be instances of ndarray or implement the ndarray interface'
     if len(arrays) == 2:
         return pad_larger2(*arrays)
@@ -439,8 +437,7 @@ def iscomplex(x):
         return np.issubdtype(x.dtype, np.complexfloating)
     except AttributeError:
         cfloat = np.complexfloating
-        return any(map(np.issubdtype, x.dtypes, itertools.repeat(cfloat,
-                                                                 x.dtypes.size)))
+        return any(map(np.issubdtype, x.dtypes, itertools.repeat(cfloat)))
 
 
 def hascomplex(x):
