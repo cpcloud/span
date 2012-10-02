@@ -14,7 +14,7 @@ import contextlib
 import numpy as np
 import pandas as pd
 
-from span.tdt.spikeglobals import TsqFields, TsqNumpyTypes, Indexer
+from span.tdt.spikeglobals import Indexer
 from span.tdt.spikedataframe import SpikeDataFrame
 from span.utils import name2num, thunkify, cached_property
 
@@ -22,6 +22,12 @@ TYPES_TABLE = ((np.float32, 1, np.float32),
                (np.int32, 1, np.int32),
                (np.int16, 2, np.int16),
                (np.int8, 4, np.int8))
+
+TsqFields = ('size', 'type', 'name', 'channel', 'sort_code', 'timestamp',
+             'fp_loc', 'format', 'fs')
+
+TsqNumpyTypes = (np.int32, np.int32, np.uint32, np.uint16, np.uint16, np.float64,
+                 np.int64, np.int32, np.float32)
 
 class TdtTankBase(object):
     """Abstract base class encapsulating a TDT Tank.
