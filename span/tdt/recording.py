@@ -7,7 +7,7 @@ import operator
 import numpy as np
 from pandas import Series, DataFrame, Int64Index, MultiIndex
 
-from span.utils import ndtuples
+from span.utils import ndtuples, fractional
 from scipy.spatial.distance import squareform, pdist
 
 
@@ -32,8 +32,10 @@ def distance_map(nshanks, electrodes_per_shank, between_shank, within_shank,
     dists : DataFrame
         DataFrame of pairwise distances between electrodes.
     """
-    assert nshanks >= 1, 'must have at least one shank'
-    assert electrodes_per_shank >= 1, 'must have at least one electrode per shank'
+    assert nshanks >= 1 and not fractional(nshanks), \
+        'must have at least one shank'
+    assert electrodes_per_shank >= 1 and not fractional(electrodes_per_shank), \
+        'must have at least one electrode per shank'
     locations = ndtuples(electrodes_per_shank, nshanks)
     weights = np.asanyarray((between_shank, within_shank), dtype=float)
     return squareform(pdist(locations, metric=metric, p=p, w=weights))
