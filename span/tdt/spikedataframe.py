@@ -251,7 +251,7 @@ class SpikeDataFrame(SpikeDataFrameBase):
         """
         clr = self.threshold(threshes)
 
-        # TODO: make sure samples by channels is shape
+        # TODO: make sure samples by channels is shape of clr
         span.utils.clear_refrac(clr.values, self.refrac_window(ms))
         return clr
 
