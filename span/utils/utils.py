@@ -505,61 +505,6 @@ def get_fft_funcs(*arrays):
     return r
 
 
-# def electrode_distance_old(fromij, toij, between_shank=125, within_shank=100):
-#     fromi, fromj = fromij
-#     toi, toj = toij
-
-#     col_diff = (toj - fromj) * between_shank
-#     row_diff = (toi - fromi) * within_shank
-#     return np.sqrt(col_diff ** 2 + row_diff ** 2)
-
-
-def electrode_distance(locs, bs=125.0, ws=100.0):
-    """Compute the distance between two electrodes given an index and between and
-    within shank distance.
-
-    Parameters
-    ----------
-    fromij : tuple
-    toij : tuple
-    between_shank : int, optional
-    within_shank : int, optional
-
-    Returns
-    -------
-    d : float
-        The distance between electrodes at e_ij and e_kl.
-    """
-    assert locs.ndim == 2, 'invalid locations array'
-    ncols = locs.shape[1]
-    ncols2 = int(np.floor(ncols / 2.0))
-    d = ((locs[:, ncols2:ncols] - locs[:, :ncols2]) * [bs, ws]) ** 2.0
-    s = locs.shape[0]
-    si = int(np.sqrt(s))
-    dist = np.sqrt(d.sum(axis=1))
-    assert ~(dist[np.diag(np.r_[:s].reshape((si, si)))]).all(), \
-        'self distance is not 0'
-    return dist
-
-
-def distance_map(nshanks=4, electrodes_per_shank=4):
-    """Create an electrode distance map.
-
-    Parameters
-    ----------
-    nshanks : int, optional
-    electrodes_per_shank : int, optional
-
-    Returns
-    -------
-    ret : pandas.Series
-    """
-    indices = ndtuples(*itertools.repeat(electrodes_per_shank, nshanks))
-    dists = electrode_distance(indices)
-    nelectrodes = nshanks * electrodes_per_shank
-    return pd.DataFrame(dists.reshape((nelectrodes, nelectrodes)))
-
-
 def isvector(x):
     """Test whether `x` is a vector, i.e., ...
 
