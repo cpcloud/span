@@ -14,65 +14,75 @@ import pandas as pd
 import scipy.stats
 
 
+def detrend_none(x):
+    """Return the input array.
+
+    Parameters
+    ----------
+    x : array_like
+        The input array.
+
+    Returns
+    -------
+    x : array_like
+        The input array.
+    """
+    return x
+
+
+def detrend_mean(x):
+    """Subtract the mean of `x` from itself.
+
+    Parameters
+    ----------
+    x : array_like
+        The array to mean center.
+
+    Returns
+    -------
+    c : array_like
+        The mean centered `x`.
+    """
+    return x - x.mean()
+
+
+def detrend_linear(y):
+    """Linearly detrend `y`.
+
+    Parameters
+    ----------
+    y : array_like
+
+    Returns
+    -------
+    d : array_like
+    """
+    x = np.arange(len(y), dtype=float)
+    c = np.cov(x, y, bias=1.0)
+    b = c[0, 1] / c[0, 0]
+    a = y.mean() - b * x.mean()
+    return y - (b * x + a)
+
+
 try:
-    from pylab import (detrend_linear, detrend_mean, detrend_none, figure, gca,
-                       subplots)
-except RuntimeError:
-    def detrend_none(x):
-        """Return the input array.
-
-        Parameters
-        ----------
-        x : array_like
-            The input array.
-
-        Returns
-        -------
-        x : array_like
-            The input array.
-        """
-        return x
-
-
-    def detrend_mean(x):
-        """Subtract the mean of `x` from itself.
-
-        Parameters
-        ----------
-        x : array_like
-            The array to mean center.
-
-        Returns
-        -------
-        c : array_like
-            The mean centered `x`.
-        """
-        return x - x.mean()
-
-
-    def detrend_linear(y):
-        """Linearly detrend `y`.
-
-        Parameters
-        ----------
-        y : array_like
-
-        Returns
-        -------
-        d : array_like
-        """
-        x = np.arange(len(y), dtype=float)
-        c = np.cov(x, y, bias=1.0)
-        b = c[0, 1] / c[0, 0]
-        a = y.mean() - b * x.mean()
-        return y - (b * x + a)
+    from pylab import gca
 
     def remove_legend(ax=None):
-        pass
+        """Remove legend for ax or the current axes if ax is None.
 
-    gca = NotImplemented
-    figure = NotImplemented
-    subplots = NotImplemented
+        Parameters
+        ----------
+        ax : matplotlib.axes.Axes
+            Axis whose legend will be hidden
+        """
+        if ax is None:
+            ax = gca()
+        ax.legend_ = None
+
+except RuntimeError as e:
+    def remove_legend(ax=None):
+        raise NotImplementedError('matplotlib not available on this ' \
+                                  'system: {}'.format(e))
 
 
 def cast(a, dtype, copy=False):
@@ -245,22 +255,40 @@ def nans(shape):
     -------
     a : array_like
     """
-    a = np.empty(shape)
+    a = np.empty(shape, dtype=float)
     a.fill(np.nan)
     return a
 
 
-def remove_legend(ax=None):
-    """Remove legend for ax or the current axes if ax is None.
+def nans_like(a):
+    """Returns an array of nans in the shape of `x` while preserving `a`'s type.
+    This function also attempts to preserve the index and columns of a DataFrame
+    or Series.
 
     Parameters
     ----------
-    ax : matplotlib.axes.Axes
-        Axis whose legend will be hidden
+    a : array_like
+        Array whose shape will be used to create an array of nans
+
+    Returns
+    -------
+    r : array_like
+        A view of an array `a` of shape `a.shape` with type `type(a)`.
     """
-    if ax is None:
-        ax = gca()
-    ax.legend_ = None
+    ns = nans(a.shape)
+    
+    if isinstance(a, pd.Series):
+        r = pd.Series(ns, index=a.index)
+    elif isinstance(a, pd.DataFrame):
+        r = pd.DataFrame(ns, index=a.index, columns=a.columns)
+    elif isinstance(a, pd.Panel):
+        r = pd.Panel(ns, items=a.items, major_axis=a.major_axis,
+                     minor_axis=a.minor_axis)
+    else:
+        r = ns.view(type=type(a))
+    return r
+
+
 
 
 def name2num(name, base=256):
