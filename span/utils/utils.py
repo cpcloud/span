@@ -225,12 +225,12 @@ def ndlinspace(ranges, *nelems):
     x = ndtuples(*nelems) + 1.0
     b = np.asanyarray(nelems)
     zipped = zip(*((r[0], r[1]) for r in ranges))
-    lbounds, ubounds = map(np.fromiter, zipped, (float, float))
+    lbounds, ubounds = map(np.fromiter, zipped, itertools.repeat(float))
     return (lbounds + (x - 1) / (b - 1) * (ubounds - lbounds)).T
 
 
 def nans(shape):
-    """Create an array of NaNs
+    """Create an array of NaNs.
 
     Parameters
     ----------
