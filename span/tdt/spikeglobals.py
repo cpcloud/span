@@ -3,7 +3,7 @@ from functools import partial
 import numpy as np
 import pandas as pd
 
-from span.utils import distance_map
+from span.tdt.recording import distance_map
 
 
 ElectrodeMap = pd.Series(np.array([[1, 3, 2, 6],
