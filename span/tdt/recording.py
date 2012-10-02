@@ -11,7 +11,8 @@ from span.utils import ndtuples
 from scipy.spatial.distance import squareform, pdist
 
 
-def distance_map(nshanks, electrodes_per_shank, between_shank, within_shank):
+def distance_map(nshanks, electrodes_per_shank, between_shank, within_shank,
+                 metric='wminkowski', p=2.0):
     """Create an electrode distance map.
 
     Parameters
@@ -20,15 +21,22 @@ def distance_map(nshanks, electrodes_per_shank, between_shank, within_shank):
 
     between_shank, within_shank : float
 
+    metric : str, optional
+        The distance measure to use to compute the distance between electrodes.
+
+    p : number, optional
+        See scipy.spatial.distance for more details here.
+
     Returns
     -------
     dists : DataFrame
+        DataFrame of pairwise distances between electrodes.
     """
     assert nshanks >= 1, 'must have at least one shank'
     assert electrodes_per_shank >= 1, 'must have at least one electrode per shank'
     locations = ndtuples(electrodes_per_shank, nshanks)
     weights = np.asanyarray((between_shank, within_shank), dtype=float)
-    return squareform(pdist(locations, 'wminkowski', p=2.0, w=weights))
+    return squareform(pdist(locations, metric=metric, p=p, w=weights))
 
 
 class ElectrodeMap(DataFrame):
