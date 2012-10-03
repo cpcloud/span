@@ -369,6 +369,6 @@ class SpikeDataFrame(SpikeDataFrameBase):
 
         n = index.values.size
         sqrtn = int(np.sqrt(n))
-        xc.lag0inds = Series(np.diag(np.r_[:n].reshape(sqrtn, sqrtn)))
+        xc.lag0_index = Series(np.diag(np.r_[:n].reshape(sqrtn, sqrtn)))
 
         return xc, binned
