@@ -1,5 +1,7 @@
 #! /usr/bin/env python
 
+from future_builtins import zip
+
 import os
 import platform
 import glob
@@ -19,31 +21,30 @@ extra_link_args = ['-fopenmp']
 
 if platform.system().lower() == 'linux':
     extra_compile_args.append('-march=native')
-    extra_compile_args.append('-O3')
 
 npy_includes = np.get_include()
 include_dirs = [npy_includes]
 
+# define_macros = [('NPY_NO_DEPRECATED_API', 'NPY_1_7_API_VERSION')]
+define_macros = []
+
 utils_dir = os.path.join('span', 'utils')
 xcorr_dir = os.path.join('span', 'xcorr')
-ext_modules = [Extension('_clear_refrac',
-                         [os.path.join(utils_dir,
-                                       'clear_refrac{sep}pyx'.format(sep=os.extsep))],
-                         extra_compile_args=extra_compile_args,
-                         extra_link_args=extra_link_args,
-                         include_dirs=include_dirs),
-               Extension('_bin_data',
-                         [os.path.join(utils_dir,
-                                       'bin_data{sep}pyx'.format(sep=os.extsep))],
-                         extra_compile_args=extra_compile_args,
-                         extra_link_args=extra_link_args,
-                         include_dirs=include_dirs),
-               Extension('_mult_mat_xcorr',
-                         [os.path.join(xcorr_dir,
-                                       '_mult_mat_xcorr{sep}pyx'.format(sep=os.extsep))],
-                         extra_compile_args=extra_compile_args,
-                         extra_link_args=extra_link_args,
-                         include_dirs=include_dirs)]
+
+
+base_names = 'clear_refrac', 'bin_data', 'mult_mat_xcorr'
+dirs = utils_dir, utils_dir, xcorr_dir
+
+ext_modules = []
+
+for d, base_name in zip(dirs, base_names):
+    ext_modules.append(Extension('_%s' % base_name,
+                                 [os.path.join(d, '{}{}pyx'.format(base_name,
+                                                                   os.extsep))],
+                                 define_macros=define_macros,
+                                 extra_compile_args=extra_compile_args,
+                                 extra_link_args=extra_link_args,
+                                 include_dirs=include_dirs))
 
 
 if __name__ == '__main__':
@@ -54,7 +55,7 @@ if __name__ == '__main__':
           version='0.1',
           author='Phillip Cloud',
           author_email='cpcloud@gmail.com',
-          packages=['span', 'span.tdt', 'span.utils'],
+          packages=['span', 'span.tdt', 'span.utils', 'span.xcorr'],
           scripts=[os.path.join('bin', 'serv2mat.py')],
           ext_modules=ext_modules,
           license='LICENSE.txt',
