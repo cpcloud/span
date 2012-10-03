@@ -39,8 +39,8 @@ ext_modules = []
 
 for d, base_name in zip(dirs, base_names):
     ext_modules.append(Extension('_%s' % base_name,
-                                 [os.path.join(d, '{}{}pyx'.format(base_name,
-                                                                   os.extsep))],
+                                 [os.path.join(d, '{0}{1}pyx'.format(base_name,
+                                                                     os.extsep))],
                                  define_macros=define_macros,
                                  extra_compile_args=extra_compile_args,
                                  extra_link_args=extra_link_args,
