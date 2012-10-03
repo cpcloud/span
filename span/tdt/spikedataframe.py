@@ -364,8 +364,8 @@ class SpikeDataFrame(SpikeDataFrameBase):
                                         rside))
 
         xc = xcorr(binned, maxlags=maxlags, detrend=detrend,
-                   scale_type=scale_type).T
-        xc.index = index
+                   scale_type=scale_type)
+        xc.columns = index
 
         n = index.values.size
         sqrtn = int(np.sqrt(n))
