@@ -88,7 +88,6 @@ class ElectrodeMap(DataFrame):
 
         if order is not None:
             assert map_.ndim == 2, 'map_ must be 2D if there is a shank order'
-            assert order is not None, 'if "side" given "order" cannot be None'
             assert order in ('lm', 'ml'), \
                 'order must be "lm" (lateral to medial) or "ml" (medial to ' \
                 'lateral)'
