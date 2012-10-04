@@ -1,11 +1,11 @@
 """Module for meta data about the recording."""
 
-from future_builtins import map
+from future_builtins import map, zip
 
 import operator
 
 import numpy as np
-from pandas import Series, DataFrame, Int64Index, MultiIndex
+from pandas import Series, DataFrame,  MultiIndex
 
 from span.utils import ndtuples, fractional
 from scipy.spatial.distance import squareform, pdist
@@ -109,14 +109,21 @@ class ElectrodeMap(DataFrame):
 
         Parameters
         ----------
-        between_shank, within_shank : number
+        wthn, btwn : number
             `between_shank` is the distance between shanks and `within_shank` is
             the distance between electrodes on any given shank.
+
+        metric : str, optional
+            Metric to use to calculate the distance between electrodes/shanks.
+
+        p : number, optional
+            The $p$ of the norm to use.
 
         Returns
         -------
         df : DataFrame
-            A dataframe with pairwise distances between electrodes.
+            A dataframe with pairwise distances between electrodes, indexed by
+            channel, shank, and side (if ordered).
         """
         dm = distance_map(self.nshanks, self.shank.nunique(), wthn, btwn,
                           metric=metric, p=p)
@@ -134,17 +141,20 @@ class ElectrodeMap(DataFrame):
     def one_based(self):
         """Return an electrode configuration with 1 based indexing.
 
-        This could be used for plotting purposes.
+        This could be used for plotting.
         """
         values = self.values.copy().T
         index = Series(self.index.values + 1, name='Channel')
 
-        has_order = values.ndim > 1 and values.shape[1] == 2
-        if has_order:
+        is_ordered = values.ndim == 2 and values.shape[0] == 2
+
+        names = 'Shank',
+
+        if is_ordered:
             values[0] += 1        
-            names = 'Shank', 'Side'
+            names += 'Side',
         else:
             values += 1
-            names = 'Shank',
+
         return DataFrame(dict(zip(names, values)), index=index)
         
