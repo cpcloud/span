@@ -287,7 +287,8 @@ class SpikeDataFrame(SpikeDataFrameBase):
 
     def xcorr(self, threshes, ms=2, binsize=1000, maxlags=100,
               detrend=span.utils.detrend_mean, scale_type='normalize',
-              reject_count=100):
+              reject_count=100, sortlevel='shank i', dropna=True,
+              nan_auto=False):
         """Compute the cross correlation of binned data.
 
         Parameters
@@ -344,7 +345,10 @@ class SpikeDataFrame(SpikeDataFrameBase):
 
         ms, binsize = float(ms), float(binsize)
         binned = self.bin(threshes, ms=ms, binsize=binsize).astype(float)
-        binned.ix[:, binned.sum() < reject_count] = np.nan
+        assert reject_count >= 0, 'reject count must be a positive integer'
+
+        if reject_count:
+            binned.ix[:, binned.sum() < reject_count] = np.nan
 
         nchannels = binned.columns.values.size
         
@@ -366,5 +370,29 @@ class SpikeDataFrame(SpikeDataFrameBase):
         xc = xcorr(binned, maxlags=maxlags, detrend=detrend,
                    scale_type=scale_type)
         xc.columns = index
+
+        if nan_auto:
+            sz = xc.shape[1]
+            sqrtsz = int(np.sqrt(sz))
+            auto_inds = np.diag(np.r_[:sz].reshape(sqrtsz, sqrtsz))
+            xc.ix[0, auto_inds] = np.nan
+
+        if dropna:
+            xc = xc.dropna(axis=1)
+
+        if sortlevel is not None:
+            sl = np.array(sortlevel).item()
+            assert isinstance(sl, (int, basestring)), \
+                'sortlevel must be an int or a string'
+                
+            if isinstance(sl, int):
+                nlevels = xc.columns.nlevels
+                assert 0 <= sl < nlevels, \
+                    'sortlevel: {0} not in {1}'.format(sl, range(nlevels))
+            else:
+                names = xc.columns.names
+                assert sl in names, "'{0}' not in {1}".format(sl, names)
+
+            xc = xc.sortlevel(level=sl, axis=1)
 
         return xc, binned
