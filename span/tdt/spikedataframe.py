@@ -351,16 +351,18 @@ class SpikeDataFrame(SpikeDataFrameBase):
         assert reject_count >= 0, 'reject count must be a positive integer'
 
         if reject_count:
-            rec_len_s = self.nsamples / self.fs
+            rec_len_s = float(self.nsamples) / self.fs
             min_sp_per_s = reject_count / rec_len_s
             sp_per_s = binned.mean() * (1e3 / binsize)
             binned.ix[:, sp_per_s < min_sp_per_s] = np.nan
 
         nchannels = binned.columns.values.size
-        
+
+        channel_i, channel_j = 'channel i', 'channel j'
+        channel_names = channel_i, channel_j
         lr = DataFrame(span.utils.ndtuples(nchannels, nchannels),
-                          columns=('channel i', 'channel j'))
-        left, right = lr['channel i'], lr['channel j']
+                       columns=channel_names)
+        left, right = lr[channel_i], lr[channel_j]
 
         srt_idx = Indexer.sort('channel').reset_index(drop=True)
 
