@@ -367,8 +367,4 @@ class SpikeDataFrame(SpikeDataFrameBase):
                    scale_type=scale_type)
         xc.columns = index
 
-        n = index.values.size
-        sqrtn = int(np.sqrt(n))
-        xc.lag0_index = Series(np.diag(np.r_[:n].reshape(sqrtn, sqrtn)))
-
         return xc, binned
