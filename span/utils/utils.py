@@ -606,3 +606,38 @@ def trimmean(x, alpha, inclusive=(False, False), axis=None):
     return pd.Series(scipy.stats.mstats.trimboth(x, proportiontocut=alpha / 100.0,
                                                  inclusive=inclusive,
                                                  axis=axis).mean(axis))
+
+
+def roll_with_zeros(a, shift=0, axis=None):
+    a, shift = map(np.asanyarray, a, shift)
+    if not shift:
+        return a
+
+    rshp = axis is None
+    n = a.size if rshp else a.shape[axis]
+
+    if np.abs(shift) > n:
+        res = np.zeros_like(n)
+    elif shift < 0:
+        shift += n
+        zs = np.zeros_like(a.take(np.arange(n - shift), axis))
+        res = np.concatenate((a.take(np.arange(n - shift, n), axis), zs), axis)
+    else:
+        zs = np.zeros_like(a.take(np.arange(n - shift, n) ,axis))
+        res = np.concatenate((zs, a.take(np.arange(n - shift), axis)), axis)
+
+    if rshp:
+        res.shape = a.shape
+
+    return res
+
+
+def neighbors(a, i, j, n=2):
+    dim0_roll = roll_with_zeros(a, shift=1 - i, axis=0)
+    rld_and_pd = roll_with_zeros(dim0_roll, shift=1 - j, axis=1)
+    return rld_and_pd[:n, :n]
+
+
+def unique_neighbors(neigh, axis=None):
+    flat_neigh = neigh.ravel()
+    return neigh.take(flat_neigh.nonzero(), axis=axis).squeeze()
