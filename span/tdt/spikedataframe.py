@@ -116,6 +116,9 @@ class SpikeDataFrameBase(SpikeDataFrameAbstractBase):
     @cached_property
     def fs(self): return self.meta.fs.max()
 
+    @property
+    def nsamples(self): return self.channels.index[-1]
+
     @cached_property
     def nchans(self): return span.utils.cast(self.meta.channel.max() + 1, int)
 
@@ -348,7 +351,10 @@ class SpikeDataFrame(SpikeDataFrameBase):
         assert reject_count >= 0, 'reject count must be a positive integer'
 
         if reject_count:
-            binned.ix[:, binned.sum() < reject_count] = np.nan
+            rec_len_s = self.nsamples / self.fs
+            min_sp_per_s = reject_count / rec_len_s
+            sp_per_s = binned.mean() * (1e3 / binsize)
+            binned.ix[:, sp_per_s < min_sp_per_s] = np.nan
 
         nchannels = binned.columns.values.size
         
@@ -379,6 +385,7 @@ class SpikeDataFrame(SpikeDataFrameBase):
 
         if dropna:
             xc = xc.dropna(axis=1)
+            binned = binned.dropna(axis=1)
 
         if sortlevel is not None:
             sl = np.array(sortlevel).item()
