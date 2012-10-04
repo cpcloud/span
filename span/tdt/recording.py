@@ -11,7 +11,7 @@ from span.utils import ndtuples, fractional
 from scipy.spatial.distance import squareform, pdist
 
 
-def distance_map(nshanks, electrodes_per_shank, between_shank, within_shank,
+def distance_map(nshanks, electrodes_per_shank, within_shank, between_shank,
                  metric='wminkowski', p=2.0):
     """Create an electrode distance map.
 
@@ -37,7 +37,8 @@ def distance_map(nshanks, electrodes_per_shank, between_shank, within_shank,
     assert electrodes_per_shank >= 1 and not fractional(electrodes_per_shank), \
         'must have at least one electrode per shank'
     locations = ndtuples(electrodes_per_shank, nshanks)
-    weights = np.asanyarray((between_shank, within_shank), dtype=float)
+    w = between_shank, within_shank
+    weights = np.asanyarray(w, dtype=float)
     return squareform(pdist(locations, metric=metric, p=p, w=weights))
 
 
@@ -68,9 +69,10 @@ class ElectrodeMap(DataFrame):
     def __init__(self, map_, order=None, base_index=0):
         map_ = np.asanyarray(map_).squeeze()
         mm = map_.min()
-
-        if mm != base_index:
-            v = -1 if mm > base_index else 1
+        # mm != base_index
+        #-1 if mm > base_index else 1
+        v = np.sign(base_index - mm)
+        if v:
             while mm != base_index:
                 map_ += v
                 mm = map_.min()
@@ -94,8 +96,8 @@ class ElectrodeMap(DataFrame):
 
         df = DataFrame(data).sort('channel').reset_index(drop=True)
         df.index = df.pop('channel')
-
-        super(ElectrodeMap, self).__init__(df)
+        
+        super(ElectrodeMap, self).__init__(df.sort('shank'))
             
     @property
     def nshanks(self): return self.shank.nunique()
@@ -103,7 +105,7 @@ class ElectrodeMap(DataFrame):
     @property
     def nchans(self): return Series(self.index).nunique()
 
-    def distance_map(self, between_shank, within_shank):
+    def distance_map(self, wthn, btwn, metric='wminkowski', p=2.0):
         """Create a distance map from the current electrode configuration.
 
         Parameters
@@ -117,8 +119,8 @@ class ElectrodeMap(DataFrame):
         df : DataFrame
             A dataframe with pairwise distances between electrodes.
         """
-        dm = distance_map(self.nshanks, self.shank.nunique(), between_shank,
-                          within_shank)
+        dm = distance_map(self.nshanks, self.shank.nunique(), wthn, btwn,
+                          metric=metric, p=p)
         s = self.sort('shank')
         cols = s.shank, s.index
 
@@ -129,10 +131,21 @@ class ElectrodeMap(DataFrame):
         index = MultiIndex.from_arrays(cols, names=('shank', 'channel', 'side'))
         return DataFrame(dm, index=index, columns=index)
 
-    def show(self):
-        """Print out the electrode configuration with 1 based indexing."""
+    @property
+    def one_based(self):
+        """Return an electrode configuration with 1 based indexing.
+
+        This could be used for plotting purposes.
+        """
         values = self.values.copy().T
-        values[0] += 1
-        index = Int64Index(self.index.values + 1, name='channel')
-        df = DataFrame({'shank': values[0], 'side': values[1]}, index=index)
-        print df
+        index = Series(self.index.values + 1, name='Channel')
+
+        has_order = values.ndim > 1 and values.shape[1] == 2
+        if has_order:
+            values[0] += 1        
+            names = 'Shank', 'Side'
+        else:
+            values += 1
+            names = 'Shank',
+        return DataFrame(dict(zip(names, values)), index=index)
+        
