@@ -480,9 +480,11 @@ def hascomplex(x):
     r : bool
     """
     try:
-        return iscomplex(x) and not np.logical_not(x.imag).all()
+        v = x.imag
     except AttributeError:
-        return iscomplex(x) and not np.logical_not(x.values.imag).all()
+        v = x.values.imag
+
+    return iscomplex(v) and not np.logical_not(v).all()
 
 
 def get_fft_funcs(*arrays):
