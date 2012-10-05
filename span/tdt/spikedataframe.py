@@ -160,7 +160,7 @@ class SpikeDataFrameBase(SpikeDataFrameAbstractBase):
         assert threshes.size == 1 or threshes.size == cols.size, \
             'number of threshold values must be 1 (same for all channels) or {}'\
             ', different threshold for each channel'
-        
+
         return self.channels.gt(Series(threshes, index=cols), axis='columns')
 
 
