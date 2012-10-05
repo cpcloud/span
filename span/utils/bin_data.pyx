@@ -3,10 +3,14 @@
 
 import numpy as np
 cimport numpy as np
+from numpy cimport PyArray_EMPTY, npy_intp
+
 cimport cython
 from cython.parallel cimport parallel, prange
 
 ctypedef np.uint8_t uint8
+
+np.import_array()
 
 
 @cython.wraparound(False)
@@ -22,10 +26,10 @@ cdef void _bin_data(np.ndarray[uint8, ndim=2, cast=True] a,
     out : array_like
     """
     cdef:
-        long i, j, k, loc
-        long n = out.shape[1], nbinsm1 = bins.shape[0] - 1
-        long* out_data, *bin_data
-        uint8* a_data
+        long i, j, k, v
+        long n = out.shape[1], nbinsm1 = out.shape[0]
+        long *out_data = NULL, *bin_data = NULL
+        uint8* a_data = NULL
 
     with nogil, parallel():
         out_data = <long*> out.data
@@ -34,10 +38,10 @@ cdef void _bin_data(np.ndarray[uint8, ndim=2, cast=True] a,
 
         for k in prange(n, schedule='guided'):
             for i in xrange(nbinsm1):
-                loc = i * n + k
-                
+                v = 0
                 for j in prange(bin_data[i], bin_data[i + 1], schedule='guided'):
-                    out_data[loc] += a_data[j * n + k]
+                    v += a_data[j * n + k]
+                out_data[i * n + k] = v
 
 
 @cython.wraparound(False)
@@ -60,8 +64,14 @@ def bin_data(np.ndarray[uint8, ndim=2, cast=True] a not None,
         The binned data from `a`.
     """
     cdef:
-        long m = bins.shape[0] - 1, n = a.shape[1]
-        tuple shape = (m, n)
-        np.ndarray[long, ndim=2] out = np.zeros(shape, dtype=np.long)
+        npy_intp d[2]
+        np.ndarray[long, ndim=2] out
+
+    d[0] = bins.shape[0] - 1
+    d[1] = a.shape[1]
+
+    out = PyArray_EMPTY(2, d, np.NPY_LONG, 0)
+
     _bin_data(a, bins, out)
+
     return out

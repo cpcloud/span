@@ -37,7 +37,7 @@ def test_nextpow2():
     n = randint(int_max)
     np2 = nextpow2(n)
     tp2 = 2 ** np2
-    assert tp2 > n, '{} <= {}'.format(tp2, n)
+    assert tp2 >= n, '{} < {}'.format(tp2, n)
     assert_allclose(np2, np.log2(tp2))
 
 

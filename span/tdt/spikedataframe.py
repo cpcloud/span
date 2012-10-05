@@ -41,6 +41,7 @@ import span
 from span.xcorr import xcorr
 from span.tdt.spikeglobals import Indexer, ChannelIndex
 from span.utils.decorate import cached_property, thunkify
+from span.utils import cast
 
 
 class SpikeDataFrameAbstractBase(DataFrame):
@@ -114,10 +115,13 @@ class SpikeDataFrameBase(SpikeDataFrameAbstractBase):
         super(SpikeDataFrameBase, self).__init__(*args, **kwargs)
 
     @cached_property
-    def fs(self): return self.meta.fs.max()
+    def fs(self): return cast(self.meta.fs.max(), float)
+
+    @property
+    def nsamples(self): return self.channels.index[-1]
 
     @cached_property
-    def nchans(self): return span.utils.cast(self.meta.channel.max() + 1, int)
+    def nchans(self): return cast(self.meta.channel.max() + 1, int)
 
     @property
     @thunkify
@@ -157,8 +161,11 @@ class SpikeDataFrameBase(SpikeDataFrameAbstractBase):
         assert threshes.size == 1 or threshes.size == cols.size, \
             'number of threshold values must be 1 (same for all channels) or {}'\
             ', different threshold for each channel'
-        
-        return self.channels.gt(Series(threshes, index=cols), axis='columns')
+
+        threshes = Series(threshes, index=cols)
+        f = self.channels.lt if (threshes < 0).all() else self.channels.gt
+
+        return f(threshes, axis='columns')        
 
 
 class SpikeDataFrame(SpikeDataFrameBase):
@@ -287,7 +294,8 @@ class SpikeDataFrame(SpikeDataFrameBase):
 
     def xcorr(self, threshes, ms=2, binsize=1000, maxlags=100,
               detrend=span.utils.detrend_mean, scale_type='normalize',
-              reject_count=100):
+              reject_count=100, sortlevel='shank i', dropna=True,
+              nan_auto=False):
         """Compute the cross correlation of binned data.
 
         Parameters
@@ -344,13 +352,21 @@ class SpikeDataFrame(SpikeDataFrameBase):
 
         ms, binsize = float(ms), float(binsize)
         binned = self.bin(threshes, ms=ms, binsize=binsize).astype(float)
-        binned.ix[:, binned.sum() < reject_count] = np.nan
+        assert reject_count >= 0, 'reject count must be a positive integer'
+
+        if reject_count:
+            rec_len_s = float(self.nsamples) / self.fs
+            min_sp_per_s = reject_count / rec_len_s
+            sp_per_s = binned.mean() * (1e3 / binsize)
+            binned.ix[:, sp_per_s < min_sp_per_s] = np.nan
 
         nchannels = binned.columns.values.size
-        
+
+        channel_i, channel_j = 'channel i', 'channel j'
+        channel_names = channel_i, channel_j
         lr = DataFrame(span.utils.ndtuples(nchannels, nchannels),
-                          columns=('channel i', 'channel j'))
-        left, right = lr['channel i'], lr['channel j']
+                       columns=channel_names)
+        left, right = lr[channel_i], lr[channel_j]
 
         srt_idx = Indexer.sort('channel').reset_index(drop=True)
 
@@ -364,11 +380,32 @@ class SpikeDataFrame(SpikeDataFrameBase):
                                         rside))
 
         xc = xcorr(binned, maxlags=maxlags, detrend=detrend,
-                   scale_type=scale_type).T
-        xc.index = index
+                   scale_type=scale_type)
+        xc.columns = index
 
-        n = index.values.size
-        sqrtn = int(np.sqrt(n))
-        xc.lag0inds = Series(np.diag(np.r_[:n].reshape(sqrtn, sqrtn)))
+        if nan_auto:
+            sz = xc.shape[1]
+            sqrtsz = int(np.sqrt(sz))
+            auto_inds = np.diag(np.r_[:sz].reshape(sqrtsz, sqrtsz))
+            xc.ix[0, auto_inds] = np.nan
+
+        if dropna:
+            xc = xc.dropna(axis=1)
+            binned = binned.dropna(axis=1)
+
+        if sortlevel is not None:
+            sl = np.array(sortlevel).item()
+            assert isinstance(sl, (int, basestring)), \
+                'sortlevel must be an int or a string'
+                
+            if isinstance(sl, int):
+                nlevels = xc.columns.nlevels
+                assert 0 <= sl < nlevels, \
+                    'sortlevel: {0} not in {1}'.format(sl, range(nlevels))
+            else:
+                names = xc.columns.names
+                assert sl in names, "'{0}' not in {1}".format(sl, names)
+
+            xc = xc.sortlevel(level=sl, axis=1)
 
         return xc, binned

@@ -1,6 +1,5 @@
 import os
 import unittest
-import random
 import string
 import datetime
 
@@ -33,10 +32,11 @@ class TestPandasTank(unittest.TestCase):
         # date-like string case
         s = self.tank.tankname
         d = self.tank._parse_date(s)
+        self.assertIsInstance(d, datetime.date)
 
     def test_date(self):
         assert hasattr(self.tank, 'date')
-        self.assertIsInstance(self.tank.date, (basestring, datetime.date))
+        self.assertIsInstance(self.tank.date, datetime.date)
 
     def test__read_tev(self):
         tev = self.tank._read_tev('Spik')()

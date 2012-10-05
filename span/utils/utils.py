@@ -289,8 +289,6 @@ def nans_like(a):
     return r
 
 
-
-
 def name2num(name, base=256):
     """Convert an event name's string representation to a number.
 
@@ -430,8 +428,8 @@ def pad_larger(*arrays):
 
     Returns
     -------
-    ret : list
-        List of zero padded arrays.
+    ret : tuple
+        Tuple of zero padded arrays.
     """
     assert all(map(isinstance, arrays, itertools.repeat(np.ndarray))), \
     'all arguments must be instances of ndarray or implement the ndarray interface'
@@ -478,11 +476,14 @@ def hascomplex(x):
     Returns
     -------
     r : bool
+        Whether xs dtype is complex and not all of the elements are el + 0j
     """
     try:
-        return iscomplex(x) and not np.logical_not(x.imag).all()
+        v = x.imag
     except AttributeError:
-        return iscomplex(x) and not np.logical_not(x.values.imag).all()
+        v = x.values.imag
+
+    return iscomplex(v) and not np.logical_not(v).all()
 
 
 def get_fft_funcs(*arrays):
@@ -495,7 +496,7 @@ def get_fft_funcs(*arrays):
 
     Returns
     -------
-    r : 2-tuple of callables
+    r : tuple of callables
         The fft and ifft appropriate for the dtype of input.
     """
     r = np.fft.irfft, np.fft.rfft
@@ -503,61 +504,6 @@ def get_fft_funcs(*arrays):
     if any(arecomplex(arrays)):
         r = np.fft.ifft, np.fft.fft
     return r
-
-
-# def electrode_distance_old(fromij, toij, between_shank=125, within_shank=100):
-#     fromi, fromj = fromij
-#     toi, toj = toij
-
-#     col_diff = (toj - fromj) * between_shank
-#     row_diff = (toi - fromi) * within_shank
-#     return np.sqrt(col_diff ** 2 + row_diff ** 2)
-
-
-def electrode_distance(locs, bs=125.0, ws=100.0):
-    """Compute the distance between two electrodes given an index and between and
-    within shank distance.
-
-    Parameters
-    ----------
-    fromij : tuple
-    toij : tuple
-    between_shank : int, optional
-    within_shank : int, optional
-
-    Returns
-    -------
-    d : float
-        The distance between electrodes at e_ij and e_kl.
-    """
-    assert locs.ndim == 2, 'invalid locations array'
-    ncols = locs.shape[1]
-    ncols2 = int(np.floor(ncols / 2.0))
-    d = ((locs[:, ncols2:ncols] - locs[:, :ncols2]) * [bs, ws]) ** 2.0
-    s = locs.shape[0]
-    si = int(np.sqrt(s))
-    dist = np.sqrt(d.sum(axis=1))
-    assert ~(dist[np.diag(np.r_[:s].reshape((si, si)))]).all(), \
-        'self distance is not 0'
-    return dist
-
-
-def distance_map(nshanks=4, electrodes_per_shank=4):
-    """Create an electrode distance map.
-
-    Parameters
-    ----------
-    nshanks : int, optional
-    electrodes_per_shank : int, optional
-
-    Returns
-    -------
-    ret : pandas.Series
-    """
-    indices = ndtuples(*itertools.repeat(electrodes_per_shank, nshanks))
-    dists = electrode_distance(indices)
-    nelectrodes = nshanks * electrodes_per_shank
-    return pd.DataFrame(dists.reshape((nelectrodes, nelectrodes)))
 
 
 def isvector(x):
@@ -606,7 +552,9 @@ def compose(*args):
     h : callable
         Composition of callables in `args`.
     """
-    return functools.partial(functools.reduce, compose2)(args)
+    f = functools.partial(functools.reduce, compose2)(args)
+    f.__name__ = '({0})'.format(' . '.join(map(lambda x: x.__name__, args)))
+    return f
 
 
 def composemap(*args):
@@ -639,10 +587,11 @@ def trimmean(x, alpha, inclusive=(False, False), axis=None):
 
     inclusive : tuple of bools, optional
         Whether to round (True, True) or truncate the values (False, False).
-        Defaults to truncation.
+        Defaults to truncation. Note that this is different from trimboth's
+        default.
        
     axis : int or None, optional
-        The axis over which to operate.
+        The axis over which to operate. None flattens the array
 
     Returns
     -------
@@ -656,8 +605,48 @@ def trimmean(x, alpha, inclusive=(False, False), axis=None):
         return float(x)
         
     assert axis is None or 0 <= axis < x.ndim, \
-        'axis must be None or less than x.ndim:{0}'.format(x.ndim)
-    
-    return pd.Series(scipy.stats.mstats.trimboth(x, proportiontocut=alpha / 100.0,
-                                                 inclusive=inclusive,
-                                                 axis=axis).mean(axis))
+        'axis must be None or less than x.ndim: {0}'.format(x.ndim)
+
+    trimmed = scipy.stats.mstats.trimboth(x, alpha / 100.0, inclusive,
+                                          axis).mean(axis)
+
+    index = None
+    if isinstance(x, pd.DataFrame):
+        index = {0: x.columns, 1: x.index, None: None}[axis]
+        
+    return pd.Series(trimmed, index=index)
+
+
+def roll_with_zeros(a, shift=0, axis=None):
+    a, shift = map(np.asanyarray, a, shift)
+    if not shift:
+        return a
+
+    rshp = axis is None
+    n = a.size if rshp else a.shape[axis]
+
+    if np.abs(shift) > n:
+        res = np.zeros_like(n)
+    elif shift < 0:
+        shift += n
+        zs = np.zeros_like(a.take(np.arange(n - shift), axis))
+        res = np.concatenate((a.take(np.arange(n - shift, n), axis), zs), axis)
+    else:
+        zs = np.zeros_like(a.take(np.arange(n - shift, n) ,axis))
+        res = np.concatenate((zs, a.take(np.arange(n - shift), axis)), axis)
+
+    if rshp:
+        res.shape = a.shape
+
+    return res
+
+
+def neighbors(a, i, j, n=2):
+    dim0_roll = roll_with_zeros(a, shift=1 - i, axis=0)
+    rld_and_pd = roll_with_zeros(dim0_roll, shift=1 - j, axis=1)
+    return rld_and_pd[:n, :n]
+
+
+def unique_neighbors(neigh, axis=None):
+    flat_neigh = neigh.ravel()
+    return neigh.take(flat_neigh.nonzero(), axis=axis).squeeze()
