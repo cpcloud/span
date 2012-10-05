@@ -289,8 +289,6 @@ def nans_like(a):
     return r
 
 
-
-
 def name2num(name, base=256):
     """Convert an event name's string representation to a number.
 
