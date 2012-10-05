@@ -18,7 +18,7 @@ NSides = NShanks * 2
 ShankMap = pd.Series(np.outer(np.arange(NShanks),
                               np.ones(NShanks)).astype(int).ravel(),
                               name='Shank Map')
-MedLatRaw = np.array(('med', 'lat'))[np.hstack((np.zeros(NSides, int),
+MedLatRaw = np.array(('lat', 'med'))[np.hstack((np.zeros(NSides, int),
                                                 np.ones(NSides, int)))]
 MedialLateral = pd.Series(MedLatRaw, name='Side Map')
 Indexer = pd.DataFrame(dict(zip(('channel', 'shank', 'side'),
