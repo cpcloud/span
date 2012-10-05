@@ -430,8 +430,8 @@ def pad_larger(*arrays):
 
     Returns
     -------
-    ret : list
-        List of zero padded arrays.
+    ret : tuple
+        Tuple of zero padded arrays.
     """
     assert all(map(isinstance, arrays, itertools.repeat(np.ndarray))), \
     'all arguments must be instances of ndarray or implement the ndarray interface'
@@ -478,6 +478,7 @@ def hascomplex(x):
     Returns
     -------
     r : bool
+        Whether xs dtype is complex and not all of the elements are el + 0j
     """
     try:
         v = x.imag
@@ -497,7 +498,7 @@ def get_fft_funcs(*arrays):
 
     Returns
     -------
-    r : 2-tuple of callables
+    r : tuple of callables
         The fft and ifft appropriate for the dtype of input.
     """
     r = np.fft.irfft, np.fft.rfft
@@ -586,10 +587,11 @@ def trimmean(x, alpha, inclusive=(False, False), axis=None):
 
     inclusive : tuple of bools, optional
         Whether to round (True, True) or truncate the values (False, False).
-        Defaults to truncation.
+        Defaults to truncation. Note that this is different from trimboth's
+        default.
        
     axis : int or None, optional
-        The axis over which to operate.
+        The axis over which to operate. None flattens the array
 
     Returns
     -------
@@ -603,11 +605,10 @@ def trimmean(x, alpha, inclusive=(False, False), axis=None):
         return float(x)
         
     assert axis is None or 0 <= axis < x.ndim, \
-        'axis must be None or less than x.ndim:{0}'.format(x.ndim)
-    
-    return pd.Series(scipy.stats.mstats.trimboth(x, proportiontocut=alpha / 100.0,
-                                                 inclusive=inclusive,
-                                                 axis=axis).mean(axis))
+        'axis must be None or less than x.ndim: {0}'.format(x.ndim)
+
+    trimboth = scipy.stats.mstats.trimboth
+    return pd.Series(trimboth(x, alpha / 100.0, inclusive, axis).mean(axis))
 
 
 def roll_with_zeros(a, shift=0, axis=None):
