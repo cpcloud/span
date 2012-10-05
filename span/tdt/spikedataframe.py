@@ -41,6 +41,7 @@ import span
 from span.xcorr import xcorr
 from span.tdt.spikeglobals import Indexer, ChannelIndex
 from span.utils.decorate import cached_property, thunkify
+from span.utils import cast
 
 
 class SpikeDataFrameAbstractBase(DataFrame):
@@ -114,13 +115,13 @@ class SpikeDataFrameBase(SpikeDataFrameAbstractBase):
         super(SpikeDataFrameBase, self).__init__(*args, **kwargs)
 
     @cached_property
-    def fs(self): return self.meta.fs.max()
+    def fs(self): return cast(self.meta.fs.max(), float)
 
     @property
     def nsamples(self): return self.channels.index[-1]
 
     @cached_property
-    def nchans(self): return span.utils.cast(self.meta.channel.max() + 1, int)
+    def nchans(self): return cast(self.meta.channel.max() + 1, int)
 
     @property
     @thunkify
