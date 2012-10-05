@@ -605,8 +605,14 @@ def trimmean(x, alpha, inclusive=(False, False), axis=None):
     assert axis is None or 0 <= axis < x.ndim, \
         'axis must be None or less than x.ndim: {0}'.format(x.ndim)
 
-    trimboth = scipy.stats.mstats.trimboth
-    return pd.Series(trimboth(x, alpha / 100.0, inclusive, axis).mean(axis))
+    trimmed = scipy.stats.mstats.trimboth(x, alpha / 100.0, inclusive,
+                                          axis).mean(axis)
+
+    index = None
+    if isinstance(x, pd.DataFrame):
+        index = {0: x.columns, 1: x.index, None: None}[axis]
+        
+    return pd.Series(trimmed, index=index)
 
 
 def roll_with_zeros(a, shift=0, axis=None):
