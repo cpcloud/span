@@ -329,6 +329,8 @@ class SpikeDataFrame(SpikeDataFrameBase):
         AssertionError
            If detrend is not a callable object
            If scale_type is not a string
+           If sortlevel is not None and is not a string or a number in the
+               list of level names or level indices
 
         Returns
         -------
