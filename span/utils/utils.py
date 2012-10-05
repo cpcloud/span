@@ -552,7 +552,9 @@ def compose(*args):
     h : callable
         Composition of callables in `args`.
     """
-    return functools.partial(functools.reduce, compose2)(args)
+    f = functools.partial(functools.reduce, compose2)(args)
+    f.__name__ = '({0})'.format(' . '.join(map(lambda x: x.__name__, args)))
+    return f
 
 
 def composemap(*args):
