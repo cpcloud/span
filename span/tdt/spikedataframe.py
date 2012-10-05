@@ -161,7 +161,10 @@ class SpikeDataFrameBase(SpikeDataFrameAbstractBase):
             'number of threshold values must be 1 (same for all channels) or {}'\
             ', different threshold for each channel'
 
-        return self.channels.gt(Series(threshes, index=cols), axis='columns')
+        threshes = Series(threshes, index=cols)
+        f = self.channels.lt if (threshes < 0).all() else self.channels.gt
+
+        return f(threshes, axis='columns')        
 
 
 class SpikeDataFrame(SpikeDataFrameBase):
