@@ -5,21 +5,23 @@ from libc.stdio cimport fopen, fclose, fread, fseek, SEEK_SET, FILE
 from libc.stdlib cimport malloc, free
 
 ctypedef np.float32_t float32
+ctypedef np.int64_t int64
 
-cpdef read_tev(char* filename, long nsamples, np.ndarray[long] fp_locs,
+cpdef read_tev(char* filename, int64 nsamples, np.ndarray[int64] fp_locs,
                np.ndarray[float32, ndim=2] spikes):
     cdef:
-        long i, j
-        long n = fp_locs.shape[0], nbytes = sizeof(float32)
+        int64 i, j
+        int64 n = fp_locs.shape[0], nbytes = sizeof(float32)
 
         float32* spikes_data = <float32*> spikes.data
         float32* chunk_data = <float32*> malloc(nbytes * nsamples)
 
-        long* fp_locs_data = <long*> fp_locs.data
+        int64* fp_locs_data = <int64*> fp_locs.data
 
         FILE* f = fopen(filename, 'rb')
 
     if not f:
+        free(<void*> chunk_data)
         return -1
 
     for i in xrange(n):
