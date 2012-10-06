@@ -9,7 +9,6 @@ import warnings
 import numpy as np
 import pandas as pd
 
-
 from span.utils import (
     cast, detrend_mean, get_fft_funcs, isvector, nextpow2, pad_larger)
 
@@ -254,5 +253,3 @@ def xcorr(x, y=None, maxlags=None, detrend=detrend_mean, scale_type='normalize')
 
     scale_function = SCALE_FUNCTIONS[scale_type]
     return scale_function(return_type(ctmp[lags], index=lags), lsize)
-
-
