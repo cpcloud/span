@@ -198,22 +198,22 @@ class SpikeDataFrame(SpikeDataFrameBase):
     def _constructor(self):
         return lambda *args, **kwargs: SpikeDataFrame(*args, meta=self.meta, **kwargs)
 
-    def bin(self, cleared, binsize=1000, reject_count=100):
+    def bin(self, cleared, binsize=1000, reject_count=100, dropna=False):
         """Bin spike data by `ms` millisecond bins.
 
         Parameters
         ----------
-        threshes: array_like
-        ms : float, optional
-            Refractory period
-        binsize : float
+        cleared : array_like
+            The refractory-period-cleared array of spike booleans to bin.
+        
+        binsize : float, optional
             The size of the bins to use, in milliseconds
-        conv : float
-            The conversion factor to convert the the binsize to samples
+
+        reject_count : int, optional
 
         Returns
         -------
-        df : pandas.DataFrame
+        binned : pandas.DataFrame
 
         See Also
         --------
@@ -228,10 +228,13 @@ class SpikeDataFrame(SpikeDataFrameBase):
         binned = DataFrame(btmp, columns=cleared.columns, dtype=float)
 
         if reject_count:
-            rec_len_s = self.nsamples / self.fs
+            rec_len_s = self.nsamples / float(self.fs)
             min_sp_per_s = reject_count / rec_len_s
             sp_per_s = binned.mean() * (1e3 / binsize)
             binned.ix[:, sp_per_s < min_sp_per_s] = np.nan
+
+        if dropna:
+            binned = binned.dropna(axis=1)
         
         return binned
 
@@ -240,16 +243,19 @@ class SpikeDataFrame(SpikeDataFrameBase):
 
         Parameters
         ----------
-        threshes : array_like
-            A single number for the whole array or an array_like object
-            that has shape == (number of columns of self,).
+        threshed : array_like
 
         ms : float, optional
             The length of the refractory period in milliseconds.
 
+        Raises
+        ------
+        AssertionError
+            If `ms` is less than 0 or is not None
+
         Returns
         -------
-        clr : DataFrame
+        r : DataFrame
             The thresholded and refractory-period-cleared array of booleans
             indicating the sample point at which a spike was above threshold.
         """
@@ -272,7 +278,7 @@ class SpikeDataFrame(SpikeDataFrameBase):
 
         Parameters
         ----------
-        threshes : array_like
+        binned : array_like
             Threshold or threshold array.
 
         level : str, optional
@@ -280,12 +286,6 @@ class SpikeDataFrame(SpikeDataFrameBase):
 
         axis : int, optional
             The axis on which to look for the level, defaults to 1.
-
-        binsize : int, optional
-            Bin size in milliseconds.
-
-        ms : int, optional
-            Length of the refractory period in milliseconds
 
         Returns
         -------
@@ -309,15 +309,8 @@ class SpikeDataFrame(SpikeDataFrameBase):
 
         Parameters
         ----------
-        threshes : array_like
-            Threshold(s) to use for spike detection.
-
-        ms : float, optional
-            The refractory period of a channel. Defaults to 2 ms.
-
-        binsize : float, optional
-            The size of the bins to use to count up spikes, in milliseconds.
-            Defaults to 1000 ms (1 s).
+        binned : array_like
+            Data of which to compute the cross-correlation.
 
         maxlags : int, optional
             Maximum number of lags to return from the cross correlation. Defaults
@@ -329,15 +322,23 @@ class SpikeDataFrame(SpikeDataFrameBase):
         scale_type : str, optional
             Method of scaling. Defaults to 'normalize'.
 
-        reject_count : int, optional
-            Bins whose count is less than this will be assigned NaN. Defaults to
-            100.
+        sortlevel : str, optional
+            How to sort the index of the returned cross-correlation(s). Defaults
+            to "shank i" so the the xcorrs are ordered by their physical
+            ordering.
+
+        dropna : bool, optional
+            If True this will drop all channels whose cross correlation is NaN.
+            Cross-correlations will be NaN if any of the columns of `binned` are
+            NaN.
 
         Raises
         ------
         AssertionError
            If detrend is not a callable object
            If scale_type is not a string
+
+        ValueError
            If sortlevel is not None and is not a string or a number in the
                list of level names or level indices
 
