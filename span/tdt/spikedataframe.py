@@ -41,7 +41,7 @@ import span
 from span.xcorr import xcorr
 from span.tdt.spikeglobals import Indexer, ChannelIndex
 from span.utils.decorate import cached_property, thunkify
-from span.utils import cast
+from span.utils import clear_refrac, refrac_window
 
 
 class SpikeDataFrameAbstractBase(DataFrame):
@@ -76,7 +76,13 @@ class SpikeDataFrameAbstractBase(DataFrame):
 
     def __init__(self, data, meta, *args, **kwargs):
         super(SpikeDataFrameAbstractBase, self).__init__(data, *args, **kwargs)
-        self.meta = meta
+        self.__meta = meta
+
+    @property
+    def meta(self): return self.__meta
+
+    @meta.setter
+    def meta(self, meta): self.__meta = meta
 
     @abstractproperty
     def channels(self):
@@ -115,13 +121,25 @@ class SpikeDataFrameBase(SpikeDataFrameAbstractBase):
         super(SpikeDataFrameBase, self).__init__(*args, **kwargs)
 
     @cached_property
-    def fs(self): return cast(self.meta.fs.max(), float)
-
-    @property
-    def nsamples(self): return self.channels.index[-1]
+    def fs(self): return self.meta.fs.unique().item()
 
     @cached_property
-    def nchans(self): return cast(self.meta.channel.max() + 1, int)
+    def chunk_size(self): return self.meta.size.unique().item()
+
+    @cached_property
+    def sort_code(self): return self.meta.sort_code.unique().item()
+
+    @cached_property
+    def fmt(self): return self.meta.format.unique().item()
+
+    @cached_property
+    def tdt_type(self): return self.meta.type.unique().item()
+
+    @cached_property
+    def nchans(self): return self.meta.channel.dropna().nunique()
+
+    @property
+    def nsamples(self): return max(self.channel_indices.shape) * self.chunk_size
 
     @property
     @thunkify
@@ -140,19 +158,7 @@ class SpikeDataFrameBase(SpikeDataFrameAbstractBase):
         return span.utils.group_indices(self.channel_group)
 
     @property
-    def shank_indices(self): return span.utils.group_indices(self.shank_group)
-
-    @property
-    def side_indices(self): return span.utils.group_indices(self.side_group, str)
-
-    @property
     def channel_group(self): return self.groupby(level=self.meta.channel.name)
-
-    @property
-    def shank_group(self): return self.groupby(level=self.meta.shank.name)
-
-    @property
-    def side_group(self): return self.groupby(level=self.meta.side.name)
 
     def threshold(self, threshes):
         cols = self.channels.columns
@@ -190,7 +196,7 @@ class SpikeDataFrame(SpikeDataFrameBase):
     def _constructor(self):
         return lambda *args, **kwargs: SpikeDataFrame(*args, meta=self.meta, **kwargs)
 
-    def bin(self, threshes, ms=2, binsize=1000):
+    def bin(self, cleared, binsize=1000, reject_count=100):
         """Bin spike data by `ms` millisecond bins.
 
         Parameters
@@ -211,33 +217,23 @@ class SpikeDataFrame(SpikeDataFrameBase):
         --------
         span.utils.bin
         """
+        assert reject_count >= 0, 'reject count must be a positive integer'
+
         conv = 1e3
-        ms, binsize = map(float, (ms, binsize))
-        cleared = self.cleared(threshes, ms)
-        max_sample = self.channels.index[-1]
         bin_samples = int(np.floor(binsize * self.fs / conv))
-        bins = np.r_[:max_sample:bin_samples]
+        bins = np.r_[:self.nsamples - 1:bin_samples]
         binned = span.utils.bin_data(cleared.values, bins)
-        return DataFrame(binned, columns=ChannelIndex)
+        # binned = DataFrame(btmp, columns=cleared.columns, dtype=float)
 
-    def refrac_window(self, ms):
-        """Compute the refractory period in samples given a period of `ms`
-        milliseconds.
+        # if reject_count:
+        #     rec_len_s = self.nsamples / self.fs
+        #     min_sp_per_s = reject_count / rec_len_s
+        #     sp_per_s = binned.mean() * (1e3 / binsize)
+        #     binned.ix[:, sp_per_s < min_sp_per_s] = np.nan
+        
+        return binned
 
-        Parameters
-        ---------- 
-        ms : float
-            The refractory period in milliseconds.
-
-        Returns
-        -------
-        win : int
-            The refractory period in samples.
-        """
-        conv = 1e3
-        return int(np.floor(float(ms) / conv * self.fs))
-
-    def cleared(self, threshes, ms=2):
+    def cleared(self, threshed, ms=2):
         """Remove spikes from the refractory period of all channels.
 
         Parameters
@@ -255,13 +251,13 @@ class SpikeDataFrame(SpikeDataFrameBase):
             The thresholded and refractory-period-cleared array of booleans
             indicating the sample point at which a spike was above threshold.
         """
-        clr = self.threshold(threshes)
+        clr = threshed.copy()
 
         # TODO: make sure samples by channels is shape of clr
-        span.utils.clear_refrac(clr.values, self.refrac_window(ms))
+        clear_refrac(clr.values, refrac_window(self.fs, ms))
         return clr
 
-    def fr(self, threshes, level='channel', axis=1, binsize=1000, ms=2):
+    def fr(self, binned, level='channel', axis=1, sem=False):
         """Compute the firing rate over a given level.
 
         Parameters
@@ -287,14 +283,17 @@ class SpikeDataFrame(SpikeDataFrameBase):
             The average firing rate in spikes per binsize milliseconds and the
             standard error of the mean of the spike counts for a given level.
         """
-        binned = self.bin(threshes, binsize=binsize, ms=ms)
         group = binned.groupby(axis=axis, level=level)
         sqrtn = np.sqrt(max(binned.shape))
-        return group.mean().mean(), group.sum().std() / sqrtn
+        r = group.mean().mean()
 
-    def xcorr(self, threshes, ms=2, binsize=1000, maxlags=100,
-              detrend=span.utils.detrend_mean, scale_type='normalize',
-              reject_count=100, sortlevel='shank i', dropna=True,
+        if sem:
+            r = r, group.sum().std() / sqrtn
+
+        return r
+
+    def xcorr(self, binned, maxlags=100, detrend=span.utils.detrend_mean,
+              scale_type='normalize', sortlevel='shank i', dropna=True,
               nan_auto=False):
         """Compute the cross correlation of binned data.
 
@@ -352,16 +351,6 @@ class SpikeDataFrame(SpikeDataFrameBase):
         assert isinstance(scale_type, basestring) or scale_type is None, \
             'scale_type must be a string or None'
 
-        ms, binsize = float(ms), float(binsize)
-        binned = self.bin(threshes, ms=ms, binsize=binsize).astype(float)
-        assert reject_count >= 0, 'reject count must be a positive integer'
-
-        if reject_count:
-            rec_len_s = float(self.nsamples) / self.fs
-            min_sp_per_s = reject_count / rec_len_s
-            sp_per_s = binned.mean() * (1e3 / binsize)
-            binned.ix[:, sp_per_s < min_sp_per_s] = np.nan
-
         nchannels = binned.columns.values.size
 
         channel_i, channel_j = 'channel i', 'channel j'
@@ -396,17 +385,18 @@ class SpikeDataFrame(SpikeDataFrameBase):
             binned = binned.dropna(axis=1)
 
         if sortlevel is not None:
-            sl = np.array(sortlevel).item()
-            assert isinstance(sl, (int, basestring)), \
-                'sortlevel must be an int or a string'
-                
-            if isinstance(sl, int):
+            try:
+                sl = int(sortlevel)
                 nlevels = xc.columns.nlevels
                 assert 0 <= sl < nlevels, \
-                    'sortlevel: {0} not in {1}'.format(sl, range(nlevels))
-            else:
-                names = xc.columns.names
-                assert sl in names, "'{0}' not in {1}".format(sl, names)
+                    'sortlevel {0} not in {1}'.format(sl, range(nlevels))
+            except ValueError:
+                try:
+                    sl = str(sortlevel)
+                    names = xc.columns.names
+                    assert sl in names, "'{0}' not in {1}".format(sl, names)
+                except ValueError:
+                    raise ValueError('sortlevel must be an int or a string')
 
             xc = xc.sortlevel(level=sl, axis=1)
 
