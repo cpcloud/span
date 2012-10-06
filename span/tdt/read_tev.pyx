@@ -1,13 +1,10 @@
-cimport numpy as np
+from numpy cimport float32_t as float32, int64_t as int64, ndarray
 
 from libc.stdio cimport fopen, fclose, fread, fseek, SEEK_SET, FILE
 from libc.stdlib cimport malloc, free
 
-ctypedef np.float32_t float32
-ctypedef np.int64_t int64
-
-cpdef read_tev(char* filename, int64 nsamples, np.ndarray[int64] fp_locs,
-               np.ndarray[float32, ndim=2] spikes):
+cpdef read_tev(char* filename, int64 nsamples, ndarray[int64] fp_locs,
+               ndarray[float32, ndim=2] spikes):
     """
     """
     cdef:
