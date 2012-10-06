@@ -69,9 +69,9 @@ class ElectrodeMap(DataFrame):
     def __init__(self, map_, order=None, base_index=0):
         map_ = np.asanyarray(map_).squeeze()
         mm = map_.min()
-        # mm != base_index
-        #-1 if mm > base_index else 1
+        
         v = np.sign(base_index - mm)
+
         if v:
             while mm != base_index:
                 map_ += v
