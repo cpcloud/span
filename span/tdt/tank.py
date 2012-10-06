@@ -16,7 +16,7 @@ import pandas as pd
 
 from span.tdt.spikeglobals import Indexer
 from span.tdt.spikedataframe import SpikeDataFrame
-from span.utils import name2num, thunkify, cached_property, cast
+from span.utils import name2num, thunkify, cached_property
 
 TYPES_TABLE = ((np.float32, 1, np.float32),
                (np.int32, 1, np.int32),
