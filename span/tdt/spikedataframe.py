@@ -40,7 +40,6 @@ from pandas import Series, DataFrame, MultiIndex
 
 import span
 from span.xcorr import xcorr
-from span.tdt.spikeglobals import Indexer, ChannelIndex
 from span.utils.decorate import cached_property, thunkify
 from span.utils import clear_refrac, refrac_window
 
@@ -141,6 +140,8 @@ class SpikeDataFrameBase(SpikeDataFrameAbstractBase):
     @property
     @thunkify
     def _channels(self):
+        from span.tdt.spikeglobals import ChannelIndex
+
         vals = self.values[self.channel_indices]
         shpsort = np.argsort(vals.shape)[::-1]
         newshp = int(vals.size // self.nchans), self.nchans
@@ -372,28 +373,10 @@ class SpikeDataFrame(SpikeDataFrameBase):
         assert isinstance(scale_type, basestring) or scale_type is None, \
             'scale_type must be a string or None'
 
-        nchannels = binned.columns.values.size
-
-        channel_i, channel_j = 'channel i', 'channel j'
-        channel_names = channel_i, channel_j
-        lr = DataFrame(span.utils.ndtuples(nchannels, nchannels),
-                       columns=channel_names)
-        left, right = lr[channel_i], lr[channel_j]
-
-        srt_idx = Indexer.sort('channel').reset_index(drop=True)
-
-        lshank, rshank = srt_idx.shank[left], srt_idx.shank[right]
-        lshank.name, rshank.name = 'shank i', 'shank j'
-
-        lside, rside = srt_idx.side[left], srt_idx.side[right]
-        lside.name, rside.name = 'side i', 'side j'
-
-        index = MultiIndex.from_arrays((left, right, lshank, rshank, lside,
-                                        rside))
-
         xc = xcorr(binned, maxlags=maxlags, detrend=detrend,
                    scale_type=scale_type)
-        xc.columns = index
+
+        xc.columns = _create_xcorr_inds(self.nchans)
 
         if nan_auto:
             sz = xc.shape[1]
@@ -421,3 +404,24 @@ class SpikeDataFrame(SpikeDataFrameBase):
             xc = xc.sortlevel(level=sl, axis=1)
 
         return xc
+
+
+def _create_xcorr_inds(nchannels):
+    from span.utils import ndtuples
+    from span.tdt.spikeglobals import Indexer
+
+    channel_i, channel_j = 'channel i', 'channel j'
+    channel_names = channel_i, channel_j
+
+    lr = DataFrame(ndtuples(nchannels, nchannels), columns=channel_names)
+    left, right = lr[channel_i], lr[channel_j]
+
+    srt_idx = Indexer.sort('channel').reset_index(drop=True)
+
+    lshank, rshank = srt_idx.shank[left], srt_idx.shank[right]
+    lshank.name, rshank.name = 'shank i', 'shank j'
+
+    lside, rside = srt_idx.side[left], srt_idx.side[right]
+    lside.name, rside.name = 'side i', 'side j'
+
+    return MultiIndex.from_arrays((left, right, lshank, rshank, lside, rside))
