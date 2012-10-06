@@ -158,6 +158,16 @@ class SpikeDataFrameBase(SpikeDataFrameAbstractBase):
     def channel_group(self): return self.groupby(level=self.meta.channel.name)
 
     def threshold(self, threshes):
+        """Threshold spikes.
+
+        Parameters
+        ----------
+        threshes : array_like
+
+        Returns
+        -------
+        threshed : array_like
+        """
         threshes = np.asanyarray(threshes)
 
         assert threshes.size == 1 or threshes.size == self.nchans, \
