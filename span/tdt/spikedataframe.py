@@ -164,7 +164,8 @@ class SpikeDataFrameBase(SpikeDataFrameAbstractBase):
             'number of threshold values must be 1 (same for all channels) or {}'\
             ', different threshold for each channel'
 
-        is_neg = (threshes < 0).all()
+        is_neg = np.all(threshes < 0)
+
         if threshes.size == self.nchans:
             threshes = Series(threshes, index=self.channels.columns)
             chn = self.channels
