@@ -77,6 +77,8 @@ class SpikeDataFrameAbstractBase(DataFrame):
 
     def __init__(self, data, meta, *args, **kwargs):
         super(SpikeDataFrameAbstractBase, self).__init__(data, *args, **kwargs)
+
+        assert meta is not None, 'meta cannot be None'
         self.__meta = meta
 
     @property
