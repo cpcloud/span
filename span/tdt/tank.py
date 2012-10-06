@@ -18,6 +18,8 @@ from span.tdt.spikeglobals import Indexer
 from span.tdt.spikedataframe import SpikeDataFrame
 from span.utils import name2num, thunkify, cached_property
 
+from _read_tev import read_tev
+
 TYPES_TABLE = ((np.float32, 1, np.float32),
                (np.int32, 1, np.int32),
                (np.int16, 2, np.int16),
@@ -225,11 +227,7 @@ class PandasTank(TdtTankBase):
         spikes = np.empty((fp_loc.size, nsamples), dtype=dtype)
         tev_name = self.tankname + os.extsep + self.raw_ext
 
-        with open(tev_name, 'rb') as tev_fileobj:
-            with contextlib.closing(mmap.mmap(tev_fileobj.fileno(), 0,
-                                              access=mmap.ACCESS_READ)) as tev:
-                for i, offset in enumerate(fp_loc):
-                    spikes[i] = np.frombuffer(tev, dtype, nsamples, offset)
+        read_tev(tev_name, nsamples, fp_loc.values, spikes)
 
         index_arrays = (meta.side, meta.shank, meta.channel, meta.timestamp,
                         meta.fp_loc)

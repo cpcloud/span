@@ -30,10 +30,11 @@ define_macros = []
 
 utils_dir = os.path.join('span', 'utils')
 xcorr_dir = os.path.join('span', 'xcorr')
+tdt_dir = os.path.join('span', 'tdt')
 
 
-base_names = 'clear_refrac', 'bin_data', 'mult_mat_xcorr'
-dirs = utils_dir, utils_dir, xcorr_dir
+base_names = 'clear_refrac', 'bin_data', 'mult_mat_xcorr', 'read_tev'
+dirs = utils_dir, utils_dir, xcorr_dir, tdt_dir
 
 ext_modules = []
 
