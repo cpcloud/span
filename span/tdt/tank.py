@@ -31,6 +31,15 @@ TsqFields = ('size', 'type', 'name', 'channel', 'sort_code', 'timestamp',
 TsqNumpyTypes = (np.int32, np.int32, np.uint32, np.uint16, np.uint16, np.float64,
                  np.int64, np.int32, np.float32)
 
+
+def nonzero_existing_file(f):
+    return os.path.exists(f) and os.path.isfile(f) and os.path.getsize(f) > 0
+
+
+def get_first_match(regex, s):
+    return re.match(regex, s).group(1)
+
+
 class TdtTankBase(object):
     """Abstract base class encapsulating a TDT Tank.
 
@@ -69,19 +78,30 @@ class TdtTankBase(object):
 
     def __init__(self, tankname):
         super(TdtTankBase, self).__init__()
-        assert isinstance(tankname, basestring), "tankname must be a string"
-        basename = os.path.basename(tankname)
+
+        tank_with_ext = tankname + os.extsep
+
+        assert nonzero_existing_file(tank_with_ext + self.raw_ext), \
+            '{0} does not exist'.format(tank_with_ext + self.raw_ext)
+
+        assert nonzero_existing_file(tank_with_ext + self.header_ext), \
+            '{0} does not exist'.format(tank_with_ext + self.header_ext)
 
         self.tankname = tankname
-        self.animal_age = int(self.age_re.match(basename).group(1))
-        self.__date = self._parse_date(basename)
+
+        basename = os.path.basename(tankname)
 
         try:
-            site = int(self.site_re.match(basename).group(1))
-        except (AttributeError, ValueError, TypeError):
-            site = np.nan
+            self.animal_age = int(get_first_match(self.age_re, basename))
+        except ValueError:
+            self.animal_age = None
 
-        self.site = site
+        try:
+            self.site = int(get_first_match(self.site_re, basename))
+        except ValueError:
+            self.site = None
+
+        self.__date = self._parse_date(basename)
 
     def _parse_date(self, basename):
         """Parse a date from a directory name.
@@ -224,6 +244,7 @@ class PandasTank(TdtTankBase):
 
         nsamples = meta.size[first_row] * TYPES_TABLE[fmt][1]
         dtype = np.dtype(TYPES_TABLE[fmt][2]).type
+
         spikes = np.empty((fp_loc.size, nsamples), dtype=dtype)
         tev_name = self.tankname + os.extsep + self.raw_ext
 
