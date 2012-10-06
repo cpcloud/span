@@ -618,6 +618,8 @@ def trimmean(x, alpha, inclusive=(False, False), axis=None):
 
 
 def roll_with_zeros(a, shift=0, axis=None):
+    """
+    """
     a, shift = map(np.asanyarray, a, shift)
     if not shift:
         return a
@@ -642,11 +644,34 @@ def roll_with_zeros(a, shift=0, axis=None):
 
 
 def neighbors(a, i, j, n=2):
+    """
+    """
     dim0_roll = roll_with_zeros(a, shift=1 - i, axis=0)
     rld_and_pd = roll_with_zeros(dim0_roll, shift=1 - j, axis=1)
     return rld_and_pd[:n, :n]
 
 
 def unique_neighbors(neigh, axis=None):
+    """
+    """
     flat_neigh = neigh.ravel()
     return neigh.take(flat_neigh.nonzero(), axis=axis).squeeze()
+
+
+def refrac_window(fs, ms):
+    """Compute the refractory period in samples given a period of `ms`
+    milliseconds.
+
+    Parameters
+    ---------- 
+    ms : float
+        The refractory period in milliseconds.
+
+    Returns
+    -------
+    win : int
+        The refractory period in samples.
+    """
+    conv = 1e3
+    return int(np.floor(ms / conv * fs))
+
