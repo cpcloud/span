@@ -16,7 +16,7 @@ import pandas as pd
 
 from span.tdt.spikeglobals import Indexer
 from span.tdt.spikedataframe import SpikeDataFrame
-from span.utils import name2num, thunkify, cached_property
+from span.utils import name2num, thunkify, cached_property, cast
 
 TYPES_TABLE = ((np.float32, 1, np.float32),
                (np.int32, 1, np.int32),
@@ -209,19 +209,30 @@ class PandasTank(TdtTankBase):
         assert row.any(), 'no event named %s in tank: %s' % (event_name,
                                                              self.tankname)
 
+        meta = self.tsq[row]
+        meta.channel = meta.channel.astype(int)
+        meta.shank = meta.shank.astype(int)
+        meta.size -= 10
+
         first_row = np.argmax(row == 1)
-        fmt = self.tsq.format[first_row]
-        chans = self.tsq.channel[row]
-        fp_loc = self.tsq.fp_loc[row]
-        nsamples = (self.tsq.size[first_row] - 10) * TYPES_TABLE[fmt][1]
+
+        fmt = meta.format[first_row]
+        
+        fp_loc = meta.fp_loc        
+
+        nsamples = meta.size[first_row] * TYPES_TABLE[fmt][1]
         dtype = np.dtype(TYPES_TABLE[fmt][2]).type
         spikes = np.empty((fp_loc.size, nsamples), dtype=dtype)
         tev_name = self.tankname + os.extsep + self.raw_ext
+
         with open(tev_name, 'rb') as tev_fileobj:
             with contextlib.closing(mmap.mmap(tev_fileobj.fileno(), 0,
                                               access=mmap.ACCESS_READ)) as tev:
                 for i, offset in enumerate(fp_loc):
                     spikes[i] = np.frombuffer(tev, dtype, nsamples, offset)
-        shanks, sides = self.tsq.shank[row], self.tsq.side[row]
-        index = pd.MultiIndex.from_arrays((shanks, chans, sides))
-        return SpikeDataFrame(spikes, meta=self.tsq, index=index, dtype=dtype)
+
+        index_arrays = (meta.side, meta.shank, meta.channel, meta.timestamp,
+                        meta.fp_loc)
+        index = pd.MultiIndex.from_arrays(index_arrays)
+        return SpikeDataFrame(spikes, meta.reset_index(drop=True), index=index,
+                              dtype=dtype)
