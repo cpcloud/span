@@ -30,9 +30,10 @@ Examples
 
 """
 
-from future_builtins import map
-
 from abc import ABCMeta, abstractproperty, abstractmethod
+
+from functools import partial
+from operator import lt, gt
 
 import numpy as np
 from pandas import Series, DataFrame, MultiIndex
@@ -161,17 +162,21 @@ class SpikeDataFrameBase(SpikeDataFrameAbstractBase):
     def channel_group(self): return self.groupby(level=self.meta.channel.name)
 
     def threshold(self, threshes):
-        cols = self.channels.columns
         threshes = np.asanyarray(threshes)
 
-        assert threshes.size == 1 or threshes.size == cols.size, \
+        assert threshes.size == 1 or threshes.size == self.nchans, \
             'number of threshold values must be 1 (same for all channels) or {}'\
             ', different threshold for each channel'
 
-        threshes = Series(threshes, index=cols)
-        f = self.channels.lt if (threshes < 0).all() else self.channels.gt
-
-        return f(threshes, axis='columns')        
+        is_neg = (threshes < 0).all()
+        if threshes.size == self.nchans:
+            threshes = Series(threshes, index=self.channels.columns)
+            chn = self.channels
+            f = partial(chn.lt if is_neg else chn.gt, axis='columns')
+        else:
+            f = partial(lt if is_neg else gt, self.channels)
+            
+        return f(threshes)
 
 
 class SpikeDataFrame(SpikeDataFrameBase):
@@ -222,14 +227,14 @@ class SpikeDataFrame(SpikeDataFrameBase):
         conv = 1e3
         bin_samples = int(np.floor(binsize * self.fs / conv))
         bins = np.r_[:self.nsamples - 1:bin_samples]
-        binned = span.utils.bin_data(cleared.values, bins)
-        # binned = DataFrame(btmp, columns=cleared.columns, dtype=float)
+        btmp = span.utils.bin_data(cleared.values, bins)
+        binned = DataFrame(btmp, columns=cleared.columns, dtype=float)
 
-        # if reject_count:
-        #     rec_len_s = self.nsamples / self.fs
-        #     min_sp_per_s = reject_count / rec_len_s
-        #     sp_per_s = binned.mean() * (1e3 / binsize)
-        #     binned.ix[:, sp_per_s < min_sp_per_s] = np.nan
+        if reject_count:
+            rec_len_s = self.nsamples / self.fs
+            min_sp_per_s = reject_count / rec_len_s
+            sp_per_s = binned.mean() * (1e3 / binsize)
+            binned.ix[:, sp_per_s < min_sp_per_s] = np.nan
         
         return binned
 
@@ -251,11 +256,19 @@ class SpikeDataFrame(SpikeDataFrameBase):
             The thresholded and refractory-period-cleared array of booleans
             indicating the sample point at which a spike was above threshold.
         """
-        clr = threshed.copy()
+        assert ms >= 0 or ms is None, \
+            'refractory period must be a positive integer or None'
 
-        # TODO: make sure samples by channels is shape of clr
-        clear_refrac(clr.values, refrac_window(self.fs, ms))
-        return clr
+        if ms:
+            clr = threshed.values.copy()
+
+            # TODO: make sure samples by channels is shape of clr
+            clear_refrac(clr, refrac_window(self.fs, ms))
+            r = DataFrame(clr, index=threshed.index, columns=threshed.columns)
+        else:
+            r = threshed
+        
+        return r
 
     def fr(self, binned, level='channel', axis=1, sem=False):
         """Compute the firing rate over a given level.
@@ -293,7 +306,7 @@ class SpikeDataFrame(SpikeDataFrameBase):
         return r
 
     def xcorr(self, binned, maxlags=100, detrend=span.utils.detrend_mean,
-              scale_type='normalize', sortlevel='shank i', dropna=True,
+              scale_type='normalize', sortlevel='shank i', dropna=False,
               nan_auto=False):
         """Compute the cross correlation of binned data.
 
@@ -382,7 +395,6 @@ class SpikeDataFrame(SpikeDataFrameBase):
 
         if dropna:
             xc = xc.dropna(axis=1)
-            binned = binned.dropna(axis=1)
 
         if sortlevel is not None:
             try:
@@ -400,4 +412,4 @@ class SpikeDataFrame(SpikeDataFrameBase):
 
             xc = xc.sortlevel(level=sl, axis=1)
 
-        return xc, binned
+        return xc
