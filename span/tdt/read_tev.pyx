@@ -2,29 +2,34 @@ import numpy as np
 cimport numpy as np
 
 from libc.stdio cimport fopen, fclose, fread, fseek, SEEK_SET, FILE
+from libc.stdlib cimport malloc, free
 
+ctypedef np.float32_t float32
 
 cpdef read_tev(char* filename, long nsamples, np.ndarray[long] fp_locs,
-               np.ndarray[np.float32_t, ndim=2] spikes):
+               np.ndarray[float32, ndim=2] spikes):
     cdef:
-        long i, j, n = fp_locs.shape[0]
-        
+        long i, j
+        long n = fp_locs.shape[0], nbytes = sizeof(float32)
+
+        float32* spikes_data = <float32*> spikes.data
+        float32* chunk_data = <float32*> malloc(nbytes * nsamples)
+
+        long* fp_locs_data = <long*> fp_locs.data
+
         FILE* f = fopen(filename, 'rb')
 
-        np.ndarray[np.float32_t] chunk = np.empty(nsamples, dtype=np.float32)
-
-        np.float32_t* spikes_data = <np.float32_t*> spikes.data
-        np.float32_t* chunk_data = <np.float32_t*> chunk.data
-        long* fp_locs_data = <long*> fp_locs.data
+    if not f:
+        return -1
 
     for i in xrange(n):
         fseek(f, fp_locs_data[i], SEEK_SET)
 
-        fread(<void*> chunk_data, sizeof(np.float32_t), nsamples, f)
+        fread(<void*> chunk_data, nbytes, nsamples, f)
         
         for j in xrange(nsamples):
             spikes_data[i * nsamples + j] = chunk_data[j]
 
+    free(<void*> chunk_data)
+    chunk_data = NULL
     fclose(f)
-    
-    
