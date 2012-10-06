@@ -242,6 +242,7 @@ def xcorr(x, y=None, maxlags=None, detrend=detrend_mean, scale_type='normalize')
         corrfunc = crosscorr
 
     ctmp = corrfunc(*inputs, nfft=int(2 ** nextpow2(2 * lsize - 1)))
+
     if maxlags is None:
         maxlags = lsize
     else:
@@ -250,5 +251,8 @@ def xcorr(x, y=None, maxlags=None, detrend=detrend_mean, scale_type='normalize')
 
     lags = cast(np.r_[1 - maxlags:maxlags], int)
     return_type = pd.DataFrame if x.ndim == 2 else pd.Series
+
     scale_function = SCALE_FUNCTIONS[scale_type]
     return scale_function(return_type(ctmp[lags], index=lags), lsize)
+
+
