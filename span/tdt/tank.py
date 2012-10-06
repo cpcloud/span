@@ -205,7 +205,7 @@ class PandasTank(TdtTankBase):
         span.tdt.SpikeDataFrame
         """
         name = name2num(event_name)
-        row = name == self.tsq.name
+        row = self.tsq.name == name
         assert row.any(), 'no event named %s in tank: %s' % (event_name,
                                                              self.tankname)
 
@@ -214,7 +214,7 @@ class PandasTank(TdtTankBase):
         meta.shank = meta.shank.astype(int)
         meta.size -= 10
 
-        first_row = np.argmax(row == 1)
+        first_row = np.argmax(row)
 
         fmt = meta.format[first_row]
         
