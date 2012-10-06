@@ -2,26 +2,28 @@ import numpy as np
 cimport numpy as np
 
 from libc.stdio cimport fopen, fclose, fread, fseek, SEEK_SET, FILE
-from libc.stdlib cimport malloc, free
+from cpython cimport PyMem_Malloc, PyMem_Del
 
 ctypedef np.float32_t float32
 ctypedef np.int64_t int64
 
 cpdef read_tev(char* filename, int64 nsamples, np.ndarray[int64] fp_locs,
                np.ndarray[float32, ndim=2] spikes):
+    """
+    """
     cdef:
-        int64 i, j
+        int64 i, j, r
         int64 n = fp_locs.shape[0], nbytes = sizeof(float32)
 
         float32* spikes_data = <float32*> spikes.data
-        float32* chunk_data = <float32*> malloc(nbytes * nsamples)
+        float32* chunk_data = <float32*> PyMem_Malloc(nbytes * nsamples)
 
         int64* fp_locs_data = <int64*> fp_locs.data
 
         FILE* f = fopen(filename, 'rb')
 
     if not f:
-        free(<void*> chunk_data)
+        PyMem_Del(<void*> chunk_data)
         return -1
 
     for i in xrange(n):
@@ -32,6 +34,7 @@ cpdef read_tev(char* filename, int64 nsamples, np.ndarray[int64] fp_locs,
         for j in xrange(nsamples):
             spikes_data[i * nsamples + j] = chunk_data[j]
 
-    free(<void*> chunk_data)
+    PyMem_Del(<void*> chunk_data)
     chunk_data = NULL
-    fclose(f)
+
+    return fclose(f)
