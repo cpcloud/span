@@ -93,12 +93,12 @@ class TdtTankBase(object):
 
         try:
             self.animal_age = int(get_first_match(self.age_re, basename))
-        except ValueError:
+        except (AttributeError, ValueError, TypeError):
             self.animal_age = None
 
         try:
             self.site = int(get_first_match(self.site_re, basename))
-        except ValueError:
+        except (AttributeError, ValueError, TypeError):
             self.site = None
 
         self.__date = self._parse_date(basename)
