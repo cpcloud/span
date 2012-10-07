@@ -213,7 +213,7 @@ class SpikeDataFrame(SpikeDataFrameBase):
     def _constructor(self):
         return lambda *args, **kwargs: SpikeDataFrame(*args, meta=self.meta, **kwargs)
 
-    def bin(self, cleared, binsize=1000, reject_count=100, dropna=False):
+    def bin(self, cleared, binsize, reject_count=100, dropna=False):
         """Bin spike data by `ms` millisecond bins.
 
         Parameters
@@ -317,7 +317,7 @@ class SpikeDataFrame(SpikeDataFrameBase):
 
         return r
 
-    def xcorr(self, binned, maxlags=100, detrend=span.utils.detrend_mean,
+    def xcorr(self, binned, maxlags, detrend=span.utils.detrend_mean,
               scale_type='normalize', sortlevel='shank i', dropna=False,
               nan_auto=False):
         """Compute the cross correlation of binned data.
