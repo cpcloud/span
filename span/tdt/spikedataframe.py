@@ -100,6 +100,10 @@ class SpikeDataFrameAbstractBase(DataFrame):
         """Thresholding function for spike detection."""
         pass
 
+    def __str__(self): return str(self.channels)
+
+    def __repr__(self): return repr(self.channels)
+
 
 class SpikeDataFrameBase(SpikeDataFrameAbstractBase):
     """Base class implementing basic spike data set properties and methods.
