@@ -4,11 +4,11 @@ from libc.stdio cimport fopen, fclose, fread, fseek, SEEK_SET, FILE
 from libc.stdlib cimport malloc, free
 
 from cython.parallel cimport prange, parallel
-cimport cython
+from cython cimport boundscheck, wraparound
 
 
-@cython.boundscheck(False)
-@cython.wraparound(False)
+@boundscheck(False)
+@wraparound(False)
 cpdef read_tev(char* filename, int64 nsamples, ndarray[int64] fp_locs,
                ndarray[float32, ndim=2] spikes):
     """
@@ -31,20 +31,22 @@ cpdef read_tev(char* filename, int64 nsamples, ndarray[int64] fp_locs,
         f = fopen(filename, 'rb')
 
         if not f:
-            free(<void*> chunk_data)
+            free(chunk_data)
             chunk_data = NULL
-            with gil:
-                return -1
 
-        for i in prange(n):
+            with gil:
+                raise IOError('Unable to open file %s' % filename)
+
+        for i in prange(n, schedule='guided'):
             fseek(f, fp_locs_data[i], SEEK_SET)
 
-            fread(<void*> chunk_data, nbytes, nsamples, f)
+            fread(chunk_data, nbytes, nsamples, f)
         
-            for j in prange(nsamples):
+            for j in prange(nsamples, schedule='guided'):
                 spikes_data[i * nsamples + j] = chunk_data[j]
 
-        free(<void*> chunk_data)
+        free(chunk_data)
         chunk_data = NULL
 
         fclose(f)
+        f = NULL

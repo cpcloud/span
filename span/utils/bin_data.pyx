@@ -1,22 +1,17 @@
 """
 """
 
-import numpy as np
 cimport numpy as np
-from numpy cimport PyArray_EMPTY, npy_intp
+from numpy cimport uint8_t as uint8, ndarray, int64_t as int64
 
-cimport cython
+from cython cimport wraparound, boundscheck
 from cython.parallel cimport parallel, prange
 
-ctypedef np.uint8_t uint8
 
-np.import_array()
-
-
-@cython.wraparound(False)
-@cython.boundscheck(False)
-cdef void _bin_data(np.ndarray[uint8, ndim=2, cast=True] a,
-                    np.ndarray[long] bins, np.ndarray[long, ndim=2] out):
+@wraparound(False)
+@boundscheck(False)
+cdef void _bin_data(ndarray[uint8, ndim=2, cast=True] a, ndarray[int64] bins,
+                    ndarray[int64, ndim=2] out):
     """Sum the counts of spikes in `a` in each of the bins.
 
     Parameters
@@ -26,16 +21,16 @@ cdef void _bin_data(np.ndarray[uint8, ndim=2, cast=True] a,
     out : array_like
     """
     cdef:
-        long i, j, k, v
-        long m = out.shape[0], n = out.shape[1]
-        long *out_data = NULL, *bin_data = NULL
-        uint8* a_data = NULL
+        int64 i, j, k, v
+        int64 m = out.shape[0], n = out.shape[1]
+        int64 *out_data = NULL, *bin_data = NULL
+        uint8* a_data = NULL    
 
     with nogil, parallel():
-        out_data = <long*> out.data
-        bin_data = <long*> bins.data
+        out_data = <int64*> out.data
+        bin_data = <int64*> bins.data
         a_data = <uint8*> a.data
-
+        
         for k in prange(n, schedule='guided'):
             for i in xrange(m):
                 v = 0
@@ -44,10 +39,9 @@ cdef void _bin_data(np.ndarray[uint8, ndim=2, cast=True] a,
                 out_data[i * n + k] = v
 
 
-@cython.wraparound(False)
-@cython.boundscheck(False)
-def bin_data(np.ndarray[uint8, ndim=2, cast=True] a not None,
-             np.ndarray[long] bins not None):
+@wraparound(False)
+@boundscheck(False)
+cpdef bin_data(ndarray[uint8, ndim=2, cast=True] a, ndarray[int64] bins):
     """Wrapper around bin_data._bin_data.
 
     Parameters
@@ -63,9 +57,8 @@ def bin_data(np.ndarray[uint8, ndim=2, cast=True] a not None,
     out : array_like
         The binned data from `a`.
     """
-    #PyArray_EMPTY(2, d, np.NPY_LONG, 0)
-    cdef np.ndarray[long, ndim=2] out = np.empty((bins.shape[0] - 1, a.shape[1]),
-                                                 dtype=np.long)
+    cdef ndarray[int64, ndim=2] out = np.empty((bins.shape[0] - 1, a.shape[1]),
+                                                 dtype=np.int64)
 
     _bin_data(a, bins, out)
 
