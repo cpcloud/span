@@ -309,10 +309,10 @@ class SpikeDataFrame(SpikeDataFrameBase):
             standard error of the mean of the spike counts for a given level.
         """
         group = binned.groupby(axis=axis, level=level)
-        sqrtn = np.sqrt(max(binned.shape))
         r = group.mean().mean()
 
         if sem:
+            sqrtn = np.sqrt(binned.shape[0])
             r = r, group.sum().std() / sqrtn
 
         return r
