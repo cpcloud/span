@@ -8,6 +8,7 @@ import glob
 import itertools
 import functools
 import numbers
+import hashlib
 
 import numpy as np
 import pandas as pd
@@ -601,7 +602,7 @@ def trimmean(x, alpha, inclusive=(False, False), axis=None):
     assert 0 <= alpha < 100, 'alpha must be in the interval [0, 100)'
     assert len(inclusive) == 2, 'inclusive must have only 2 elements'
 
-    if isinstance(x, numbers.Number) or (hasattr(x, 'size') and x.size == 1):
+    if isinstance(x, (numbers.Number)) or (hasattr(x, 'size') and x.size == 1):
         return float(x)
         
     assert axis is None or 0 <= axis < x.ndim, \
@@ -675,3 +676,47 @@ def refrac_window(fs, ms):
     conv = 1e3
     return int(np.floor(ms / conv * fs))
 
+
+def md5string(s):
+    """Hash a string using the MD5 algorithm.
+
+    Parameters
+    ----------
+    s : str
+
+    Returns
+    -------
+    hexdigest : str
+    """
+    md5 = hashlib.md5()
+    md5.update(s)
+    return md5.hexdigest()
+
+
+def md5int(s):
+    """Return the integer MD5 hash of a string.
+
+    Parameters
+    ----------
+    s : str
+
+    Returns
+    -------
+    hexdigest : str    
+    """
+    return int(md5string(s), 16)
+
+
+def md5file(fn):
+    """Hash a file using MD5.
+
+    Parameters
+    ----------
+    fn : str
+
+    Returns
+    -------
+    hexdigest : str
+    """
+    with open(fn, 'rb') as f:
+        return md5string(f.read())
