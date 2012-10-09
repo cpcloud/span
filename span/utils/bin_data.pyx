@@ -1,7 +1,7 @@
 """
 """
 
-cimport numpy as np
+from numpy import empty
 from numpy cimport uint8_t as uint8, ndarray, int64_t as int64
 
 from cython cimport wraparound, boundscheck
@@ -57,8 +57,8 @@ cpdef bin_data(ndarray[uint8, ndim=2, cast=True] a, ndarray[int64] bins):
     out : array_like
         The binned data from `a`.
     """
-    cdef ndarray[int64, ndim=2] out = np.empty((bins.shape[0] - 1, a.shape[1]),
-                                                 dtype=np.int64)
+    cdef ndarray[int64, ndim=2] out = empty((bins.shape[0] - 1, a.shape[1]),
+                                            dtype=np.int64)
 
     _bin_data(a, bins, out)
 
