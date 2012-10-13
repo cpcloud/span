@@ -28,6 +28,7 @@ cpdef read_tev(char* filename, int64 nsamples, ndarray[int64] fp_locs,
         spikes_data = <float32*> spikes.data
         chunk_data = <float32*> malloc(nbytes * nsamples)
         fp_locs_data = <int64*> fp_locs.data
+
         f = fopen(filename, 'rb')
 
         if not f:
@@ -38,13 +39,17 @@ cpdef read_tev(char* filename, int64 nsamples, ndarray[int64] fp_locs,
                 raise IOError('Unable to open file %s' % filename)
 
         for i in prange(n, schedule='guided'):
+            # go to the ith file pointer location
             fseek(f, fp_locs_data[i], SEEK_SET)
 
+            # read nbytes * nsamples bytes into chunk_data
             fread(chunk_data, nbytes, nsamples, f)
-        
+
+            # assign the chunk data to the spikes array
             for j in prange(nsamples, schedule='guided'):
                 spikes_data[i * nsamples + j] = chunk_data[j]
 
+        # get rid of the chunk data
         free(chunk_data)
         chunk_data = NULL
 
