@@ -1,12 +1,14 @@
 """
 """
 
-import numpy as np
-from numpy cimport uint8_t as uint8, ndarray, int64_t as int64
+# import numpy as np
+from numpy cimport (uint8_t as uint8, ndarray, int64_t as int64, PyArray_EMPTY,
+                    NPY_LONG, npy_intp, import_array)
 
 from cython cimport wraparound, boundscheck
 from cython.parallel cimport parallel, prange
 
+import_array()
 
 @wraparound(False)
 @boundscheck(False)
@@ -57,8 +59,15 @@ cpdef bin_data(ndarray[uint8, ndim=2, cast=True] a, ndarray[int64] bins):
     out : array_like
         The binned data from `a`.
     """
-    cdef ndarray[int64, ndim=2] out = np.empty((bins.shape[0] - 1, a.shape[1]),
-                                               dtype=np.int64)
+     # = np.empty((bins.shape[0] - 1, a.shape[1]),
+                                               # dtype=np.int64)
+    cdef npy_intp dims[2]
+    cdef ndarray[int64, ndim=2] out
+
+    dims[0] = bins.shape[0] - 1
+    dims[1] = a.shape[1]
+
+    out = PyArray_EMPTY(2, dims, NPY_LONG, 0)
 
     _bin_data(a, bins, out)
 
