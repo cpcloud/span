@@ -36,7 +36,7 @@ from functools import partial
 from operator import lt, gt
 
 import numpy as np
-from pandas import Series, DataFrame, MultiIndex
+from pandas import Series, DataFrame, MultiIndex, datetools, date_range, datetime
 
 import span
 from span.xcorr import xcorr
@@ -74,11 +74,12 @@ class SpikeDataFrameAbstractBase(DataFrame):
 
     __metaclass__ = ABCMeta
 
-    def __init__(self, data, meta, *args, **kwargs):
+    def __init__(self, data, meta, date=datetime.now(), *args, **kwargs):
         super(SpikeDataFrameAbstractBase, self).__init__(data, *args, **kwargs)
 
         assert meta is not None, 'meta cannot be None'
         self.meta = meta
+        self.date = date
 
     @abstractproperty
     def channels(self):
@@ -150,7 +151,9 @@ class SpikeDataFrameBase(SpikeDataFrameAbstractBase):
         shpsort = np.argsort(vals.shape)[::-1]
         newshp = int(vals.size // self.nchans), self.nchans
         valsr = vals.transpose(shpsort).reshape(newshp)
-        return DataFrame(valsr, columns=ChannelIndex)
+        index = date_range(self.date, periods=valsr.shape[0],
+                           freq=(1e6 / self.fs) * datetools.Micro())
+        return DataFrame(valsr, columns=ChannelIndex, index=index)
 
     @cached_property
     def channels(self): return self._channels()

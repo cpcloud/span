@@ -253,5 +253,5 @@ class PandasTank(TdtTankBase):
         index_arrays = (meta.side, meta.shank, meta.channel, meta.timestamp,
                         meta.fp_loc)
         index = pd.MultiIndex.from_arrays(index_arrays)
-        return SpikeDataFrame(spikes, meta.reset_index(drop=True), index=index,
-                              dtype=dtype)
+        return SpikeDataFrame(spikes, meta.reset_index(drop=True),
+                              date=self.date, index=index, dtype=dtype)
