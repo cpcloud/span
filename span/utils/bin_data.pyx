@@ -25,7 +25,8 @@ cdef void _bin_data(ndarray[uint8, ndim=2, cast=True] a, ndarray[int64] bins,
     cdef:
         int64 i, j, k, v
         int64 m = out.shape[0], n = out.shape[1]
-        int64 *out_data = NULL, *bin_data = NULL
+        int64* out_data = NULL
+        int64* bin_data = NULL
         uint8* a_data = NULL    
 
     with nogil, parallel():
