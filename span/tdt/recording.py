@@ -2,9 +2,9 @@
 
 from future_builtins import map, zip
 
-import operator
+from operator import attrgetter
 
-import numpy as np
+from numpy import asanyarray, sign, repeat, arange, ones
 from pandas import Series, DataFrame,  MultiIndex
 
 from span.utils import ndtuples, fractional
@@ -36,10 +36,9 @@ def distance_map(nshanks, electrodes_per_shank, within_shank, between_shank,
         'must have at least one shank'
     assert electrodes_per_shank >= 1 and not fractional(electrodes_per_shank), \
         'must have at least one electrode per shank'
-    locations = ndtuples(electrodes_per_shank, nshanks)
-    w = between_shank, within_shank
-    weights = np.asanyarray(w, dtype=float)
-    return squareform(pdist(locations, metric=metric, p=p, w=weights))
+    locs = ndtuples(electrodes_per_shank, nshanks)
+    w = asanyarray((between_shank, within_shank), dtype=float)
+    return squareform(pdist(locs, metric=metric, p=p, w=w))
 
 
 class ElectrodeMap(DataFrame):
@@ -67,10 +66,10 @@ class ElectrodeMap(DataFrame):
         Total number of channels.
     """
     def __init__(self, map_, order=None, base_index=0):
-        map_ = np.asanyarray(map_).squeeze()
+        map_ = asanyarray(map_).squeeze()
         mm = map_.min()
-        
-        v = np.sign(base_index - mm)
+
+        v = sign(base_index - mm)
 
         if v:
             while mm != base_index:
@@ -79,37 +78,34 @@ class ElectrodeMap(DataFrame):
 
         try:
             m, n = map_.shape
-            s = np.repeat(np.arange(n), m)
+            s = repeat(arange(n), m)
         except ValueError:
             m, = map_.shape
-            s = np.ones(m, dtype=int)
+            s = ones(m, dtype=int)
 
         data = {'channel': map_.ravel(), 'shank': s}
 
         if order is not None:
             assert map_.ndim == 2, 'map_ must be 2D if there is a shank order'
-            assert order in ('lm', 'ml'), \
-                'order must be "lm" (lateral to medial) or "ml" (medial to ' \
-                'lateral)'
-            data['side'] = np.repeat(tuple(order), map_.size / 2)
+            data['side'] = repeat(tuple(order), map_.size / len(order))
 
         df = DataFrame(data).sort('channel').reset_index(drop=True)
         df.index = df.pop('channel')
-        
+
         super(ElectrodeMap, self).__init__(df.sort('shank'))
-            
+
     @property
     def nshanks(self): return self.shank.nunique()
 
     @property
-    def nchans(self): return Series(self.index).nunique()
+    def nchans(self): return self.index.unique().size
 
-    def distance_map(self, wthn, btwn, metric='wminkowski', p=2.0):
+    def distance_map(self, within, between, metric='wminkowski', p=2.0):
         """Create a distance map from the current electrode configuration.
 
         Parameters
         ----------
-        wthn, btwn : number
+        within, between : number
             `between_shank` is the distance between shanks and `within_shank` is
             the distance between electrodes on any given shank.
 
@@ -117,7 +113,8 @@ class ElectrodeMap(DataFrame):
             Metric to use to calculate the distance between electrodes/shanks.
 
         p : number, optional
-            The $p$ of the norm to use.
+            The $p$ of the norm to use. Defaults to 2 for weighted Euclidean
+            distance.
 
         Returns
         -------
@@ -125,7 +122,7 @@ class ElectrodeMap(DataFrame):
             A dataframe with pairwise distances between electrodes, indexed by
             channel, shank, and side (if ordered).
         """
-        dm = distance_map(self.nshanks, self.shank.nunique(), wthn, btwn,
+        dm = distance_map(self.nshanks, self.shank.nunique(), within, between,
                           metric=metric, p=p)
         s = self.sort('shank')
         cols = s.shank, s.index
@@ -133,8 +130,10 @@ class ElectrodeMap(DataFrame):
         if hasattr(self, 'side'):
             cols += s.side,
 
-        cols = tuple(map(operator.attrgetter('values'), cols))
-        index = MultiIndex.from_arrays(cols, names=('shank', 'channel', 'side'))
+        values_getter = attrgetter('values')
+        cols = tuple(map(values_getter, cols))
+        names = 'shank', 'channel', 'side'
+        index = MultiIndex.from_arrays(cols, names=names)
         return DataFrame(dm, index=index, columns=index)
 
     @property
@@ -144,17 +143,16 @@ class ElectrodeMap(DataFrame):
         This could be used for plotting.
         """
         values = self.values.copy().T
-        index = Series(self.index.values + 1, name='Channel')
+        index = Series(self.index.values + 1, name='channel')
 
         is_ordered = values.ndim == 2 and values.shape[0] == 2
 
-        names = 'Shank',
+        names = 'shank',
 
         if is_ordered:
-            values[0] += 1        
-            names += 'Side',
+            values[0] += 1
+            names += 'side',
         else:
             values += 1
 
         return DataFrame(dict(zip(names, values)), index=index)
-        
