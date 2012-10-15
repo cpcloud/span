@@ -8,8 +8,6 @@ from future_builtins import map, zip
 import os
 import abc
 import re
-import mmap
-import contextlib
 
 import numpy as np
 import pandas as pd
@@ -76,10 +74,10 @@ class TdtTankBase(object):
     header_ext = 'tsq'
     raw_ext = 'tev'
 
-    def __init__(self, tankname):
+    def __init__(self, path):
         super(TdtTankBase, self).__init__()
 
-        tank_with_ext = tankname + os.extsep
+        tank_with_ext = path + os.extsep
 
         assert nonzero_existing_file(tank_with_ext + self.raw_ext), \
             '{0} does not exist'.format(tank_with_ext + self.raw_ext)
@@ -87,21 +85,20 @@ class TdtTankBase(object):
         assert nonzero_existing_file(tank_with_ext + self.header_ext), \
             '{0} does not exist'.format(tank_with_ext + self.header_ext)
 
-        self.tankname = tankname
-
-        basename = os.path.basename(tankname)
+        self.path = path
+        self.name = os.path.basename(path)
 
         try:
-            self.animal_age = int(get_first_match(self.age_re, basename))
+            self.age = int(get_first_match(self.age_re, self.name))
         except (AttributeError, ValueError, TypeError):
-            self.animal_age = None
+            self.age = None
 
         try:
-            self.site = int(get_first_match(self.site_re, basename))
+            self.site = int(get_first_match(self.site_re, self.name))
         except (AttributeError, ValueError, TypeError):
             self.site = None
 
-        self.__date = self._parse_date(basename)
+        self.__date = self._parse_date(self.name)
 
     def _parse_date(self, basename):
         """Parse a date from a directory name.
@@ -165,7 +162,7 @@ class TdtTankBase(object):
         -------
         b : pandas.DataFrame
         """
-        b = pd.DataFrame(np.fromfile(self.tankname + os.extsep + self.header_ext,
+        b = pd.DataFrame(np.fromfile(self.path + os.extsep + self.header_ext,
                                      dtype=self.tsq_dtype))
         b.channel = (b.channel - 1).astype(float)
         b.channel[b.channel == -1] = np.nan
@@ -229,7 +226,7 @@ class PandasTank(TdtTankBase):
         name = name2num(event_name)
         row = self.tsq.name == name
         assert row.any(), 'no event named %s in tank: %s' % (event_name,
-                                                             self.tankname)
+                                                             self.path)
 
         meta = self.tsq[row]
         meta.channel = meta.channel.astype(int)
@@ -240,15 +237,15 @@ class PandasTank(TdtTankBase):
 
         fmt = meta.format[first_row]
         
-        fp_loc = meta.fp_loc        
+        fp_loc = meta.fp_loc
 
         nsamples = meta.size[first_row] * TYPES_TABLE[fmt][1]
         dtype = np.dtype(TYPES_TABLE[fmt][2]).type
 
         spikes = np.empty((fp_loc.size, nsamples), dtype=dtype)
-        tev_name = self.tankname + os.extsep + self.raw_ext
+        tev_name = self.path + os.extsep + self.raw_ext
 
-        read_tev(tev_name, nsamples, fp_loc.values, spikes)
+        read_tev(tev_name, nsamples, fp_loc, spikes)
 
         index_arrays = (meta.side, meta.shank, meta.channel, meta.timestamp,
                         meta.fp_loc)
