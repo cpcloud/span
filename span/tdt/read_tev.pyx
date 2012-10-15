@@ -13,6 +13,8 @@ cpdef read_tev(char* filename, int64 nsamples, ndarray[int64] fp_locs,
                ndarray[float32, ndim=2] spikes):
     """
     """
+    assert filename, 'filename (1st argument) cannot be empty'
+
     cdef:
         int64 i, j
         int64 n = fp_locs.shape[0], nbytes = sizeof(float32)
