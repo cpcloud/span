@@ -30,18 +30,26 @@ Examples
 
 """
 
+from future_builtins import map
+
 from abc import ABCMeta, abstractproperty, abstractmethod
 
 from functools import partial
 from operator import lt, gt
 
 import numpy as np
+from numpy import nan
 from pandas import Series, DataFrame, MultiIndex, datetools, date_range, datetime
 
 import span
 from span.xcorr import xcorr
 from span.utils.decorate import cached_property, thunkify
 from span.utils import clear_refrac, refrac_window
+
+try:
+    from pylab import subplots
+except RuntimeError:
+    subplots = None
 
 
 class SpikeDataFrameAbstractBase(DataFrame):
@@ -102,6 +110,14 @@ class SpikeDataFrameAbstractBase(DataFrame):
         pass
 
 
+def index_values(index):
+    am = tuple(map(lambda x: np.asanyarray(x, dtype=object), index))
+    df = DataFrame(np.asanyarray(am), columns=index.names)
+    for i in df.columns:
+        df[i] = df[i].astype(type(df[i].values[0]))
+    return df
+
+
 class SpikeDataFrameBase(SpikeDataFrameAbstractBase):
     """Base class implementing basic spike data set properties and methods.
 
@@ -116,6 +132,24 @@ class SpikeDataFrameBase(SpikeDataFrameAbstractBase):
     """
     def __init__(self, *args, **kwargs):
         super(SpikeDataFrameBase, self).__init__(*args, **kwargs)
+
+    @property
+    def index_values(self):
+        return index_values(self.index)
+
+    def downsample(self, hz, *args, **kwargs):
+        us_per_sample = int(1e6 / hz)
+        cur_us_per_sample = self.channels.index.freq.n
+
+        if us_per_sample == cur_us_per_sample:
+            return self.channels
+
+        req_hz = int(1e6 / us_per_sample)
+        assert us_per_sample > cur_us_per_sample, \
+            'hz must be less than %i' % req_hz
+
+        us_per_sample *= datetools.Micro()
+        return self.channels.resample(us_per_sample, *args, **kwargs)
 
     @cached_property
     def fs(self): return self.meta.fs.unique().item()
@@ -141,15 +175,19 @@ class SpikeDataFrameBase(SpikeDataFrameAbstractBase):
     @property
     @thunkify
     def _channels(self):
-        from span.tdt.spikeglobals import ChannelIndex
+        from span.tdt.spikeglobals import ChannelIndex as columns
 
         vals = self.values[self.channel_indices]
+
         shpsort = np.argsort(vals.shape)[::-1]
-        newshp = int(vals.size // self.nchans), self.nchans
+        newshp = int(vals.size / self.nchans), self.nchans
+
         valsr = vals.transpose(shpsort).reshape(newshp)
-        index = date_range(self.date, periods=valsr.shape[0],
-                           freq=(1e6 / self.fs) * datetools.Micro())
-        return DataFrame(valsr, columns=ChannelIndex, index=index)
+
+        us_per_sample = (1e6 / self.fs) * datetools.Micro()
+        index = date_range(self.date, periods=valsr.shape[0], freq=us_per_sample,
+                           tz='US/Eastern', name='time')
+        return DataFrame(valsr, columns=columns, index=index)
 
     @cached_property
     def channels(self): return self._channels()
@@ -197,13 +235,13 @@ class SpikeDataFrame(SpikeDataFrameBase):
     Attributes
     ----------
 
-    Parameters
-    ----------
-
     See Also
     --------
     pandas.DataFrame
         Root class of this class
+
+    span.tdt.SpikeDataFrameBase
+        Base class
     """
     def __init__(self, *args, **kwargs):
         super(SpikeDataFrame, self).__init__(*args, **kwargs)
@@ -245,7 +283,7 @@ class SpikeDataFrame(SpikeDataFrameBase):
             rec_len_s = self.nsamples / float(self.fs)
             min_sp_per_s = reject_count / rec_len_s
             sp_per_s = binned.mean() * (1e3 / binsize)
-            binned.ix[:, sp_per_s < min_sp_per_s] = np.nan
+            binned.ix[:, sp_per_s < min_sp_per_s] = nan
 
         if dropna:
             binned = binned.dropna(axis=1)
@@ -293,13 +331,17 @@ class SpikeDataFrame(SpikeDataFrameBase):
         Parameters
         ----------
         binned : array_like
-            Threshold or threshold array.
+            Threshold scalar array.
 
         level : str, optional
             The level of the data set on which to run the analyses.
 
         axis : int, optional
             The axis on which to look for the level, defaults to 1.
+
+        sem : bool, optional
+            Whether to return the standard error of the mean along with the
+            average firing rate.
 
         Returns
         -------
@@ -316,7 +358,22 @@ class SpikeDataFrame(SpikeDataFrameBase):
 
         return r
 
-    def xcorr(self, binned, maxlags, detrend=span.utils.detrend_mean,
+    def fr_plot(self, fr, sem=None, alpha=0.9, **kwargs):
+        fig, ax = subplots(1, 1)
+        xticks = np.arange(len(fr.index))
+        ax.bar(xticks, fr.values, yerr=sem, alpha=alpha, **kwargs)
+        ax.tick_params(top=False, right=False, bottom=False, left=False)
+        ax.set_ylabel('Firing Rate (spikes/s)')
+        ax.set_xticks(xticks.tolist())
+        ax.set_xticklabels(fr.index.astype(str).tolist())
+        ax.grid('on')
+        
+        fig.tight_layout()
+        # fig.autofmt_xdate()
+        return fig, ax
+        
+
+    def xcorr(self, binned, maxlags=None, detrend=span.utils.detrend_mean,
               scale_type='normalize', sortlevel='shank i', dropna=False,
               nan_auto=False):
         """Compute the cross correlation of binned data.
@@ -327,8 +384,8 @@ class SpikeDataFrame(SpikeDataFrameBase):
             Data of which to compute the cross-correlation.
 
         maxlags : int, optional
-            Maximum number of lags to return from the cross correlation. Defaults
-            to 100.
+            Maximum number of lags to return from the cross correlation.
+            Defaults to None and computes the full cross correlation.
 
         detrend : callable, optional
             Callable used to detrend. Defaults to detrend_mean
@@ -345,6 +402,10 @@ class SpikeDataFrame(SpikeDataFrameBase):
             If True this will drop all channels whose cross correlation is NaN.
             Cross-correlations will be NaN if any of the columns of `binned` are
             NaN.
+
+        nan_auto : bool, optional
+            If True then the autocorrelation values will be NaN. Defaults to
+            False
 
         Raises
         ------
@@ -382,10 +443,9 @@ class SpikeDataFrame(SpikeDataFrameBase):
         xc.columns = _create_xcorr_inds(self.nchans)
 
         if nan_auto:
-            sz = xc.shape[1]
-            sqrtsz = int(np.sqrt(sz))
-            auto_inds = np.diag(np.r_[:sz].reshape(sqrtsz, sqrtsz))
-            xc.ix[0, auto_inds] = np.nan
+            npairs = self.nchans ** 2
+            auto_inds = np.diag(np.r_[:npairs].reshape(self.nchans, self.nchans))
+            xc.ix[0, auto_inds] = nan
 
         if dropna:
             xc = xc.dropna(axis=1)
