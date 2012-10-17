@@ -358,18 +358,20 @@ class SpikeDataFrame(SpikeDataFrameBase):
 
         return r
 
-    def fr_plot(self, fr, sem=None, alpha=0.9, **kwargs):
-        fig, ax = subplots(1, 1)
+    @staticmethod
+    def fr_plot(cls, fr, sem=None, alpha=0.9, **kwargs):
+        fig = figure()
+        ax = fig.add_subplot(111)
         xticks = np.arange(len(fr.index))
         ax.bar(xticks, fr.values, yerr=sem, alpha=alpha, **kwargs)
         ax.tick_params(top=False, right=False, bottom=False, left=False)
         ax.set_ylabel('Firing Rate (spikes/s)')
-        ax.set_xticks(xticks.tolist())
-        ax.set_xticklabels(fr.index.astype(str).tolist())
+        ax.set_xticks(xticks)
+        ax.set_xticklabels(fr.index.astype(str))
         ax.grid('on')
         
         fig.tight_layout()
-        # fig.autofmt_xdate()
+        fig.autofmt_xdate()
         return fig, ax
         
 
