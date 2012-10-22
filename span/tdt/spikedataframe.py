@@ -30,7 +30,7 @@ Examples
 
 """
 
-from future_builtins import map
+# from future_builtins import map
 
 from abc import ABCMeta, abstractproperty, abstractmethod
 
@@ -44,7 +44,7 @@ from pandas import Series, DataFrame, MultiIndex, datetools, date_range, datetim
 import span
 from span.xcorr import xcorr
 from span.utils.decorate import cached_property, thunkify
-from span.utils import clear_refrac, refrac_window, cast
+from span.utils import clear_refrac, refrac_window
 
 try:
     from pylab import subplots
