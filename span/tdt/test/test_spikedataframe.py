@@ -50,7 +50,6 @@ class TestSpikeDataFrameAbstractBase(unittest.TestCase):
 
 
 @nottest
-@slow
 class TestSpikeDataFrameBase(TestSpikeDataFrameAbstractBase):
     def test_fs(self):
         fs = self.spikes.fs
@@ -92,7 +91,6 @@ class TestSpikeDataFrameBase(TestSpikeDataFrameAbstractBase):
 
 
 @nottest
-@slow
 class TestSpikeDataFrame(TestSpikeDataFrameAbstractBase):
     def test_threshold(self):
         shp = self.spikes.channels.shape

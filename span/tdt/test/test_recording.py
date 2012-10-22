@@ -1,10 +1,7 @@
-from future_builtins import map, zip
-
 import unittest
 import itertools as it
 
 import numpy as np
-import pandas as pd
 
 from span.tdt import distance_map, ElectrodeMap
 
