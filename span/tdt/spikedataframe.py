@@ -44,7 +44,7 @@ from pandas import Series, DataFrame, MultiIndex, datetools, date_range, datetim
 import span
 from span.xcorr import xcorr
 from span.utils.decorate import cached_property, thunkify
-from span.utils import clear_refrac, refrac_window
+from span.utils import clear_refrac, refrac_window, cast
 
 try:
     from pylab import subplots
@@ -108,14 +108,6 @@ class SpikeDataFrameAbstractBase(DataFrame):
     def threshold(self, threshes):
         """Thresholding function for spike detection."""
         pass
-
-
-def index_values(index):
-    am = tuple(map(lambda x: np.asanyarray(x, dtype=object), index))
-    df = DataFrame(np.asanyarray(am), columns=index.names)
-    for i in df.columns:
-        df[i] = df[i].astype(type(df[i].values[0]))
-    return df
 
 
 class SpikeDataFrameBase(SpikeDataFrameAbstractBase):
@@ -271,12 +263,12 @@ class SpikeDataFrame(SpikeDataFrameBase):
         --------
         span.utils.bin
         """
-        assert reject_count >= 0, 'reject count must be a positive integer'
+        assert reject_count >= 0, 'reject_count must be a non negative integer'
 
         conv = 1e3
         bin_samples = int(np.floor(binsize * self.fs / conv))
         bins = np.r_[:self.nsamples - 1:bin_samples]
-        btmp = span.utils.bin_data(cleared.values, bins)
+        btmp = span.utils.bin_data(cleared.values.view(np.uint8), bins)
         binned = DataFrame(btmp, columns=cleared.columns, dtype=float)
 
         if reject_count:
@@ -318,7 +310,7 @@ class SpikeDataFrame(SpikeDataFrameBase):
             clr = threshed.values.copy()
 
             # TODO: make sure samples by channels is shape of clr
-            clear_refrac(clr, refrac_window(self.fs, ms))
+            clear_refrac(clr.view(np.uint8), refrac_window(self.fs, ms))
             r = DataFrame(clr, index=threshed.index, columns=threshed.columns)
         else:
             r = threshed
@@ -353,27 +345,10 @@ class SpikeDataFrame(SpikeDataFrameBase):
         r = group.mean().mean()
 
         if sem:
-            sqrtn = np.sqrt(binned.shape[0])
+            sqrtn = np.sqrt(binned.index.shape[0])
             r = r, group.sum().std() / sqrtn
 
         return r
-
-    @staticmethod
-    def fr_plot(cls, fr, sem=None, alpha=0.9, **kwargs):
-        fig = figure()
-        ax = fig.add_subplot(111)
-        xticks = np.arange(len(fr.index))
-        ax.bar(xticks, fr.values, yerr=sem, alpha=alpha, **kwargs)
-        ax.tick_params(top=False, right=False, bottom=False, left=False)
-        ax.set_ylabel('Firing Rate (spikes/s)')
-        ax.set_xticks(xticks)
-        ax.set_xticklabels(fr.index.astype(str))
-        ax.grid('on')
-        
-        fig.tight_layout()
-        fig.autofmt_xdate()
-        return fig, ax
-        
 
     def xcorr(self, binned, maxlags=None, detrend=span.utils.detrend_mean,
               scale_type='normalize', sortlevel='shank i', dropna=False,
@@ -413,7 +388,7 @@ class SpikeDataFrame(SpikeDataFrameBase):
         ------
         AssertionError
            If detrend is not a callable object
-           If scale_type is not a string
+           If scale_type is not a string or is not None
 
         ValueError
            If sortlevel is not None and is not a string or a number in the
