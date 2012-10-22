@@ -9,8 +9,8 @@ from span.utils import clear_refrac, nextpow2
 class TestClearRefracModule(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
-        m, n = randint(10000, 100001), randint(10, 20)
-        ms = 2
+        m, n = randint(1000, 10001), randint(10, 20)
+        ms = randint(2, 10)
         fs = int(2 ** nextpow2(randint(1, m / ms)))
 
         cls.x = rand(m, n)
