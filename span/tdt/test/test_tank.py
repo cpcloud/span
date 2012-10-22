@@ -9,6 +9,27 @@ from span.tdt.tank import TdtTankBase, PandasTank
 from span.tdt import SpikeDataFrame
 
 
+class TestNonZeroExistingFile(unittest.TestCase):
+    def test_success(self):
+        assert False
+
+    def test_fail(self):
+        assert False
+
+
+class TestGetFirstMatch(unittest.TestCase):
+    def test_success(self):
+        assert False
+
+
+class TestMatchInt(unittest.TestCase):
+    def test_success(self):
+        assert False
+
+    def test_fail(self):
+        assert False
+
+
 class TestTdtTankBase(unittest.TestCase):
     def test___init__(self):
         self.assertRaises(TypeError, TdtTankBase, pd.util.testing.rands(10))
@@ -37,6 +58,14 @@ class TestPandasTank(unittest.TestCase):
     def test_date(self):
         assert hasattr(self.tank, 'date')
         self.assertIsInstance(self.tank.date, datetime.date)
+
+    def test_age(self):
+        assert hasattr(self.tank, 'age')
+        self.assertIsInstance(self.tank.age, (type(None), int))
+
+    def test_site(self):
+        assert hasattr(self.tank, 'site')
+        assert assertIsinstance(self.tank.site, (type(None), int))
 
     def test__read_tev(self):
         tev = self.tank._read_tev('Spik')()
