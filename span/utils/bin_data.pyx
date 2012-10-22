@@ -13,7 +13,7 @@ import_array()
 
 @cython.wraparound(False)
 @cython.boundscheck(False)
-cdef void _bin_data(uint8[:, :] a, int64[:] bins, int64[:, :] out) nogil:
+cdef void _bin_data(uint8[:, :] a, int64[:] bins, int64[:, :] out):
     """Sum the counts of spikes in `a` in each of the bins.
 
     Parameters
@@ -26,7 +26,7 @@ cdef void _bin_data(uint8[:, :] a, int64[:] bins, int64[:, :] out) nogil:
         int64 i, j, k, v
         int64 m = out.shape[0], n = out.shape[1]
 
-    with parallel():
+    with nogil, parallel():
         for k in prange(n, schedule='guided'):
             for i in xrange(m):
                 v = 0
