@@ -12,7 +12,56 @@ import hashlib
 
 import numpy as np
 import pandas as pd
-import scipy.stats
+
+try:
+    # weird bug in latest scipy
+    from scipy.stats.mstats import trimboth
+    def trimmean(x, alpha, inclusive=(False, False), axis=None):
+        """Compute the `alpha`-trimmed mean of an array `x`.
+
+        Parameters
+        ----------
+        x : array_like
+            The array on which to operate.
+
+        alpha : float or int
+            A number between 0 and 100, left inclusive indicating the percentage of
+            values to cut from `x`.
+
+        inclusive : tuple of bools, optional
+            Whether to round (True, True) or truncate the values (False, False).
+            Defaults to truncation. Note that this is different from trimboth's
+            default.
+
+        axis : int or None, optional
+            The axis over which to operate. None flattens the array
+
+        Returns
+        -------
+        m : Series
+            The `alpha`-trimmed mean of `x` along axis `axis`.
+        """
+        assert 0 <= alpha < 100, 'alpha must be in the interval [0, 100)'
+        assert len(inclusive) == 2, 'inclusive must have only 2 elements'
+
+        if isinstance(x, (numbers.Number)) or (hasattr(x, 'size') and x.size == 1):
+            return float(x)
+
+        assert axis is None or 0 <= axis < x.ndim, \
+            'axis must be None or less than x.ndim: {0}'.format(x.ndim)
+
+        trimmed = trimboth(x, alpha / 100.0, inclusive, axis).mean(axis)
+
+        index = None
+        if isinstance(x, pd.DataFrame):
+            index = {0: x.columns, 1: x.index, None: None}[axis]
+
+        return pd.Series(trimmed, index=index)
+except ImportError:
+    def trimmean(x, alpha, inclusive=(False, False), axis=None):
+        raise NotImplementedError("Unable to import scipy.stats;" +
+                                  " cannot define trimmean")
+    
 
 
 def detrend_none(x):
@@ -572,50 +621,6 @@ def composemap(*args):
     """
     maps = itertools.repeat(map, len(args))
     return functools.reduce(compose2, map(functools.partial, maps, args))
-
-
-def trimmean(x, alpha, inclusive=(False, False), axis=None):
-    """Compute the `alpha`-trimmed mean of an array `x`.
-
-    Parameters
-    ----------
-    x : array_like
-        The array on which to operate.
-
-    alpha : float or int
-        A number between 0 and 100, left inclusive indicating the percentage of
-        values to cut from `x`.
-
-    inclusive : tuple of bools, optional
-        Whether to round (True, True) or truncate the values (False, False).
-        Defaults to truncation. Note that this is different from trimboth's
-        default.
-       
-    axis : int or None, optional
-        The axis over which to operate. None flattens the array
-
-    Returns
-    -------
-    m : Series
-        The `alpha`-trimmed mean of `x` along axis `axis`.
-    """
-    assert 0 <= alpha < 100, 'alpha must be in the interval [0, 100)'
-    assert len(inclusive) == 2, 'inclusive must have only 2 elements'
-
-    if isinstance(x, (numbers.Number)) or (hasattr(x, 'size') and x.size == 1):
-        return float(x)
-        
-    assert axis is None or 0 <= axis < x.ndim, \
-        'axis must be None or less than x.ndim: {0}'.format(x.ndim)
-
-    trimmed = scipy.stats.mstats.trimboth(x, alpha / 100.0, inclusive,
-                                          axis).mean(axis)
-
-    index = None
-    if isinstance(x, pd.DataFrame):
-        index = {0: x.columns, 1: x.index, None: None}[axis]
-        
-    return pd.Series(trimmed, index=index)
 
 
 def roll_with_zeros(a, shift=0, axis=None):
