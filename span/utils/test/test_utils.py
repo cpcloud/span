@@ -2,12 +2,13 @@ import unittest
 import string
 import random
 import itertools
+import tempfile
 
 import numpy as np
 from numpy.random import randint, rand, randn
 from numpy.testing import assert_allclose, assert_array_equal
 from numpy.testing.decorators import slow
-from nose.tools import nottest
+# from nose.tools import nottest
 
 import pandas as pd
 
@@ -17,7 +18,8 @@ from span.utils import (
     cast, dirsize, fractional, get_fft_funcs, group_indices,
     iscomplex, isvector, name2num, nans, ndlinspace, ndtuples, nextpow2,
     pad_larger, pad_larger2, remove_legend, cartesian, trimmean, num2name,
-    detrend_none, detrend_mean, detrend_linear, hascomplex, compose, composemap)
+    detrend_none, detrend_mean, detrend_linear, hascomplex, compose, composemap,
+    nans_like, md5string, md5int, md5file)
 
 from span.utils.utils import compose2
 
@@ -26,7 +28,7 @@ def rand_array_delegate(func, n, ndims):
     return func(*randint(n, size=ndims).tolist())
 
 
-def randn_array(n=100, ndims=3): return rand_array_delegate(randn, n, ndims)
+def randn_array(n=50, ndims=3): return rand_array_delegate(randn, n, ndims)
 
 
 def rand_int_tuple(m=5, n=10): return tuple(randint(1, m, size=n).tolist())
@@ -70,6 +72,7 @@ class TestCartesian(unittest.TestCase):
 
 def test_dirsize():
     cd_ds = dirsize()
+    assert isinstance(cd_ds, int)
 
 
 class TestNdlinspace(unittest.TestCase):
@@ -91,10 +94,34 @@ class TestNdlinspace(unittest.TestCase):
     
 
 def test_nans():
-    m, n = 100, 10
-    x = nans((m, n))
+    shape = 100, 10
+    x = nans(shape)
     assert np.isnan(x).all(), 'not all values are nans'
     assert x.dtype == np.float64
+
+
+
+class TestNansLike(unittest.TestCase):
+    def test_series(self):
+        x = pd.Series(randn(100))
+        nas = nans_like(x)
+        self.assert_(np.isnan(nas).all())
+
+    def test_dataframe(self):
+        x = pd.DataFrame(randn(100, 10))
+        nas = nans_like(x)
+        self.assert_(np.isnan(nas).all())
+
+    def test_panel(self):
+        x = pd.Panel(randn(100, 10, 20))
+        nas = nans_like(x)
+        self.assert_(np.isnan(nas).all())
+
+    def test_other(self):
+        arrays = randn(100), randn(100, 10), randn(100, 10, 20)
+        for array in arrays:
+            nas = nans_like(array)
+            self.assert_(np.isnan(nas).all())
 
 
 def test_remove_legend():
@@ -438,10 +465,46 @@ class TestCompose(unittest.TestCase):
         assert_allclose(x, h(x))
 
 
-class TestComposeMap(unittest.TestCase):
-    def test_composemap(self):
-        f, g = np.log, np.exp
-        x, y = randn(11), randn(10)
-        xnew, ynew = composemap(np.log, np.exp)((x, y))
-        assert_allclose(x, xnew)
-        assert_allclose(y, ynew)
+def test_composemap():
+    f, g = np.log, np.exp
+    x, y = randn(11), randn(10)
+    xnew, ynew = composemap(f, g)((x, y))
+    assert_allclose(x, xnew)
+    assert_allclose(y, ynew)
+
+
+def test_roll_with_zeros():
+    assert False
+
+
+def test_neighbors():
+    assert False
+
+
+def test_unique_neighbors():
+    assert False
+
+
+class TestMD5(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        cls.data = randn(100).tostring()
+
+    def test_md5string(self):
+        h = md5string(self.data)
+        self.assertIsInstance(h, basestring)
+
+    def test_md5int(self):
+        hs = md5string(self.data)
+        hi = md5int(self.data)
+        self.assertEqual(int(hs, 16), hi)
+
+    def test_md5file(self):
+        hs = md5string(self.data)
+
+        with tempfile.NamedTemporaryFile('tmpfile.dat', 'wb') as tmpfile:
+            tmpfile.write(self.data)
+
+        hf = md5file(self.data)
+
+        self.assertEqual(hs, hf)
