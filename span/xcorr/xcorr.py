@@ -9,9 +9,9 @@ import warnings
 import numpy as np
 import pandas as pd
 
-from span.utils import (
-    cast, detrend_mean, get_fft_funcs, isvector, nextpow2, pad_larger)
-
+from span.utils import (detrend_mean, get_fft_funcs, isvector, nextpow2,
+                        pad_larger)
+                
 from span.xcorr._mult_mat_xcorr import mult_mat_xcorr
 
 
@@ -33,7 +33,8 @@ def autocorr(x, nfft):
     """
     ifft, fft = get_fft_funcs(x)
     a = np.abs(fft(x, nfft))
-    return ifft(a * a, nfft)
+    a *= a
+    return ifft(a, nfft)
 
 
 def crosscorr(x, y, nfft):
@@ -57,7 +58,7 @@ def crosscorr(x, y, nfft):
 
 
 def matrixcorr(x, nfft):
-    """Cross-correlation of the columns in a matrix
+    """Cross-correlation of the columns of a matrix.
 
     Parameters
     ----------
@@ -65,7 +66,7 @@ def matrixcorr(x, nfft):
         The matrix from which to compute the cross correlations of each column
         with the others
 
-    nfft : int, optional
+    nfft : int
         The number of points used to compute the FFT (faster when this number is
         a power of 2).
 
@@ -248,7 +249,7 @@ def xcorr(x, y=None, maxlags=None, detrend=detrend_mean, scale_type='normalize')
         assert maxlags <= lsize, ('max lags must be less than or equal to %i'
                                   % lsize)
 
-    lags = cast(np.r_[1 - maxlags:maxlags], int)
+    lags = pd.Int64Index(np.r_[1 - maxlags:maxlags])
     return_type = pd.DataFrame if x.ndim == 2 else pd.Series
 
     scale_function = SCALE_FUNCTIONS[scale_type]
