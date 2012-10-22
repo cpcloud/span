@@ -71,18 +71,24 @@ class TestXCorr(unittest.TestCase):
 
 
 def test_mult_mat_xcorr():
-    x = np.random.randn(np.random.randint(500, 701), np.random.randint(2, 21))
+    x = np.random.randn(np.random.randint(50, 71), np.random.randint(2, 21))
     m, n = x.shape
     ifft, fft = get_fft_funcs(x)
     nfft = int(2 ** nextpow2(m))
     X = fft(x.T, nfft)
     Xc = X.conj()
     mx, nx = X.shape
+
     c = np.empty((mx ** 2, nx), dtype=X.dtype)
-    oc = c.copy()
+    oc = np.empty((mx ** 2, nx), dtype=X.dtype)
+
     mult_mat_xcorr(X, Xc, oc, n, nx)
+
     for i in xrange(n):
         c[i * n:(i + 1) * n] = X[i] * Xc
+
     assert_allclose(c, oc)
+
     cc, occ = ifft(c, nfft).T, ifft(oc, nfft).T
+
     assert_allclose(cc, occ)
