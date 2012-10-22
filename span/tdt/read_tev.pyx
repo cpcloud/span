@@ -30,9 +30,9 @@ cpdef read_tev(char* filename, int64 nsamples, int64[:] fp_locs,
     """
     assert filename is not NULL, 'filename (1st argument) cannot be empty'
     
-    _, ext = os.path.splitext(filename)
-    assert ext == 'tev', 'extension must be "tev"'
-    assert os.path.exists(filename), '%s does not exist' % filename
+    # _, ext = os.path.splitext(filename)
+    # assert ext == 'tev', 'extension must be "tev"'
+    # assert os.path.exists(filename), '%s does not exist' % filename
 
     cdef:
         int64 i, j, n = fp_locs.shape[0], nbytes = sizeof(float32)
