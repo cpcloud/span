@@ -307,7 +307,7 @@ def name2num(name, base=256):
         The number corresponding to TDT's numerical representation of an event
         type string.
     """
-    return (base ** np.r_[:len(name)]).dot(np.fromiter(map(ord, name), int))
+    return (base ** np.r_[:len(name)]).dot(tuple(map(ord, name)))
 
 
 # TODO: THIS IS SO SLOW!
@@ -646,7 +646,17 @@ def roll_with_zeros(a, shift=0, axis=None):
 
 def neighbors(a, i, j, n=2):
     """
+
+    Parameters
+    ----------
+    a : array_like
+    i, j, n : int
+
+    Returns
+    -------
+    rld_and_pd : array_like
     """
+    assert n >= 2, 'n must be greater than 2, got {n}'.format(n=n)
     dim0_roll = roll_with_zeros(a, shift=1 - i, axis=0)
     rld_and_pd = roll_with_zeros(dim0_roll, shift=1 - j, axis=1)
     return rld_and_pd[:n, :n]
@@ -654,9 +664,17 @@ def neighbors(a, i, j, n=2):
 
 def unique_neighbors(neigh, axis=None):
     """
+
+    Parameters
+    ----------
+    neigh : array_like
+    axis : int or None, optional
+
+    Returns
+    -------
+    u_neigh : array_like
     """
-    flat_neigh = neigh.ravel()
-    return neigh.take(flat_neigh.nonzero(), axis=axis).squeeze()
+    return neigh.take(neigh.ravel().nonzero(), axis=axis).squeeze()
 
 
 def refrac_window(fs, ms):
@@ -720,3 +738,38 @@ def md5file(fn):
     """
     with open(fn, 'rb') as f:
         return md5string(f.read())
+
+
+def _try_convert_first(x):
+    """Convert an object array's columns to the correct type.
+
+    If any exceptions are thrown, return the input.
+
+    Parameters
+    ----------
+    x : array_like
+
+    Returns
+    -------
+    cast_x : array_like
+    """
+    try:
+        return cast(x, type(x[0]))
+    except:
+        return x
+
+
+def index_values(multi_index):
+    """Return a pandas MultiIndex as a DataFrame.
+
+    Parameters
+    ----------
+    multi_index : pd.MultiIndex
+
+    Returns
+    -------
+    df : pd.DataFrame
+    """
+    am = np.fromiter(map(lambda x: np.asanyarray(x, object), multi_index), object)
+    return pd.DataFrame(am, columns=index.names).apply_map(_try_convert_first)
+
