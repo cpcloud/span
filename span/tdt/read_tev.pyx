@@ -12,8 +12,8 @@ cimport cython
 
 @cython.boundscheck(False)
 @cython.wraparound(False)
-cpdef read_tev(char* filename, int64 nsamples, int64[:] fp_locs,
-               float32[:, :] spikes):
+cdef void _read_tev(char* filename, int64 nsamples, int64[:] fp_locs,
+                    float32[:, :] spikes):
     """
 
     Parameters
@@ -22,18 +22,8 @@ cpdef read_tev(char* filename, int64 nsamples, int64[:] fp_locs,
     nsamples : int64
     fp_locs : int64[:]
     spikes : float32[:, :]
-
-    Raises
-    ------
-    AssertionError
-        If filename is a NULL pointer
     """
-    assert filename is not NULL, 'filename (1st argument) cannot be empty'
-    
-    # _, ext = os.path.splitext(filename)
-    # assert ext == 'tev', 'extension must be "tev"'
-    # assert os.path.exists(filename), '%s does not exist' % filename
-
+        
     cdef:
         int64 i, j, n = fp_locs.shape[0], nbytes = sizeof(float32)
 
@@ -62,7 +52,7 @@ cpdef read_tev(char* filename, int64 nsamples, int64[:] fp_locs,
             fread(chunk, nbytes, nsamples, f)
 
             # assign the chunk data to the spikes array
-            for j in prange(nsamples, schedule='guided'):
+            for j in xrange(nsamples):
                 spikes[i, j] = chunk[j]
 
         # get rid of the chunk data
@@ -72,3 +62,11 @@ cpdef read_tev(char* filename, int64 nsamples, int64[:] fp_locs,
 
         fclose(f)
         f = NULL
+
+
+@cython.wraparound(False)
+@cython.boundscheck(False)
+def read_tev(char* filename, int64 nsamples, int64[:] fp_locs not None,
+             float32[:, :] spikes not None):
+    assert filename is not NULL, 'filename (1st argument) cannot be empty'
+    _read_tev(filename, nsamples, fp_locs, spikes)
