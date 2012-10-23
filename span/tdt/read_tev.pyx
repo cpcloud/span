@@ -4,16 +4,14 @@ from numpy cimport float32_t as float32, int64_t as int64
 
 from libc.stdio cimport fopen, fclose, fread, fseek, SEEK_SET, FILE
 from libc.stdlib cimport malloc, free
-from libc.string cimport strlen
 
-from cython.parallel cimport prange, parallel
 cimport cython
 
 
 @cython.boundscheck(False)
 @cython.wraparound(False)
 cdef void _read_tev(char* filename, int64 nsamples, int64[:] fp_locs,
-                    float32[:, :] spikes):
+                    float32[:, :] spikes) nogil:
     """
 
     Parameters
@@ -31,37 +29,40 @@ cdef void _read_tev(char* filename, int64 nsamples, int64[:] fp_locs,
 
         FILE* f = NULL
 
-    with nogil, parallel():
-        chunk = <float32*> malloc(nbytes * nsamples)
+    chunk = <float32*> malloc(nbytes * nsamples)
 
-        f = fopen(filename, 'rb')
+    f = fopen(filename, 'rb')
 
-        if not f:
-            if chunk:
-                free(chunk)
-                chunk = NULL
-
-            with gil:
-                raise IOError('Unable to open file %s' % filename)
-
-        for i in prange(n, schedule='guided'):
-            # go to the ith file pointer location
-            fseek(f, fp_locs[i], SEEK_SET)
-
-            # read nbytes * nsamples bytes into chunk_data
-            fread(chunk, nbytes, nsamples, f)
-
-            # assign the chunk data to the spikes array
-            for j in xrange(nsamples):
-                spikes[i, j] = chunk[j]
-
-        # get rid of the chunk data
+    if not f:
         if chunk:
             free(chunk)
             chunk = NULL
 
-        fclose(f)
-        f = NULL
+        with gil:
+            assert not chunk, 'memory leak when freeing chunk'
+            raise IOError('Unable to open file %s' % filename)
+
+    for i in xrange(n):
+        # go to the ith file pointer location
+        fseek(f, fp_locs[i], SEEK_SET)
+
+        # read nbytes * nsamples bytes into chunk_data
+        fread(chunk, nbytes, nsamples, f)
+
+        # assign the chunk data to the spikes array
+        for j in xrange(nsamples):
+            spikes[i, j] = chunk[j]
+
+    # get rid of the chunk data
+    if chunk:
+        free(chunk)
+        chunk = NULL
+
+        with gil:
+            assert not chunk, 'memory leak when freeing chunk'
+
+    fclose(f)
+    f = NULL
 
 
 @cython.wraparound(False)

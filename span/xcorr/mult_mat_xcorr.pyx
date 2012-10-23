@@ -1,13 +1,12 @@
 from numpy cimport complex128_t as complex128, int64_t as int64
 
-from cython.parallel cimport parallel, prange
 cimport cython
 
 
 @cython.wraparound(False)
 @cython.boundscheck(False)
 cdef void _mult_mat_xcorr(complex128[:, :] X, complex128[:, :] Xc,
-                          complex128[:, :] c, int64 n, int64 nx):
+                          complex128[:, :] c, int64 n, int64 nx) nogil:
     """Perform the necessary matrix-vector multiplication and fill the cross-
     correlation array. Slightly faster than pure Python.
 
@@ -18,11 +17,10 @@ cdef void _mult_mat_xcorr(complex128[:, :] X, complex128[:, :] Xc,
     """
     cdef int64 i, j, k, r
 
-    with nogil, parallel():
-        for i in prange(n, schedule='guided'):
-            for r, j in enumerate(xrange(i * n, (i + 1) * n)):
-                for k in prange(nx, schedule='guided'):
-                    c[j, k] = X[i, k] * Xc[r, k]
+    for i in xrange(n):
+        for r, j in enumerate(xrange(i * n, (i + 1) * n)):
+            for k in xrange(nx):
+                c[j, k] = X[i, k] * Xc[r, k]
 
 
 @cython.wraparound(False)

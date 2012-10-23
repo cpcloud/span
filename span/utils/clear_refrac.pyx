@@ -22,5 +22,5 @@ cdef void _clear_refrac(uint8[:, :] a, int64 window) nogil:
 
 @cython.wraparound(False)
 @cython.boundscheck(False)
-cpdef clear_refrac(uint8[:, :] a, int64 window):
+def clear_refrac(uint8[:, :] a not None, int64 window):
     _clear_refrac(a, window)
