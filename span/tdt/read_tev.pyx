@@ -25,13 +25,9 @@ cdef void _read_tev(char* filename, int64 nsamples, int64[:] fp_locs,
     cdef:
         int64 i, j, n = fp_locs.shape[0], nbytes = sizeof(float32)
 
-        float32* chunk = NULL
+        float32* chunk = <float32*> malloc(nbytes * nsamples)
 
-        FILE* f = NULL
-
-    chunk = <float32*> malloc(nbytes * nsamples)
-
-    f = fopen(filename, 'rb')
+        FILE* f = fopen(filename, 'rb')
 
     if not f:
         if chunk:
