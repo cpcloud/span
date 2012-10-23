@@ -12,7 +12,7 @@ import_array()
 
 @cython.wraparound(False)
 @cython.boundscheck(False)
-cdef void _bin_data(uint8[:, :] a, int64[:] bins, int64[:, :] out) nogil:
+cdef void _bin_data(uint8[:, :] a, int64[:] bins, int64[:, :] out):
     """Sum the counts of spikes in `a` in each of the bins.
 
     Parameters
@@ -24,15 +24,16 @@ cdef void _bin_data(uint8[:, :] a, int64[:] bins, int64[:, :] out) nogil:
     cdef:
         int64 i, j, k, v
         int64 m = out.shape[0], n = out.shape[1]
-    
-    for k in xrange(n):
-        for i in xrange(m):
-            v = 0
 
-            for j in xrange(bins[i], bins[i + 1]):
-                v += a[j, k]
+    with nogil:
+        for k in xrange(n):
+            for i in xrange(m):
+                v = 0
 
-            out[i, k] = v
+                for j in xrange(bins[i], bins[i + 1]):
+                    v += a[j, k]
+
+                out[i, k] = v
 
 
 @cython.wraparound(False)
