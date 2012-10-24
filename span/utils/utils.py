@@ -682,12 +682,14 @@ def unique_neighbors(neigh, axis=None):
     return neigh.take(neigh.ravel().nonzero(), axis=axis).squeeze()
 
 
-def refrac_window(fs, ms):
-    """Compute the refractory period in samples given a period of `ms`
-    milliseconds.
+def fs2ms(fs, millis):
+    """Compute the number of samples in `ms` for a sample rate of `fs`
 
     Parameters
-    ---------- 
+    ----------
+    fs : float
+        Sampling rate
+
     ms : float
         The refractory period in milliseconds.
 
@@ -696,8 +698,15 @@ def refrac_window(fs, ms):
     win : int
         The refractory period in samples.
     """
-    conv = 1e3
-    return int(np.floor(ms / conv * fs))
+    try:
+        from quantities import Hz, ms
+    except ImportError:
+        ms = Hz = 1.0
+
+    conv = 1e3 * ms
+    millis *= ms
+    fs *= Hz
+    return np.floor(millis / conv * fs).astype(int)
 
 
 def md5string(s):
@@ -775,6 +784,7 @@ def index_values(multi_index):
     -------
     df : pd.DataFrame
     """
-    am = np.fromiter(map(lambda x: np.asanyarray(x, object), multi_index), object)
-    return pd.DataFrame(am, columns=index.names).apply_map(_try_convert_first)
+    m = map(lambda x: np.asanyarray(x, object), multi_index)
+    df = pd.DataFrame(np.fromiter(m, object), columns=multi_index.names)
+    return df.apply_map(_try_convert_first)
 
