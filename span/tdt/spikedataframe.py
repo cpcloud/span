@@ -30,8 +30,6 @@ Examples
 
 """
 
-# from future_builtins import map
-
 from abc import ABCMeta, abstractproperty, abstractmethod
 
 from functools import partial
@@ -44,7 +42,6 @@ from pandas import Series, DataFrame, MultiIndex, datetools, date_range, datetim
 import span
 from span.xcorr import xcorr
 from span.utils.decorate import cached_property, thunkify
-from span.utils import clear_refrac, refrac_window
 
 try:
     from pylab import subplots
@@ -127,7 +124,7 @@ class SpikeDataFrameBase(SpikeDataFrameAbstractBase):
 
     @property
     def index_values(self):
-        return index_values(self.index)
+        return span.utils.index_values(self.index)
 
     def downsample(self, hz, *args, **kwargs):
         us_per_sample = int(1e6 / hz)
@@ -310,7 +307,8 @@ class SpikeDataFrame(SpikeDataFrameBase):
             clr = threshed.values.copy()
 
             # TODO: make sure samples by channels is shape of clr
-            clear_refrac(clr.view(np.uint8), refrac_window(self.fs, ms))
+            span.utils.clear_refrac(clr.view(np.uint8),
+                                    span.utils.fs2ms(self.fs, ms))
             r = DataFrame(clr, index=threshed.index, columns=threshed.columns)
         else:
             r = threshed
