@@ -51,8 +51,6 @@ def bin_data(u1[:, :] a not None, i8[:] bins not None):
     out : array_like
         The binned data from `a`.
     """
-     # = np.empty((bins.shape[0] - 1, a.shape[1]),
-                                               # dtype=np.i8)
     cdef:
         npy_intp dims[2]
         ndarray[dtype=u1, ndim=2] out
