@@ -1,18 +1,19 @@
 """
 """
 
-from numpy import asarray
-
-from numpy cimport (uint8_t as uint8, ndarray, int64_t as int64, PyArray_EMPTY,
+from numpy cimport (uint8_t as u1, ndarray, int64_t as i8, PyArray_EMPTY,
                     NPY_LONG, npy_intp, import_array)
+
+from cython.parallel cimport prange, parallel
 
 cimport cython
 
 import_array()
 
+
 @cython.wraparound(False)
 @cython.boundscheck(False)
-cdef void _bin_data(uint8[:, :] a, int64[:] bins, int64[:, :] out):
+cdef void _bin_data(u1[:, :] a, i8[:] bins, i8[:, :] out) nogil:
     """Sum the counts of spikes in `a` in each of the bins.
 
     Parameters
@@ -21,24 +22,20 @@ cdef void _bin_data(uint8[:, :] a, int64[:] bins, int64[:, :] out):
     bins : array_like
     out : array_like
     """
-    cdef:
-        int64 i, j, k, v
-        int64 m = out.shape[0], n = out.shape[1]
+    cdef i8 i, j, k, m = out.shape[0], n = out.shape[1]
 
-    with nogil:
-        for k in xrange(n):
+    with parallel():
+        for k in prange(n, schedule='guided'):
             for i in xrange(m):
-                v = 0
+                out[i, k] = 0
 
                 for j in xrange(bins[i], bins[i + 1]):
-                    v += a[j, k]
-
-                out[i, k] = v
+                     out[i, k] += a[j, k]
 
 
 @cython.wraparound(False)
 @cython.boundscheck(False)
-def bin_data(uint8[:, :] a not None, int64[:] bins not None):
+def bin_data(u1[:, :] a not None, i8[:] bins not None):
     """Wrapper around bin_data._bin_data.
 
     Parameters
@@ -55,16 +52,17 @@ def bin_data(uint8[:, :] a not None, int64[:] bins not None):
         The binned data from `a`.
     """
      # = np.empty((bins.shape[0] - 1, a.shape[1]),
-                                               # dtype=np.int64)
+                                               # dtype=np.i8)
     cdef:
         npy_intp dims[2]
-        int64[:, :] out
+        ndarray[dtype=u1, ndim=2] out
 
     dims[0] = bins.shape[0] - 1
     dims[1] = a.shape[1]
 
+    # ndim, size of dims, type, c if 0 else fortran order
     out = PyArray_EMPTY(2, dims, NPY_LONG, 0)
 
     _bin_data(a, bins, out)
 
-    return asarray(out)
+    return out

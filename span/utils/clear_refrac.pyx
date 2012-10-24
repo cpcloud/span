@@ -1,13 +1,11 @@
-from numpy cimport uint8_t as uint8, int64_t as int64
+from numpy cimport uint8_t as u1, int64_t as i8
 cimport cython
 
 
 @cython.wraparound(False)
 @cython.boundscheck(False)
-cdef void _clear_refrac(uint8[:, :] a, int64 window) nogil:
-    cdef:
-        int64 channel, i, sample
-        int64 nsamples = a.shape[0], nchannels = a.shape[1]
+cdef void _clear_refrac(u1[:, :] a, i8 window) nogil:
+    cdef i8 channel, i, sample, nsamples = a.shape[0], nchannels = a.shape[1]
 
     for channel in xrange(nchannels):
         sample = 0
@@ -22,5 +20,5 @@ cdef void _clear_refrac(uint8[:, :] a, int64 window) nogil:
 
 @cython.wraparound(False)
 @cython.boundscheck(False)
-def clear_refrac(uint8[:, :] a not None, int64 window):
+def clear_refrac(u1[:, :] a not None, i8 window):
     _clear_refrac(a, window)
