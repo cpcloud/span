@@ -12,8 +12,7 @@ cimport cython
 
 @cython.boundscheck(False)
 @cython.wraparound(False)
-cdef void _read_tev(char* filename, i8 nsamples, i8[:] fp_locs,
-                    f4[:, :] spikes) nogil:
+cdef void _read_tev(char* filename, i8 nsamples, i8[:] fp_locs, f4[:, :] spikes):
     """Read a TDT tev file in. Slightly faster than the pure Python version.
 
     Parameters
@@ -30,7 +29,7 @@ cdef void _read_tev(char* filename, i8 nsamples, i8[:] fp_locs,
     spikes : f4[:, :]
         Output array
     """
-        
+
     cdef:
         i8 i, j, n = fp_locs.shape[0], nbytes = sizeof(f4)
 
@@ -38,7 +37,7 @@ cdef void _read_tev(char* filename, i8 nsamples, i8[:] fp_locs,
 
         FILE* f = NULL
 
-    with parallel():
+    with nogil, parallel():
         chunk = <f4*> malloc(nbytes * nsamples)
         f = fopen(filename, 'rb')
 
