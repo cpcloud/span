@@ -8,7 +8,7 @@ cimport cython
 @cython.wraparound(False)
 @cython.boundscheck(False)
 cdef void _mult_mat_xcorr(c16[:, :] X, c16[:, :] Xc, c16[:, :] c, i8 n,
-                          i8 nx) nogil:
+                          i8 nx):
     """Perform the necessary matrix-vector multiplication and fill the cross-
     correlation array. Slightly faster than pure Python.
 
@@ -19,7 +19,7 @@ cdef void _mult_mat_xcorr(c16[:, :] X, c16[:, :] Xc, c16[:, :] c, i8 n,
     """
     cdef i8 i, j, k, r
 
-    with parallel():
+    with nogil, parallel():
         for i in prange(n, schedule='guided'):
             for r, j in enumerate(xrange(i * n, (i + 1) * n)):
                 for k in xrange(nx):
