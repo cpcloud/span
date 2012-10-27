@@ -1,8 +1,8 @@
 """
 """
 
-from numpy cimport (uint8_t as u1, ndarray, int64_t as i8, PyArray_EMPTY,
-                    NPY_LONG, npy_intp, import_array)
+from numpy cimport (uint8_t as u1, ndarray, PyArray_EMPTY,
+                    NPY_ULONG, npy_intp, import_array, uint64_t as u8)
 
 from cython.parallel cimport prange, parallel
 
@@ -13,7 +13,7 @@ import_array()
 
 @cython.wraparound(False)
 @cython.boundscheck(False)
-cdef void _bin_data(u1[:, :] a, i8[:] bins, i8[:, :] out) nogil:
+cdef void _bin_data(u1[:, :] a, u8[:] bins, u8[:, :] out):
     """Sum the counts of spikes in `a` in each of the bins.
 
     Parameters
@@ -22,9 +22,9 @@ cdef void _bin_data(u1[:, :] a, i8[:] bins, i8[:, :] out) nogil:
     bins : array_like
     out : array_like
     """
-    cdef i8 i, j, k, m = out.shape[0], n = out.shape[1]
+    cdef npy_intp i, j, k, m = out.shape[0], n = out.shape[1]
 
-    with parallel():
+    with nogil, parallel():
         for k in prange(n, schedule='guided'):
             for i in xrange(m):
                 out[i, k] = 0
@@ -35,7 +35,7 @@ cdef void _bin_data(u1[:, :] a, i8[:] bins, i8[:, :] out) nogil:
 
 @cython.wraparound(False)
 @cython.boundscheck(False)
-def bin_data(u1[:, :] a not None, i8[:] bins not None):
+def bin_data(u1[:, :] a not None, u8[:] bins not None):
     """Wrapper around bin_data._bin_data.
 
     Parameters
@@ -53,13 +53,13 @@ def bin_data(u1[:, :] a not None, i8[:] bins not None):
     """
     cdef:
         npy_intp dims[2]
-        ndarray[dtype=u1, ndim=2] out
+        ndarray[dtype=u8, ndim=2] out
 
     dims[0] = bins.shape[0] - 1
     dims[1] = a.shape[1]
 
     # ndim, size of dims, type, c if 0 else fortran order
-    out = PyArray_EMPTY(2, dims, NPY_LONG, 0)
+    out = PyArray_EMPTY(2, dims, NPY_ULONG, 0)
 
     _bin_data(a, bins, out)
 
