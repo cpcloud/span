@@ -30,14 +30,19 @@ Examples
 
 """
 
-from abc import ABCMeta, abstractproperty, abstractmethod
-
-from functools import partial
-from operator import lt, gt
+import gc
+import numbers
+import collections
+import functools
+import abc
+import operator
 
 import numpy as np
-from numpy import nan
-from pandas import Series, DataFrame, MultiIndex, datetools, date_range, datetime
+import scipy
+import scipy.signal
+
+import pandas as pd
+from pandas import Series, DataFrame, MultiIndex, date_range, datetools
 
 import span
 from span.xcorr import xcorr
@@ -47,6 +52,17 @@ try:
     from pylab import subplots
 except RuntimeError:
     subplots = None
+
+
+def is_valid_array(a):
+    assert ((hasattr(a, 'values') and not isinstance(a, collections.Mapping))
+            or isinstance(a, np.ndarray)), \
+        '{} must be an instance of '
+
+
+def find_names(obj):
+    return [k for ref in gc.get_referrers(obj) if isinstance(ref, dict)
+            for k, v in ref.iteritems() if v is obj]
 
 
 class SpikeDataFrameAbstractBase(DataFrame):
@@ -77,31 +93,35 @@ class SpikeDataFrameAbstractBase(DataFrame):
         The basis for numerics in Python
     """
 
-    __metaclass__ = ABCMeta
+    __metaclass__ = abc.ABCMeta
 
-    def __init__(self, data, meta, date=datetime.now(), *args, **kwargs):
+    def __init__(self, data, meta, *args, **kwargs):
         super(SpikeDataFrameAbstractBase, self).__init__(data, *args, **kwargs)
 
         assert meta is not None, 'meta cannot be None'
         self.meta = meta
-        self.date = date
+        self.date = meta.timestamp[0]
 
-    @abstractproperty
+    @abc.abstractproperty
     def channels(self):
         """Retrieve the data organized as a samples by channels DataFrame."""
         pass
 
-    @abstractproperty
+    @abc.abstractproperty
     def fs(self):
         """The sampling rate of the event."""
         pass
 
-    @abstractproperty
+    @abc.abstractproperty
     def nchans(self):
         """The number of channels in the array."""
         pass
 
-    @abstractmethod
+    @abc.abstractproperty
+    def nsamples(self):
+        pass
+
+    @abc.abstractmethod
     def threshold(self, threshes):
         """Thresholding function for spike detection."""
         pass
@@ -126,19 +146,24 @@ class SpikeDataFrameBase(SpikeDataFrameAbstractBase):
     def index_values(self):
         return span.utils.index_values(self.index)
 
-    def downsample(self, hz, *args, **kwargs):
-        us_per_sample = int(1e6 / hz)
-        cur_us_per_sample = self.channels.index.freq.n
+    def downsample(self, factor, n=None, ftype='iir', axis=-1):
+        """Downsample the data by an integer factor.
 
-        if us_per_sample == cur_us_per_sample:
-            return self.channels
+        Parameters
+        ----------
+        factor
+        n
+        ftype
+        axis
 
-        req_hz = int(1e6 / us_per_sample)
-        assert us_per_sample > cur_us_per_sample, \
-            'hz must be less than %i' % req_hz
-
-        us_per_sample *= datetools.Micro()
-        return self.channels.resample(us_per_sample, *args, **kwargs)
+        Returns
+        -------
+        dns : DataFrame
+            Downsampled data in a DataFrame
+        """
+        dns = scipy.signal.decimate(self.channels.values.T, factor, n, ftype,
+                                    axis)
+        return DataFrame(dns.T, columns=self.channels.columns)
 
     @cached_property
     def fs(self): return self.meta.fs.unique().item()
@@ -175,7 +200,7 @@ class SpikeDataFrameBase(SpikeDataFrameAbstractBase):
 
         us_per_sample = (1e6 / self.fs) * datetools.Micro()
         index = date_range(self.date, periods=valsr.shape[0], freq=us_per_sample,
-                           tz='US/Eastern', name='time')
+                           name='time')
         return DataFrame(valsr, columns=columns, index=index)
 
     @cached_property
@@ -186,7 +211,18 @@ class SpikeDataFrameBase(SpikeDataFrameAbstractBase):
         return span.utils.group_indices(self.channel_group)
 
     @property
+    def all_indices(self):
+        gb = self.groupby(level=('shank', 'channel', 'side'))
+        return DataFrame(gb.indices)
+
+    @property
     def channel_group(self): return self.groupby(level=self.meta.channel.name)
+
+    def spike_times(self, threshed):
+        joiners = [self.channels.ix[threshed[k]] for k in threshed.columns]
+        concated = pd.concat(joiners)
+        concated.drop_duplicates(inplace=True)
+        return Series(concated.index)
 
     def threshold(self, threshes):
         """Threshold spikes.
@@ -210,10 +246,11 @@ class SpikeDataFrameBase(SpikeDataFrameAbstractBase):
         if threshes.size == self.nchans:
             threshes = Series(threshes, index=self.channels.columns)
             chn = self.channels
-            f = partial(chn.lt if is_neg else chn.gt, axis='columns')
+            f = functools.partial(chn.lt if is_neg else chn.gt, axis='columns')
         else:
-            f = partial(lt if is_neg else gt, self.channels)
-            
+            cmpf = operator.lt if is_neg else operator.gt
+            f = functools.partial(cmpf, self.channels)
+
         return f(threshes)
 
 
@@ -246,37 +283,55 @@ class SpikeDataFrame(SpikeDataFrameBase):
         ----------
         cleared : array_like
             The refractory-period-cleared array of spike booleans to bin.
-        
+
         binsize : float, optional
             The size of the bins to use, in milliseconds
 
         reject_count : int, optional
 
+        dropna : bool, optional
+
         Returns
         -------
-        binned : pandas.DataFrame
+        binned : DataFrame
 
         See Also
         --------
         span.utils.bin
         """
-        assert reject_count >= 0, 'reject_count must be a non negative integer'
+        assert hasattr(cleared, 'values') or isinstance(cleared, np.ndarray), \
+            '"cleared" must be have the "values" attribute or be an instance of'\
+            ' numpy.ndarray'
+        assert binsize > 0 and isinstance(binsize, numbers.Real), \
+            '"binsize" must be a positive number'
+        assert reject_count >= 0, '"reject_count" must be a non negative integer'
 
         conv = 1e3
-        bin_samples = int(np.floor(binsize * self.fs / conv))
-        bins = np.r_[:self.nsamples - 1:bin_samples]
+        bin_samples = span.utils.cast(np.floor(binsize * self.fs / conv), int)
+        bins = np.arange(0, self.nsamples - 1, bin_samples, np.uint64)
         btmp = span.utils.bin_data(cleared.values.view(np.uint8), bins)
-        binned = DataFrame(btmp, columns=cleared.columns, dtype=float)
 
-        if reject_count:
-            rec_len_s = self.nsamples / float(self.fs)
-            min_sp_per_s = reject_count / rec_len_s
-            sp_per_s = binned.mean() * (1e3 / binsize)
-            binned.ix[:, sp_per_s < min_sp_per_s] = nan
+        # make a datetime index of seconds
+        freq = binsize * datetools.Milli()
+        index = date_range(start=self.date, periods=btmp.shape[0], freq=freq,
+                           name='time')
+
+        binned = DataFrame(btmp, index, cleared.columns, float)
+
+        # samples / (samples / s) == s
+        rec_len_s = self.nsamples / self.fs
+
+        # spikes / s
+        min_sp_per_s = reject_count / rec_len_s
+
+        # spikes / s * ms / ms == spikes / s
+        sp_per_s = binned.mean() * (1e3 / binsize)
+
+        binned.ix[:, sp_per_s < min_sp_per_s] = np.nan
 
         if dropna:
             binned = binned.dropna(axis=1)
-        
+
         return binned
 
     def cleared(self, threshed, ms=2):
@@ -303,16 +358,16 @@ class SpikeDataFrame(SpikeDataFrameBase):
         assert ms >= 0 or ms is None, \
             'refractory period must be a positive integer or None'
 
-        if ms:
+        if ms is None or ms >= 0:
             clr = threshed.values.copy()
 
             # TODO: make sure samples by channels is shape of clr
-            span.utils.clear_refrac(clr.view(np.uint8),
-                                    span.utils.fs2ms(self.fs, ms))
-            r = DataFrame(clr, index=threshed.index, columns=threshed.columns)
+            ms_fs = span.utils.fs2ms(self.fs, ms)
+            span.utils.clear_refrac(clr.view(np.uint8), ms_fs)
+            r = DataFrame(clr, threshed.index, threshed.columns)
         else:
             r = threshed
-        
+
         return r
 
     def fr(self, binned, level='channel', axis=1, sem=False):
@@ -420,7 +475,7 @@ class SpikeDataFrame(SpikeDataFrameBase):
         if nan_auto:
             npairs = self.nchans ** 2
             auto_inds = np.diag(np.r_[:npairs].reshape(self.nchans, self.nchans))
-            xc.ix[0, auto_inds] = nan
+            xc.ix[0, auto_inds] = np.nan
 
         if dropna:
             xc = xc.dropna(axis=1)
