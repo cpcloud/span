@@ -355,10 +355,10 @@ class SpikeDataFrame(SpikeDataFrameBase):
             The thresholded and refractory-period-cleared array of booleans
             indicating the sample point at which a spike was above threshold.
         """
-        assert ms >= 0 or ms is None, \
+        assert ms > 0 or ms is None, \
             'refractory period must be a positive integer or None'
 
-        if ms is None or ms > 0:
+        if ms > 0:
             clr = threshed.values.copy()
 
             # TODO: make sure samples by channels is shape of clr
