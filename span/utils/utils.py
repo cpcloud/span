@@ -61,7 +61,7 @@ except ImportError:
     def trimmean(x, alpha, inclusive=(False, False), axis=None):
         raise NotImplementedError("Unable to import scipy.stats;" +
                                   " cannot define trimmean")
-    
+
 
 
 def detrend_none(x):
@@ -227,7 +227,7 @@ def cartesian(arrays, out=None, dtype=None):
     dtypes = tuple(map(operator.attrgetter('dtype'), arrays))
     all_dtypes_same = all(map(operator.eq, dtypes, itertools.repeat(dtypes[0])))
     dtype = dtypes[0] if all_dtypes_same else np.object_
-    
+
     n = np.prod(tuple(map(operator.attrgetter('size'), arrays)))
 
     if out is None:
@@ -326,7 +326,7 @@ def nans_like(a):
         A view of an array `a` of shape `a.shape` with type `type(a)`.
     """
     ns = nans(a.shape)
-    
+
     if isinstance(a, pd.Series):
         r = pd.Series(ns, index=a.index)
     elif isinstance(a, pd.DataFrame):
@@ -734,7 +734,7 @@ def md5int(s):
 
     Returns
     -------
-    hexdigest : str    
+    hexdigest : str
     """
     return int(md5string(s), 16)
 
@@ -788,3 +788,9 @@ def index_values(multi_index):
     df = pd.DataFrame(np.fromiter(m, object), columns=multi_index.names)
     return df.apply_map(_try_convert_first)
 
+
+def side_by_side(*args, **kwargs):
+    from pandas.core.common import adjoin
+    space = kwargs.get('space', 4)
+    reprs = map(lambda arg: repr(arg).split('\n'), args)
+    print adjoin(space, *reprs)
