@@ -81,14 +81,12 @@ class TdtTankBase(object):
     np_types
     tsq_dtype
 
-    date_re
     site_re
     age_re
 
     header_ext
     raw_ext
 
-    date
     _read_tsq
     """
     __metaclass__ = abc.ABCMeta
@@ -97,7 +95,6 @@ class TdtTankBase(object):
     np_types = TsqNumpyTypes
     tsq_dtype = np.dtype(list(zip(fields, np_types)))
 
-    date_re = re.compile(r'.*(\d{6}).*')
     site_re = re.compile(r'(.*s(?:ite)?(?:\s|_)*(\d+))?')
     age_re = re.compile(r'.*[pP](\d+).*')
 
@@ -119,10 +116,6 @@ class TdtTankBase(object):
         self.__name = os.path.basename(path)
         self.__age = match_int(self.age_re, self.name)
         self.__site = match_int(self.site_re, self.name)
-        self.__date = self._parse_date(self.name)
-
-    @property
-    def date(self): return self.__date
 
     @property
     def path(self): return self.__path
@@ -135,32 +128,6 @@ class TdtTankBase(object):
 
     @property
     def site(self): return self.__site
-
-    def _parse_date(self, basename):
-        """Parse a date from a directory name.
-
-        Parameters
-        ----------
-        basename : str
-            A directory name.
-
-        Returns
-        -------
-        date : datetime.date
-            The date parsed from the directory name.
-        """
-        try:
-            date = self.date_re.match(basename).group(1)
-        except AttributeError:
-            now = pd.datetime.now()
-            month, day, year = now.month, now.day, now.year
-        else:
-            sep = '/'
-            dates = zip(date[::2], date[1::2])
-            datetmp = os.sep.join(i + j for i, j in dates).split(sep)
-            month, day, year = map(int, datetmp)
-
-        return pd.datetime(year=year + 2000, month=month, day=day).date()
 
     @abc.abstractmethod
     def _read_tev(self, event_name):
@@ -275,7 +242,7 @@ class PandasTank(TdtTankBase):
         meta.channel = meta.channel.astype(int)
         meta.shank = meta.shank.astype(int)
 
-        # fragile subtraction
+        # fragile subtraction (i.e., what if TDT changes this value?)
         meta.size -= 10
 
         # first row of event type
@@ -291,7 +258,8 @@ class PandasTank(TdtTankBase):
         nsamples = meta.size[first_row] * TYPES_TABLE[fmt][1]
 
         # dtype of event type
-        dtype = np.dtype(TYPES_TABLE[fmt][2]).type
+        raw_type = TYPES_TABLE[fmt][2]
+        dtype = np.dtype(raw_type).type
 
         # raw ndarray for data
         spikes = np.empty((fp_loc.size, nsamples), dtype=dtype)
@@ -302,11 +270,15 @@ class PandasTank(TdtTankBase):
         # read in the TEV data to spikes
         read_tev(tev_name, nsamples, fp_loc, spikes)
 
+        fromts = np.vectorize(pd.datetime.fromtimestamp)
+
+        meta.timestamp = fromts(meta.timestamp)
+
         # create a pandas MultiIndex with metadata
-        index_arrays = (meta.side, meta.shank, meta.channel, meta.timestamp,
-                        meta.fp_loc)
-        index = MultiIndex.from_arrays(index_arrays)
+        index = MultiIndex.from_arrays((meta.channel, meta.shank, meta.side))
 
         # create a spike data frame with a bunch of the meta data
-        return SpikeDataFrame(spikes, meta.reset_index(drop=True),
-                              date=self.date, index=index, dtype=dtype)
+        sdf = SpikeDataFrame(spikes, meta.reset_index(drop=True), index=index,
+                             dtype=dtype)
+        sdf.columns.name = 'sample'
+        return sdf
