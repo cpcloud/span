@@ -42,7 +42,8 @@ import scipy
 import scipy.signal
 
 import pandas as pd
-from pandas import Series, DataFrame, MultiIndex, date_range, datetools
+from pandas import (Series, DataFrame, MultiIndex, date_range, datetools,
+                    Timestamp)
 
 import span
 from span.xcorr import xcorr
@@ -99,8 +100,9 @@ class SpikeDataFrameAbstractBase(DataFrame):
         super(SpikeDataFrameAbstractBase, self).__init__(data, *args, **kwargs)
 
         assert meta is not None, 'meta cannot be None'
+
         self.meta = meta
-        self.date = meta.timestamp[0]
+        self.date = Timestamp(self.meta.timestamp[0])
 
     @abc.abstractproperty
     def channels(self):
@@ -143,8 +145,7 @@ class SpikeDataFrameBase(SpikeDataFrameAbstractBase):
         super(SpikeDataFrameBase, self).__init__(*args, **kwargs)
 
     @property
-    def index_values(self):
-        return span.utils.index_values(self.index)
+    def index_values(self): return span.utils.index_values(self.index)
 
     def downsample(self, factor, n=None, ftype='iir', axis=-1):
         """Downsample the data by an integer factor.
@@ -161,9 +162,9 @@ class SpikeDataFrameBase(SpikeDataFrameAbstractBase):
         dns : DataFrame
             Downsampled data in a DataFrame
         """
-        dns = scipy.signal.decimate(self.channels.values.T, factor, n, ftype,
-                                    axis)
-        return DataFrame(dns.T, columns=self.channels.columns)
+        chn = self.channels
+        dns = scipy.signal.decimate(chn.values.T, factor, n, ftype, axis)
+        return DataFrame(dns.T, columns=chn.columns)
 
     @cached_property
     def fs(self): return self.meta.fs.unique().item()
@@ -198,9 +199,10 @@ class SpikeDataFrameBase(SpikeDataFrameAbstractBase):
 
         valsr = vals.transpose(shpsort).reshape(newshp)
 
-        us_per_sample = (1e6 / self.fs) * datetools.Micro()
-        index = date_range(self.date, periods=valsr.shape[0], freq=us_per_sample,
-                           name='time')
+        # (us / s) / (samples / s) == us
+        us_per_sample = round(1e6 / self.fs) * datetools.Micro()
+        index = date_range(self.date, periods=max(valsr.shape),
+                           freq=us_per_sample, name='time')
         return DataFrame(valsr, columns=columns, index=index)
 
     @cached_property
@@ -208,7 +210,9 @@ class SpikeDataFrameBase(SpikeDataFrameAbstractBase):
 
     @property
     def channel_indices(self):
-        return span.utils.group_indices(self.channel_group)
+        chnind = span.utils.group_indices(self.channel_group)
+        chnind.index = self.meta.timestamp.unique()
+        return chnind
 
     @property
     def all_indices(self):
@@ -314,7 +318,7 @@ class SpikeDataFrame(SpikeDataFrameBase):
         # make a datetime index of seconds
         freq = binsize * datetools.Milli()
         index = date_range(start=self.date, periods=btmp.shape[0], freq=freq,
-                           name='time')
+                           name='time', tz='US/Eastern')
 
         binned = DataFrame(btmp, index, cleared.columns, float)
 
@@ -481,16 +485,17 @@ class SpikeDataFrame(SpikeDataFrameBase):
             xc = xc.dropna(axis=1)
 
         if sortlevel is not None:
+            fmt_str = 'sortlevel {0} not in {1}'
+
             try:
                 sl = int(sortlevel)
                 nlevels = xc.columns.nlevels
-                assert 0 <= sl < nlevels, \
-                    'sortlevel {0} not in {1}'.format(sl, range(nlevels))
+                assert 0 <= sl < nlevels, fmt_str.format(sl, range(nlevels))
             except ValueError:
                 try:
                     sl = str(sortlevel)
                     names = xc.columns.names
-                    assert sl in names, "'{0}' not in {1}".format(sl, names)
+                    assert sl in names, fmt_str.format(sl, names)
                 except ValueError:
                     raise ValueError('sortlevel must be an int or a string')
 
