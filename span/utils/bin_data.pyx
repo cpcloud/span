@@ -1,8 +1,8 @@
 """
 """
 
-from numpy cimport (uint8_t as u1, ndarray, PyArray_EMPTY,
-                    NPY_ULONG, npy_intp, import_array, uint64_t as u8)
+from numpy cimport (uint8_t as u1, ndarray, PyArray_EMPTY, NPY_ULONG, npy_intp,
+                    import_array, uint64_t as u8)
 
 from cython.parallel cimport prange, parallel
 
@@ -22,10 +22,11 @@ cdef void _bin_data(u1[:, :] a, u8[:] bins, u8[:, :] out):
     bins : array_like
     out : array_like
     """
-    cdef npy_intp i, j, k, m = out.shape[0], n = out.shape[1]
+    cdef npy_intp i, j, k
+    cdef npy_intp m = out.shape[0], n = out.shape[1]
 
     with nogil, parallel():
-        for k in prange(n, schedule='guided'):
+        for k in prange(n):
             for i in xrange(m):
                 out[i, k] = 0
 
@@ -51,15 +52,13 @@ def bin_data(u1[:, :] a not None, u8[:] bins not None):
     out : array_like
         The binned data from `a`.
     """
-    cdef:
-        npy_intp dims[2]
-        ndarray[dtype=u8, ndim=2] out
+    cdef npy_intp dims[2]
 
     dims[0] = bins.shape[0] - 1
     dims[1] = a.shape[1]
 
     # ndim, size of dims, type, c if 0 else fortran order
-    out = PyArray_EMPTY(2, dims, NPY_ULONG, 0)
+    cdef ndarray[u8, ndim=2] out = PyArray_EMPTY(2, dims, NPY_ULONG, 0)
 
     _bin_data(a, bins, out)
 
