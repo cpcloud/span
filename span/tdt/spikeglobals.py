@@ -30,13 +30,21 @@ ChannelIndex = pd.MultiIndex.from_arrays((SortedIndexer.channel,
                                           SortedIndexer.side))
 
 EventTypes = pd.Series({
-    0x0: np.nan,
+    0x0: 'unknown',
     0x101: 'strobe_on',
     0x102: 'strobe_off',
     0x201: 'scaler',
     0x8101: 'stream',
     0x8201: 'snip',
     0x8801: 'mark'
-}, name='Event Types')
+}, name='TDT Event Types')
 
 DistanceMap = partial(distance_map, NShanks, ElectrodesPerShank)
+
+DataTypes = pd.Series({
+    0: np.float32,
+    1: np.int32,
+    2: np.int16,
+    3: np.int8,
+    4: np.float64
+}, name='TDT Data Types')
