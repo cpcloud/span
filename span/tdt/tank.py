@@ -3,29 +3,23 @@
 """Encapsulate TDT's Tank files.
 """
 
-from future_builtins import map, zip
+from future_builtins import zip
 
 import os
 import abc
 import re
 
 import numpy as np
-from numpy import (float32, int32, int16, int8, uint32, uint16, float64, int64,
-                   nan)
+from numpy import float32, int32, int8, uint32, uint16, float64, int64
 import pandas as pd
 from pandas import DataFrame, MultiIndex
 
-from span.tdt.spikeglobals import Indexer
+from span.tdt.spikeglobals import Indexer, EventTypes, DataTypes
 from span.tdt.spikedataframe import SpikeDataFrame
 from span.tdt._read_tev import read_tev
 
 from span.utils import name2num, thunkify, cached_property
 
-
-TYPES_TABLE = ((float32, 1, float32),
-               (int32, 1, int32),
-               (int16, 2, int16),
-               (int8, 4, int8))
 
 TsqFields = ('size', 'type', 'name', 'channel', 'sort_code', 'timestamp',
              'fp_loc', 'format', 'fs')
@@ -40,6 +34,9 @@ def nonzero_existing_file(f):
 
 def get_first_match(pattern, string):
     return re.match(pattern, string).group(1)
+
+
+fromts = np.vectorize(pd.datetime.fromtimestamp)
 
 
 def match_int(pattern, string, get_exc=False, excs=(AttributeError, ValueError,
@@ -68,7 +65,52 @@ def match_int(pattern, string, get_exc=False, excs=(AttributeError, ValueError,
     return r
 
 
-class TdtTankBase(object):
+class TdtTankAbstractBase(object):
+    __metaclass__ = abc.ABCMeta
+
+    def __init__(self):
+        super(TdtTankAbstractBase, self).__init__()
+
+    @abc.abstractmethod
+    def _read_tev(self, event_name):
+        """Read a TDT *.tev file and parse a particular set of events.
+
+        Parameters
+        ----------
+        event_name : str
+            The name of the event, must be 4 letters long
+
+        Returns
+        -------
+        d : span.tdt.SpikeDataFrame
+            An instance of span.tdt.SpikeDataFrame with a few extra methods
+            that are commonly used in spike analysis.
+        """
+        pass
+
+    @abc.abstractproperty
+    def _read_tsq(self):
+        pass
+
+    @cached_property
+    def tsq(self): return self._read_tsq()
+
+    def tev(self, event_name):
+        """Return the data from a particular event.
+
+        Parameters
+        ----------
+        event_name : str
+
+        Returns
+        -------
+        data : SpikeDataFrame
+        """
+        return self._read_tev(event_name)()
+
+
+
+class TdtTankBase(TdtTankAbstractBase):
     """Abstract base class encapsulating a TDT Tank.
 
     Parameters
@@ -89,7 +131,6 @@ class TdtTankBase(object):
 
     _read_tsq
     """
-    __metaclass__ = abc.ABCMeta
 
     fields = TsqFields
     np_types = TsqNumpyTypes
@@ -129,23 +170,6 @@ class TdtTankBase(object):
     @property
     def site(self): return self.__site
 
-    @abc.abstractmethod
-    def _read_tev(self, event_name):
-        """Read a TDT *.tev file and parse a particular set of events.
-
-        Parameters
-        ----------
-        event_name : str
-            The name of the event, must be 4 letters long
-
-        Returns
-        -------
-        d : span.tdt.SpikeDataFrame
-            An instance of span.tdt.SpikeDataFrame with a few extra methods
-            that are commonly used in spike analysis.
-        """
-        pass
-
     @property
     @thunkify
     def _read_tsq(self):
@@ -155,31 +179,34 @@ class TdtTankBase(object):
         -------
         b : pandas.DataFrame
         """
+        # create the path name
         tsq_name = self.path + os.extsep + self.header_ext
-        raw = np.fromfile(tsq_name, dtype=self.tsq_dtype)
-        b = DataFrame(raw)
-        b.channel = (b.channel - 1).astype(float64)
-        b.channel[b.channel == -1] = nan
+
+        # read in the raw data as a numpy rec array and conver to DataFrame
+        b = DataFrame(np.fromfile(tsq_name, dtype=self.tsq_dtype))
+
+        # zero based indexing
+        b.channel -= 1
+        b.channel = b.channel.astype(float64)
+
+        # -1s are invalid
+        b.channel[b.channel == -1] = np.nan
+
+        b.type = EventTypes[b.type].reset_index(drop=True)
+        b.format = DataTypes[b.format].reset_index(drop=True)
+
+        b.timestamp[b.timestamp == 0.0] = np.nan
+        b.fs[b.fs == 0.0] = np.nan
+
+        # fragile subtraction (i.e., what if TDT changes this value?)
+        b.size -= 10
+
+        # create some new indices based on the electrode array
         srt = Indexer.sort('channel').reset_index(drop=True)
         shank = srt.shank[b.channel].reset_index(drop=True)
         side = srt.side[b.channel].reset_index(drop=True)
+
         return b.join(shank).join(side)
-
-    @cached_property
-    def tsq(self): return self._read_tsq()
-
-    def tev(self, event_name):
-        """Return the data from a particular event.
-
-        Parameters
-        ----------
-        event_name : str
-
-        Returns
-        -------
-        data : SpikeDataFrame
-        """
-        return self._read_tev(event_name)()
 
     @cached_property
     def spikes(self): return self.tev('Spik')
@@ -201,8 +228,8 @@ class PandasTank(TdtTankBase):
     TdtTankBase
         Base class implementing metadata reading and properties.
     """
-    def __init__(self, tankname):
-        super(PandasTank, self).__init__(tankname)
+    def __init__(self, path):
+        super(PandasTank, self).__init__(path)
 
     @thunkify
     def _read_tev(self, event_name):
@@ -242,42 +269,31 @@ class PandasTank(TdtTankBase):
         meta.channel = meta.channel.astype(int)
         meta.shank = meta.shank.astype(int)
 
-        # fragile subtraction (i.e., what if TDT changes this value?)
-        meta.size -= 10
-
         # first row of event type
         first_row = np.argmax(row)
 
         # data type of this event
-        fmt = meta.format[first_row]
-
-        # locations of samples in the TEV file
-        fp_loc = meta.fp_loc
+        dtype = meta.format[first_row]
 
         # number of samples per chunk
-        nsamples = meta.size[first_row] * TYPES_TABLE[fmt][1]
-
-        # dtype of event type
-        raw_type = TYPES_TABLE[fmt][2]
-        dtype = np.dtype(raw_type).type
+        nsamples = meta.size[first_row] * np.dtype(dtype).itemsize / 4
 
         # raw ndarray for data
-        spikes = np.empty((fp_loc.size, nsamples), dtype=dtype)
+        spikes = np.empty((meta.fp_loc.size, nsamples), dtype)
 
         # tev filename
         tev_name = self.path + os.extsep + self.raw_ext
 
         # read in the TEV data to spikes
-        read_tev(tev_name, nsamples, fp_loc, spikes)
+        read_tev(tev_name, nsamples, meta.fp_loc, spikes)
 
-        fromts = np.vectorize(pd.datetime.fromtimestamp)
-
+        # convert timestamps to datetime objects
         meta.timestamp = fromts(meta.timestamp)
 
         # create a pandas MultiIndex with metadata
         index = MultiIndex.from_arrays((meta.channel, meta.shank, meta.side))
 
-        # create a spike data frame with a bunch of the meta data
+        # create a spike data frame
         sdf = SpikeDataFrame(spikes, meta.reset_index(drop=True), index=index,
                              dtype=dtype)
         sdf.columns.name = 'sample'
