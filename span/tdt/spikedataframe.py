@@ -202,7 +202,7 @@ class SpikeDataFrameBase(SpikeDataFrameAbstractBase):
         # (us / s) / (samples / s) == us
         us_per_sample = round(1e6 / self.fs) * datetools.Micro()
         index = date_range(self.date, periods=max(valsr.shape),
-                           freq=us_per_sample, name='time')
+                           freq=us_per_sample, name='time', tz='US/Eastern')
         return DataFrame(valsr, columns=columns, index=index)
 
     @cached_property
