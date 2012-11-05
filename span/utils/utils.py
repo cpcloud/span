@@ -5,114 +5,15 @@ from future_builtins import map, zip
 import os
 import operator
 import glob
-import itertools
+import itertools as itools
 import functools
-import numbers
 import hashlib
 
 import numpy as np
 import pandas as pd
 
-try:
-    # weird bug in latest scipy
-    from scipy.stats.mstats import trimboth
-    def trimmean(x, alpha, inclusive=(False, False), axis=None):
-        """Compute the `alpha`-trimmed mean of an array `x`.
 
-        Parameters
-        ----------
-        x : array_like
-            The array on which to operate.
-
-        alpha : float or int
-            A number between 0 and 100, left inclusive indicating the percentage of
-            values to cut from `x`.
-
-        inclusive : tuple of bools, optional
-            Whether to round (True, True) or truncate the values (False, False).
-            Defaults to truncation. Note that this is different from trimboth's
-            default.
-
-        axis : int or None, optional
-            The axis over which to operate. None flattens the array
-
-        Returns
-        -------
-        m : Series
-            The `alpha`-trimmed mean of `x` along axis `axis`.
-        """
-        assert 0 <= alpha < 100, 'alpha must be in the interval [0, 100)'
-        assert len(inclusive) == 2, 'inclusive must have only 2 elements'
-
-        if isinstance(x, (numbers.Number)) or (hasattr(x, 'size') and x.size == 1):
-            return float(x)
-
-        assert axis is None or 0 <= axis < x.ndim, \
-            'axis must be None or less than x.ndim: {0}'.format(x.ndim)
-
-        trimmed = trimboth(x, alpha / 100.0, inclusive, axis).mean(axis)
-
-        index = None
-        if isinstance(x, pd.DataFrame):
-            index = {0: x.columns, 1: x.index, None: None}[axis]
-
-        return pd.Series(trimmed, index=index)
-except ImportError:
-    def trimmean(x, alpha, inclusive=(False, False), axis=None):
-        raise NotImplementedError("Unable to import scipy.stats;" +
-                                  " cannot define trimmean")
-
-
-
-def detrend_none(x):
-    """Return the input array.
-
-    Parameters
-    ----------
-    x : array_like
-        The input array.
-
-    Returns
-    -------
-    x : array_like
-        The input array.
-    """
-    return x
-
-
-def detrend_mean(x):
-    """Subtract the mean of `x` from itself.
-
-    Parameters
-    ----------
-    x : array_like
-        The array to mean center.
-
-    Returns
-    -------
-    c : array_like
-        The mean centered `x`.
-    """
-    return x - x.mean()
-
-
-def detrend_linear(y):
-    """Linearly detrend `y`.
-
-    Parameters
-    ----------
-    y : array_like
-
-    Returns
-    -------
-    d : array_like
-    """
-    x = np.arange(len(y), dtype=float)
-    c = np.cov(x, y, bias=1.0)
-    b = c[0, 1] / c[0, 0]
-    a = y.mean() - b * x.mean()
-    return y - (b * x + a)
-
+fromtimestamp = np.vectorize(pd.datetime.fromtimestamp)
 
 try:
     from pylab import gca
@@ -199,50 +100,19 @@ def ndtuples(*dims):
         `ndtuples` is a special case of the Cartesian product
     """
     assert dims, 'no arguments given'
+
     dims = list(dims)
     n = dims.pop()
     cur = np.arange(n)[:, np.newaxis]
+
     while dims:
         d = dims.pop()
         cur = np.kron(np.ones((d, 1), int), cur)
         front = np.arange(d).repeat(n)[:, np.newaxis]
         cur = np.hstack((front, cur))
         n *= d
+
     return cur
-
-
-def cartesian(arrays, out=None, dtype=None):
-    """Cartesian product of arrays.
-
-    Parameters
-    ----------
-    arrays : tuple of array_like
-    out : array_like
-
-    Returns
-    -------
-    out : array_like
-    """
-    arrays = tuple(map(np.asanyarray, arrays))
-    dtypes = tuple(map(operator.attrgetter('dtype'), arrays))
-    all_dtypes_same = all(map(operator.eq, dtypes, itertools.repeat(dtypes[0])))
-    dtype = dtypes[0] if all_dtypes_same else np.object_
-
-    n = np.prod(tuple(map(operator.attrgetter('size'), arrays)))
-
-    if out is None:
-        out = np.empty((n, len(arrays)), dtype=dtype)
-
-    m = n / arrays[0].size
-    out[:, 0] = np.repeat(arrays[0], m)
-
-    if arrays[1:]:
-        cartesian(arrays[1:], out=out[:m, 1:])
-
-        for j in xrange(1, arrays[0].size):
-            out[j * m:(j + 1) * m, 1:] = out[:m, 1:]
-
-    return out
 
 
 def dirsize(d='.'):
@@ -267,26 +137,6 @@ def dirsize(d='.'):
         elif os.path.isdir(path):
             s += dirsize(path)
     return s
-
-
-def ndlinspace(ranges, *nelems):
-    """Create `n` linspaces between the ranges of `ranges` with `nelems`
-    elements.
-
-    Parameters
-    ----------
-    ranges : array_like
-    nelems : int, optional
-
-    Returns
-    -------
-    n_linspaces : array_like
-    """
-    x = ndtuples(*nelems) + 1.0
-    b = np.asanyarray(nelems)
-    zipped = zip(*((r[0], r[1]) for r in ranges))
-    lbounds, ubounds = map(np.fromiter, zipped, itertools.repeat(float))
-    return (lbounds + (x - 1) / (b - 1) * (ubounds - lbounds)).T
 
 
 def nans(shape):
@@ -359,7 +209,7 @@ def name2num(name, base=256):
     return (base ** np.r_[:len(name)]).dot(tuple(map(ord, name)))
 
 
-# TODO: THIS IS SO SLOW!
+# TODO: this is very slow
 def num2name(num, base=256, slen=4):
     """Inverse of `name2num`.
 
@@ -383,7 +233,7 @@ def num2name(num, base=256, slen=4):
     letters = string.ascii_letters
     x = pd.Series(dict(zip(letters, map(ord, letters))))
     base_vec = base ** np.r_[:slen]
-    xad = x[ndtuples(*itertools.repeat(len(letters), slen))] * base_vec
+    xad = x[ndtuples(*itools.repeat(len(letters), slen))] * base_vec
     w = xad[xad.sum(1) == num].squeeze() / base_vec
     return ''.join(map(chr, w))
 
@@ -403,36 +253,6 @@ def group_indices(group, dtype=int):
     inds = pd.DataFrame(group.indices)
     inds.columns = cast(inds.columns, dtype)
     return inds
-
-
-def nextpow2(n):
-    """Return the next power of 2 of a number.
-
-    Parameters
-    ----------
-    n : array_like
-
-    Returns
-    -------
-    ret : array_like
-    """
-    return np.ceil(np.log2(np.abs(np.asanyarray(n))))
-
-
-def fractional(x):
-    """Test whether an array has a fractional part.
-
-    Parameters
-    ----------
-    x : array_like
-
-    Returns
-    -------
-    ret : bool
-        Whether the elements of x have a fractional part.
-    """
-    frac, _ = np.modf(np.asanyarray(x))
-    return frac
 
 
 def pad_larger2(x, y):
@@ -481,7 +301,7 @@ def pad_larger(*arrays):
     ret : tuple
         Tuple of zero padded arrays.
     """
-    assert all(map(isinstance, arrays, itertools.repeat(np.ndarray))), \
+    assert all(map(isinstance, arrays, itools.repeat(np.ndarray))), \
     'all arguments must be instances of ndarray or implement the ndarray interface'
     if len(arrays) == 2:
         return pad_larger2(*arrays)
@@ -513,7 +333,7 @@ def iscomplex(x):
         return np.issubdtype(x.dtype, np.complexfloating)
     except AttributeError:
         cfloat = np.complexfloating
-        return any(map(np.issubdtype, x.dtypes, itertools.repeat(cfloat)))
+        return any(map(np.issubdtype, x.dtypes, itools.repeat(cfloat)))
 
 
 def hascomplex(x):
@@ -574,55 +394,6 @@ def isvector(x):
     return functools.reduce(operator.mul, x.shape) == max(x.shape)
 
 
-def compose2(f, g):
-    """Return a function that computes the composition of two functions.
-
-    Parameters
-    ----------
-    f, g : callable
-
-    Returns
-    -------
-    h : callable
-    """
-    if not all(map(callable, (f, g))):
-        raise TypeError('f and g must both be callable')
-    return lambda *args, **kwargs: f(g(*args, **kwargs))
-
-
-def compose(*args):
-    """Compose an arbitrary number of functions.
-
-    Parameters
-    ----------
-    args : tuple of callables
-
-    Returns
-    -------
-    h : callable
-        Composition of callables in `args`.
-    """
-    f = functools.partial(functools.reduce, compose2)(args)
-    f.__name__ = '({0})'.format(' . '.join(map(lambda x: x.__name__, args)))
-    return f
-
-
-def composemap(*args):
-    """Compose an arbitrary number of mapped functions.
-
-    Parameters
-    ----------
-    args : tuple of callables
-
-    Returns
-    -------
-    h : callable
-
-    """
-    maps = itertools.repeat(map, len(args))
-    return functools.reduce(compose2, map(functools.partial, maps, args))
-
-
 def roll_with_zeros(a, shift=0, axis=None):
     """
     """
@@ -661,14 +432,14 @@ def neighbors(a, i, j, n=2):
     -------
     rld_and_pd : array_like
     """
-    assert n >= 2, 'n must be greater than 2, got {n}'.format(n=n)
+    assert n >= 2, 'n must be greater than 2, got %i' % n
     dim0_roll = roll_with_zeros(a, shift=1 - i, axis=0)
     rld_and_pd = roll_with_zeros(dim0_roll, shift=1 - j, axis=1)
     return rld_and_pd[:n, :n]
 
 
 def unique_neighbors(neigh, axis=None):
-    """
+    """Get the unique neighbors of an array.
 
     Parameters
     ----------
@@ -682,34 +453,7 @@ def unique_neighbors(neigh, axis=None):
     return neigh.take(neigh.ravel().nonzero(), axis=axis).squeeze()
 
 
-def fs2ms(fs, millis):
-    """Compute the number of samples in `ms` for a sample rate of `fs`
-
-    Parameters
-    ----------
-    fs : float
-        Sampling rate
-
-    ms : float
-        The refractory period in milliseconds.
-
-    Returns
-    -------
-    win : int
-        The refractory period in samples.
-    """
-    try:
-        from quantities import Hz, ms
-    except ImportError:
-        ms = Hz = 1.0
-
-    conv = 1e3 * ms
-    millis *= ms
-    fs *= Hz
-    return np.floor(millis / conv * fs).astype(int)
-
-
-def md5string(s):
+def sha1(s):
     """Hash a string using the MD5 algorithm.
 
     Parameters
@@ -720,13 +464,11 @@ def md5string(s):
     -------
     hexdigest : str
     """
-    md5 = hashlib.md5()
-    md5.update(s)
-    return md5.hexdigest()
+    return hashlib.sha1(s).hexdigest()
 
 
-def md5int(s):
-    """Return the integer MD5 hash of a string.
+def sha1i(s):
+    """Return the integer SHA1 hash of a string.
 
     Parameters
     ----------
@@ -736,11 +478,11 @@ def md5int(s):
     -------
     hexdigest : str
     """
-    return int(md5string(s), 16)
+    return int(sha1(s), 16)
 
 
-def md5file(fn):
-    """Hash a file using MD5.
+def sha1file(fn):
+    """Hash a file using SHA1.
 
     Parameters
     ----------
@@ -751,7 +493,8 @@ def md5file(fn):
     hexdigest : str
     """
     with open(fn, 'rb') as f:
-        return md5string(f.read())
+        r = sha1(f.read())
+    return r
 
 
 def _try_convert_first(x):
@@ -794,3 +537,7 @@ def side_by_side(*args, **kwargs):
     space = kwargs.get('space', 4)
     reprs = map(lambda arg: repr(arg).split('\n'), args)
     print adjoin(space, *reprs)
+
+
+def nonzero_existing_file(f):
+    return os.path.exists(f) and os.path.isfile(f) and os.path.getsize(f) > 0
