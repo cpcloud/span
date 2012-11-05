@@ -10,15 +10,16 @@ import abc
 import re
 
 import numpy as np
-from numpy import float32, int32, int8, uint32, uint16, float64, int64
-import pandas as pd
+from numpy import float32, int32, uint32, uint16, float64, int64
+from pandas import Series
 from pandas import DataFrame, MultiIndex
 
 from span.tdt.spikeglobals import Indexer, EventTypes, DataTypes
 from span.tdt.spikedataframe import SpikeDataFrame
 from span.tdt._read_tev import read_tev
 
-from span.utils import name2num, thunkify, cached_property
+from span.utils import (name2num, thunkify, cached_property,
+                        nonzero_existing_file, fromtimestamp)
 
 
 TsqFields = ('size', 'type', 'name', 'channel', 'sort_code', 'timestamp',
@@ -28,19 +29,12 @@ TsqNumpyTypes = (int32, int32, uint32, uint16, uint16, float64, int64, int32,
                  float32)
 
 
-def nonzero_existing_file(f):
-    return os.path.exists(f) and os.path.isfile(f) and os.path.getsize(f) > 0
-
-
-def get_first_match(pattern, string):
+def _get_first_match(pattern, string):
     return re.match(pattern, string).group(1)
 
 
-fromts = np.vectorize(pd.datetime.fromtimestamp)
-
-
-def match_int(pattern, string, get_exc=False, excs=(AttributeError, ValueError,
-                                                    TypeError)):
+def _match_int(pattern, string, get_exc=False, excs=(AttributeError, ValueError,
+                                                     TypeError)):
     """Convert a string matched from a regex to an integer or return None.
 
     Parameters
@@ -55,7 +49,7 @@ def match_int(pattern, string, get_exc=False, excs=(AttributeError, ValueError,
     r : int or None or tuple of int or None and Exception
     """
     try:
-        r = int(get_first_match(pattern, string))
+        r = int(_get_first_match(pattern, string))
     except excs as e:
         r = None
 
@@ -66,6 +60,7 @@ def match_int(pattern, string, get_exc=False, excs=(AttributeError, ValueError,
 
 
 class TdtTankAbstractBase(object):
+
     __metaclass__ = abc.ABCMeta
 
     def __init__(self):
@@ -109,7 +104,6 @@ class TdtTankAbstractBase(object):
         return self._read_tev(event_name)()
 
 
-
 class TdtTankBase(TdtTankAbstractBase):
     """Abstract base class encapsulating a TDT Tank.
 
@@ -135,8 +129,9 @@ class TdtTankBase(TdtTankAbstractBase):
     fields = TsqFields
     np_types = TsqNumpyTypes
     tsq_dtype = np.dtype(list(zip(fields, np_types)))
+    types = Series(list(map(np.dtype, np_types)), index=fields)
 
-    site_re = re.compile(r'(.*s(?:ite)?(?:\s|_)*(\d+))?')
+    site_re = re.compile(r'(?:.*s(?:ite)?(?:|_)?(\d+))?')
     age_re = re.compile(r'.*[pP](\d+).*')
 
     header_ext = 'tsq'
@@ -155,8 +150,8 @@ class TdtTankBase(TdtTankAbstractBase):
 
         self.__path = path
         self.__name = os.path.basename(path)
-        self.__age = match_int(self.age_re, self.name)
-        self.__site = match_int(self.site_re, self.name)
+        self.__age = _match_int(self.age_re, self.name)
+        self.__site = _match_int(self.site_re, self.name)
 
     @property
     def path(self): return self.__path
@@ -195,8 +190,8 @@ class TdtTankBase(TdtTankAbstractBase):
         b.type = EventTypes[b.type].reset_index(drop=True)
         b.format = DataTypes[b.format].reset_index(drop=True)
 
-        b.timestamp[b.timestamp == 0.0] = np.nan
-        b.fs[b.fs == 0.0] = np.nan
+        b.timestamp[np.logical_not(b.timestamp)] = np.nan
+        b.fs[np.logical_not(b.fs)] = np.nan
 
         # fragile subtraction (i.e., what if TDT changes this value?)
         b.size -= 10
@@ -216,7 +211,7 @@ class TdtTankBase(TdtTankAbstractBase):
 
 
 class PandasTank(TdtTankBase):
-    """Implement the abstract methods from TdtTankBase.
+    """Implements the abstract methods from TdtTankBase.
 
     Parameters
     ----------
@@ -288,7 +283,7 @@ class PandasTank(TdtTankBase):
         read_tev(tev_name, nsamples, meta.fp_loc, spikes)
 
         # convert timestamps to datetime objects
-        meta.timestamp = fromts(meta.timestamp)
+        meta.timestamp = fromtimestamp(meta.timestamp)
 
         # create a pandas MultiIndex with metadata
         index = MultiIndex.from_arrays((meta.channel, meta.shank, meta.side))
