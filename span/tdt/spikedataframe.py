@@ -145,7 +145,8 @@ class SpikeDataFrameBase(SpikeDataFrameAbstractBase):
         super(SpikeDataFrameBase, self).__init__(*args, **kwargs)
 
     @property
-    def index_values(self): return span.utils.index_values(self.index)
+    def index_values(self):
+        return span.utils.index_values(self.index)
 
     def downsample(self, factor, n=None, ftype='iir', axis=-1):
         """Downsample the data by an integer factor.
@@ -167,25 +168,32 @@ class SpikeDataFrameBase(SpikeDataFrameAbstractBase):
         return DataFrame(dns.T, columns=chn.columns)
 
     @cached_property
-    def fs(self): return self.meta.fs.unique().item()
+    def fs(self):
+        return self.meta.fs.unique().item()
 
     @cached_property
-    def chunk_size(self): return self.meta.size.unique().item()
+    def chunk_size(self):
+        return self.meta.size.unique().item()
 
     @cached_property
-    def sort_code(self): return self.meta.sort_code.unique().item()
+    def sort_code(self):
+        return self.meta.sort_code.unique().item()
 
     @cached_property
-    def fmt(self): return self.meta.format.unique().item()
+    def fmt(self):
+        return self.meta.format.unique().item()
 
     @cached_property
-    def tdt_type(self): return self.meta.type.unique().item()
+    def tdt_type(self):
+        return self.meta.type.unique().item()
 
     @cached_property
-    def nchans(self): return self.meta.channel.dropna().nunique()
+    def nchans(self):
+        return self.meta.channel.dropna().nunique()
 
     @property
-    def nsamples(self): return max(self.channel_indices.shape) * self.chunk_size
+    def nsamples(self):
+        return max(self.channel_indices.shape) * self.chunk_size
 
     @property
     @thunkify
@@ -202,11 +210,12 @@ class SpikeDataFrameBase(SpikeDataFrameAbstractBase):
         # (us / s) / (samples / s) == us
         us_per_sample = round(1e6 / self.fs) * datetools.Micro()
         index = date_range(self.date, periods=max(valsr.shape),
-                           freq=us_per_sample, name='time', tz='US/Eastern')
+                           freq=us_per_sample, name='Time', tz='US/Eastern')
         return DataFrame(valsr, columns=columns, index=index)
 
     @cached_property
-    def channels(self): return self._channels()
+    def channels(self):
+        return self._channels()
 
     @property
     def channel_indices(self):
@@ -220,7 +229,8 @@ class SpikeDataFrameBase(SpikeDataFrameAbstractBase):
         return DataFrame(gb.indices)
 
     @property
-    def channel_group(self): return self.groupby(level=self.meta.channel.name)
+    def channel_group(self):
+        return self.groupby(level=self.meta.channel.name)
 
     def spike_times(self, threshed):
         joiners = [self.channels.ix[threshed[k]] for k in threshed.columns]
@@ -242,8 +252,8 @@ class SpikeDataFrameBase(SpikeDataFrameAbstractBase):
         threshes = np.asanyarray(threshes)
 
         assert threshes.size == 1 or threshes.size == self.nchans, \
-            'number of threshold values must be 1 (same for all channels) or {}'\
-            ', different threshold for each channel'
+            'number of threshold values must be 1 (same for all channels) or '\
+            '{0}, different threshold for each channel'.format(self.nchans)
 
         is_neg = np.all(threshes < 0)
 
@@ -259,8 +269,8 @@ class SpikeDataFrameBase(SpikeDataFrameAbstractBase):
 
 
 class SpikeDataFrame(SpikeDataFrameBase):
-    """Class encapsulting a Pandas DataFrame with extensions for analyzing spike
-    train data.
+    """Class encapsulting a Pandas DataFrame with extensions for analyzing
+    spike train data.
 
     Attributes
     ----------
@@ -278,7 +288,8 @@ class SpikeDataFrame(SpikeDataFrameBase):
 
     @property
     def _constructor(self):
-        return lambda *args, **kwargs: SpikeDataFrame(*args, meta=self.meta, **kwargs)
+        return lambda *args, **kwargs: SpikeDataFrame(*args, meta=self.meta,
+                                                 **kwargs)
 
     def bin(self, cleared, binsize, reject_count=100, dropna=False):
         """Bin spike data by `ms` millisecond bins.
@@ -304,11 +315,11 @@ class SpikeDataFrame(SpikeDataFrameBase):
         span.utils.bin
         """
         assert hasattr(cleared, 'values') or isinstance(cleared, np.ndarray), \
-            '"cleared" must be have the "values" attribute or be an instance of'\
-            ' numpy.ndarray'
+            '"cleared" must be have the "values" attribute or be an instance '\
+            'of numpy.ndarray'
         assert binsize > 0 and isinstance(binsize, numbers.Real), \
             '"binsize" must be a positive number'
-        assert reject_count >= 0, '"reject_count" must be a non negative integer'
+        assert reject_count >= 0, '"reject_count" must be a nonnegative integer'
 
         conv = 1e3
         bin_samples = span.utils.cast(np.floor(binsize * self.fs / conv), int)
@@ -338,7 +349,7 @@ class SpikeDataFrame(SpikeDataFrameBase):
 
         return binned
 
-    def cleared(self, threshed, ms=2):
+    def clear_refrac(self, threshed, ms=2):
         """Remove spikes from the refractory period of all channels.
 
         Parameters
@@ -399,11 +410,12 @@ class SpikeDataFrame(SpikeDataFrameBase):
             standard error of the mean of the spike counts for a given level.
         """
         group = binned.groupby(axis=axis, level=level)
-        r = group.mean().mean()
+        gm = group.mean()
+
+        r = gm.mean()
 
         if sem:
-            sqrtn = np.sqrt(binned.index.shape[0])
-            r = r, group.sum().std() / sqrtn
+            r = r, gm.apply(span.utils.math.sem)
 
         return r
 
@@ -428,14 +440,14 @@ class SpikeDataFrame(SpikeDataFrameBase):
             Method of scaling. Defaults to 'normalize'.
 
         sortlevel : str, optional
-            How to sort the index of the returned cross-correlation(s). Defaults
-            to "shank i" so the the xcorrs are ordered by their physical
-            ordering.
+            How to sort the index of the returned cross-correlation(s).
+            Defaults to "shank i" so the the xcorrs are ordered by their
+            physical ordering.
 
         dropna : bool, optional
             If True this will drop all channels whose cross correlation is NaN.
-            Cross-correlations will be NaN if any of the columns of `binned` are
-            NaN.
+            Cross-correlations will be NaN if any of the columns of `binned`
+            are NaN.
 
         nan_auto : bool, optional
             If True then the autocorrelation values will be NaN. Defaults to
@@ -467,7 +479,8 @@ class SpikeDataFrame(SpikeDataFrameBase):
         SpikeDataFrame.cleared
             Clear the refractory period of a channel.
         """
-        assert callable(detrend), 'detrend must be a callable class or function'
+        assert callable(detrend), 'detrend must be a callable class or '\
+            'function'
         assert isinstance(scale_type, basestring) or scale_type is None, \
             'scale_type must be a string or None'
 
@@ -478,7 +491,8 @@ class SpikeDataFrame(SpikeDataFrameBase):
 
         if nan_auto:
             npairs = self.nchans ** 2
-            auto_inds = np.diag(np.r_[:npairs].reshape(self.nchans, self.nchans))
+            auto_inds = np.diag(np.r_[:npairs].reshape(self.nchans,
+                                                       self.nchans))
             xc.ix[0, auto_inds] = np.nan
 
         if dropna:
