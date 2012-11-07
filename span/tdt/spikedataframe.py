@@ -105,11 +105,6 @@ class SpikeDataFrameAbstractBase(DataFrame):
         self.date = Timestamp(self.meta.timestamp[0])
 
     @abc.abstractproperty
-    def channels(self):
-        """Retrieve the data organized as a samples by channels DataFrame."""
-        pass
-
-    @abc.abstractproperty
     def fs(self):
         """The sampling rate of the event."""
         pass
@@ -144,10 +139,6 @@ class SpikeDataFrameBase(SpikeDataFrameAbstractBase):
     def __init__(self, *args, **kwargs):
         super(SpikeDataFrameBase, self).__init__(*args, **kwargs)
 
-    @property
-    def index_values(self):
-        return span.utils.index_values(self.index)
-
     def downsample(self, factor, n=None, ftype='iir', axis=-1):
         """Downsample the data by an integer factor.
 
@@ -163,9 +154,8 @@ class SpikeDataFrameBase(SpikeDataFrameAbstractBase):
         dns : DataFrame
             Downsampled data in a DataFrame
         """
-        chn = self.channels
-        dns = scipy.signal.decimate(chn.values.T, factor, n, ftype, axis)
-        return DataFrame(dns.T, columns=chn.columns)
+        dec_s = scipy.signal.decimate(self.values.T, factor, n, ftype, axis)
+        return DataFrame(dec_s.T, columns=self.columns)
 
     @cached_property
     def fs(self):
@@ -187,56 +177,13 @@ class SpikeDataFrameBase(SpikeDataFrameAbstractBase):
     def tdt_type(self):
         return self.meta.type.unique().item()
 
-    @cached_property
+    @property
     def nchans(self):
-        return self.meta.channel.dropna().nunique()
+        return min(self.shape)
 
     @property
     def nsamples(self):
-        return max(self.channel_indices.shape) * self.chunk_size
-
-    @property
-    @thunkify
-    def _channels(self):
-        from span.tdt.spikeglobals import ChannelIndex as columns
-
-        vals = self.values[self.channel_indices]
-
-        shpsort = np.argsort(vals.shape)[::-1]
-        newshp = int(vals.size / self.nchans), self.nchans
-
-        valsr = vals.transpose(shpsort).reshape(newshp)
-
-        # (us / s) / (samples / s) == us
-        us_per_sample = round(1e6 / self.fs) * datetools.Micro()
-        index = date_range(self.date, periods=max(valsr.shape),
-                           freq=us_per_sample, name='time', tz='US/Eastern')
-        return DataFrame(valsr, columns=columns, index=index)
-
-    @cached_property
-    def channels(self):
-        return self._channels()
-
-    @property
-    def channel_indices(self):
-        chnind = span.utils.group_indices(self.channel_group)
-        chnind.index = self.meta.timestamp.unique()
-        return chnind
-
-    @property
-    def all_indices(self):
-        gb = self.groupby(level=('shank', 'channel', 'side'))
-        return DataFrame(gb.indices)
-
-    @property
-    def channel_group(self):
-        return self.groupby(level=self.meta.channel.name)
-
-    def spike_times(self, threshed):
-        joiners = [self.channels.ix[threshed[k]] for k in threshed.columns]
-        concated = pd.concat(joiners)
-        concated.drop_duplicates(inplace=True)
-        return Series(concated.index)
+        return max(self.shape)
 
     def threshold(self, threshes):
         """Threshold spikes.
@@ -258,12 +205,11 @@ class SpikeDataFrameBase(SpikeDataFrameAbstractBase):
         is_neg = np.all(threshes < 0)
 
         if threshes.size == self.nchans:
-            threshes = Series(threshes, index=self.channels.columns)
-            chn = self.channels
-            f = functools.partial(chn.lt if is_neg else chn.gt, axis='columns')
+            threshes = Series(threshes, index=self.columns)
+            f = functools.partial(self.lt if is_neg else self.gt, axis=1)
         else:
             cmpf = operator.lt if is_neg else operator.gt
-            f = functools.partial(cmpf, self.channels)
+            f = functools.partial(cmpf, self)
 
         return f(threshes)
 
@@ -290,6 +236,17 @@ class SpikeDataFrame(SpikeDataFrameBase):
     def _constructor(self):
         return lambda *args, **kwargs: SpikeDataFrame(*args, meta=self.meta,
                                                  **kwargs)
+
+    def channel(self, i):
+        return self.ix[:, i]
+
+    def shank(self, i):
+        assert isinstance(i, numbers.Integral), '"i" must be an integer'
+        return self.select(lambda x: x[1] == i, axis=1)
+
+    def side(self, side):
+        assert isinstance(side, basestring), '"side" must be a string'
+        return self.select(lambda x: x[-1] == side, axis=1)
 
     def bin(self, cleared, binsize, reject_count=100, dropna=False):
         """Bin spike data by `ms` millisecond bins.
@@ -514,6 +471,8 @@ class SpikeDataFrame(SpikeDataFrameBase):
                     raise ValueError('sortlevel must be an int or a string')
 
             xc = xc.sortlevel(level=sl, axis=1)
+
+        xc.index.name = r'\gamma'
 
         return xc
 
