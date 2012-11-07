@@ -4,7 +4,7 @@ from future_builtins import map, zip
 
 from operator import attrgetter
 
-from numpy import asanyarray, sign, repeat, arange, ones
+from numpy import array, sign, repeat, arange, ones
 from pandas import Series, DataFrame,  MultiIndex
 
 from span.utils import ndtuples, fractional
@@ -37,7 +37,7 @@ def distance_map(nshanks, electrodes_per_shank, within_shank, between_shank,
     assert electrodes_per_shank >= 1 and not fractional(electrodes_per_shank), \
         'must have at least one electrode per shank'
     locs = ndtuples(electrodes_per_shank, nshanks)
-    w = asanyarray((between_shank, within_shank), dtype=float)
+    w = array((between_shank, within_shank), dtype=float)
     return squareform(pdist(locs, metric=metric, p=p, w=w))
 
 
