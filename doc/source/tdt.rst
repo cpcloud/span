@@ -11,7 +11,7 @@ TSQ Event Headers
 The TSQ file is fundamentally a C ``struct`` making it almost trivial
 to work with in ``numpy`` using compound ``dtype`` descriptors.
 
-According to Jaewon at :link:`jaewon.mine.nu` the C struct is
+According to `Jaewon Hwang <http://jaewon.mine.nu/jaewon/2010/10/04/how-to-import-tdt-tank-into-matlab/>`_, the C struct is
 
 .. code-block:: c
 
@@ -56,23 +56,80 @@ to define the C ``struct`` above is to use the ``typedef`` s in
 The reason why ``long`` is 32-bit is because these data were recorded on a machine
 running Windows XP which has ``INT_MAX`` as :math:`2^{31} - 1`.
 
-After this the data are thrown into a ``DataFrame`` for easier processing.
+After this the data are thrown into a ``DataFrame`` for easier
+processing. See `pandas <http://pandas.pydata.org>`_ for more details
+on ``DataFrame``.
+
 
 Reading in the Raw Data
 -----------------------
 Now that we've got the header data we can get what we're really
 interested in: raw voltage traces.
 
-To do this, we really only two of
+To do this, we really only need two of the attributes of ``tsq``:
+``fp_loc`` and ``chan``.
 
-Exported Classes
-----------------
+The ``fp_loc`` attribute provides an array of integers with the
+location of a chunk of data in the TEV file. So if we were to loop
+through ``fp_loc`` we can read each chunk of data into a NumPy array.
+This exactly what is done in the code.
 
-.. autoclass:: span.tdt.TdtTankAbstractBase
+Here is the inner loop that does the work of reading in the raw data
+from the TEV file.
+
+.. literalinclude:: ../../span/tdt/read_tev.pyx
+   :language: cython
+   :linenos:
+   :lines: 53,55,58,61-62
+
+
+You can see here that this part of the ``read_tev`` function is
+skipping to the point in the file where the next chunk lies and
+placing it in the array ``spikes``.
+
+As usual the best way to understand what's going on is to `read the
+source`!
+
+-------------------
+Organizing the Data
+-------------------
+Whew! Reading in these data are tricky.
+
+Now we have a dataset. However it's not properly arranged, meaning
+the dimensions are not those that make sense from the point of
+analysis.
+
+I'm not exactly sure how this works, but TDT stores their data in
+chunks and that chunk size is usually a power of 2.
+
+The number of chunks depends on the length of the recording and is the
+number of rows in the TSQ array. So, ``tsq.shape[0]`` equals the
+number of chunks in the recording.
+
+Now, each chunk has a few properties, which you can explore on your
+own if you're interested. For now, we'll only concern ourselves with
+the ``channel`` (``chan`` in the C ``struct``) column.
+
+The ``channel`` column gives each chunk a ... you guessed it ...
+channel, and thus provides a way to map sample chunks to channels.
+
+Let :math:`n` be the number of samples, :math:`m` be the number of
+chunks, :math:`k` be the number of channels,
+:math:`c\in\left\{1,\ldots,n/k\right\}` be the number of times a
+particular channel has been seen.
+
+
+-----------------
+``span.tdt.tank``
+-----------------
+
+.. automodule:: span.tdt.tank
    :members:
 
-.. autoclass:: span.tdt.TdtTankBase
-   :members:
 
-.. autoclass:: span.tdt.PandasTank
+---------------------------
+``span.tdt.spikedataframe``
+---------------------------
+
+.. automodule:: span.tdt.spikedataframe
    :members:
