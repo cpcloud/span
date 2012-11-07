@@ -1,5 +1,3 @@
-import os
-
 from numpy cimport float32_t as f4, npy_intp
 
 from libc.stdio cimport fopen, fclose, fread, fseek, SEEK_SET, FILE
