@@ -11,8 +11,7 @@ import re
 
 import numpy as np
 from numpy import float32, int32, uint32, uint16, float64, int64
-from pandas import Series
-from pandas import DataFrame, MultiIndex
+from pandas import Series, DataFrame, MultiIndex, date_range, datetools
 
 from span.tdt.spikeglobals import Indexer, EventTypes, DataTypes
 from span.tdt.spikedataframe import SpikeDataFrame
@@ -30,7 +29,23 @@ TsqNumpyTypes = (int32, int32, uint32, uint16, uint16, float64, int64, int32,
 
 
 def _get_first_match(pattern, string):
-    return re.match(pattern, string).group(1)
+    """Helper function for getting the first match of a pattern within a
+    string.
+
+    Parameters
+    ----------
+    pattern, string : str
+
+    Returns
+    -------
+    rgrp1 : str
+    """
+    try:
+        r = pattern.match(string)
+    except AttributeError:
+        r = re.match(pattern, string)
+
+    return r.group(1)
 
 
 def _match_int(pattern, string, get_exc=False, excs=(AttributeError, ValueError,
@@ -41,8 +56,9 @@ def _match_int(pattern, string, get_exc=False, excs=(AttributeError, ValueError,
     ----------
     pattern : str or compiled regex
     string : str
-    get_exc : bool, optional
-    excs : Exception, optional
+    get_exc : bool, optional, default False
+    excs : tuple of Exceptions, optional, default (AttributeError, ValueError,
+                                                     TypeError)
 
     Returns
     -------
@@ -60,6 +76,13 @@ def _match_int(pattern, string, get_exc=False, excs=(AttributeError, ValueError,
 
 
 class TdtTankAbstractBase(object):
+    """Interface to tank reading methods.
+
+    Attributes
+    ----------
+    _read_tsq
+    tsq
+    """
 
     __metaclass__ = abc.ABCMeta
 
@@ -105,7 +128,7 @@ class TdtTankAbstractBase(object):
 
 
 class TdtTankBase(TdtTankAbstractBase):
-    """Abstract base class encapsulating a TDT Tank.
+    """Base class encapsulating methods for reading a TDT Tank.
 
     Parameters
     ----------
@@ -122,8 +145,6 @@ class TdtTankBase(TdtTankAbstractBase):
 
     header_ext
     raw_ext
-
-    _read_tsq
     """
 
     fields = TsqFields
@@ -285,11 +306,27 @@ class PandasTank(TdtTankBase):
         # convert timestamps to datetime objects
         meta.timestamp = fromtimestamp(meta.timestamp)
 
-        # create a pandas MultiIndex with metadata
-        index = MultiIndex.from_arrays((meta.channel, meta.shank, meta.side))
+        # create the channel groups
 
-        # create a spike data frame
-        sdf = SpikeDataFrame(spikes, meta.reset_index(drop=True), index=index,
-                             dtype=dtype)
-        sdf.columns.name = 'sample'
-        return sdf
+        meta = meta.reset_index(drop=True)
+        groups = DataFrame(meta.groupby('channel').groups).values
+
+        sdf = _reshape_spikes(spikes, groups, meta, meta.fs.unique().item(),
+                              meta.channel.dropna().nunique(),
+                              meta.timestamp[0])
+        return sdf()
+
+
+@thunkify
+def _reshape_spikes(raw, groups, meta, fs, nchans, date):
+    from span.tdt.spikeglobals import ChannelIndex as columns
+
+    vals = raw[groups]
+    shpsort = np.argsort(vals.shape)[::-1]
+    newshp = int(vals.size / nchans), nchans
+    valsr = vals.transpose(shpsort).reshape(newshp)
+
+    us_per_sample = round(1e6 / fs) * datetools.Micro()
+    index = date_range(date, periods=max(valsr.shape), freq=us_per_sample,
+                       name='time', tz='US/Eastern')
+    return SpikeDataFrame(valsr, meta, index=index, columns=columns)
