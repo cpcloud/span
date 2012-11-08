@@ -173,7 +173,7 @@ class ElectrodeMap(DataFrame):
         for _ in xrange(nnames - 1):
             s = s.stack(0)
 
-        s.name = r'$d\left(i, j\right)$'
+        s.name = r'$d\left(i, j\right0)$'
 
         return s.reorder_levels(reordering)
 
