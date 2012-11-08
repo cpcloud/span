@@ -11,11 +11,11 @@ import pandas as pd
 
 from span.utils import (detrend_mean, get_fft_funcs, isvector, nextpow2,
                         pad_larger)
-                
+
 from span.xcorr._mult_mat_xcorr import mult_mat_xcorr
 
 
-def autocorr(x, nfft):
+def _autocorr(x, nfft):
     """Compute the autocorrelation of `x` using a FFT.
 
     Parameters
@@ -37,7 +37,7 @@ def autocorr(x, nfft):
     return ifft(a, nfft)
 
 
-def crosscorr(x, y, nfft):
+def _crosscorr(x, y, nfft):
     """Compute the cross correlation of `x` and `y` using a FFT.
 
     Parameters
@@ -57,7 +57,7 @@ def crosscorr(x, y, nfft):
     return ifft(fft(x, nfft) * fft(y, nfft).conj(), nfft)
 
 
-def matrixcorr(x, nfft):
+def _matrixcorr(x, nfft):
     """Cross-correlation of the columns of a matrix.
 
     Parameters
@@ -85,7 +85,7 @@ def matrixcorr(x, nfft):
     return ifft(c, nfft).T
 
 
-def unbiased(c, lsize):
+def _unbiased(c, lsize):
     """Compute the unbiased estimate of `c`.
 
     This function returns `c` scaled by number of data points available at
@@ -110,7 +110,7 @@ def unbiased(c, lsize):
     return type(c)(c.values / denom, index=c.index)
 
 
-def biased(c, lsize):
+def _biased(c, lsize):
     """Compute the biased estimate of `c`.
 
     Parameters
@@ -130,7 +130,7 @@ def biased(c, lsize):
     return c / lsize
 
 
-def normalize(c, lsize):
+def _normalize(c, lsize):
     """Normalize `c` by the lag 0 cross correlation
 
     Parameters
@@ -167,9 +167,9 @@ def normalize(c, lsize):
 SCALE_FUNCTIONS = {
     None: lambda c, lsize: c,
     'none': lambda c, lsize: c,
-    'unbiased': unbiased,
-    'biased': biased,
-    'normalize': normalize
+    'unbiased': _unbiased,
+    'biased': _biased,
+    'normalize': _normalize
 }
 
 
@@ -230,16 +230,16 @@ def xcorr(x, y=None, maxlags=None, detrend=detrend_mean, scale_type='normalize')
         assert y is None, 'y argument not allowed when x is a 2D array'
         lsize = x.shape[0]
         inputs = x,
-        corrfunc = matrixcorr
+        corrfunc = _matrixcorr
     elif y is None or y is x or np.array_equal(x, y):
         assert isvector(x), 'x must be 1D'
         lsize = max(x.shape)
         inputs = x,
-        corrfunc = autocorr
+        corrfunc = _autocorr
     else:
         x, y, lsize = pad_larger(x, detrend(y))
         inputs = x, y
-        corrfunc = crosscorr
+        corrfunc = _crosscorr
 
     ctmp = corrfunc(*inputs, nfft=int(2 ** nextpow2(2 * lsize - 1)))
 
