@@ -472,7 +472,7 @@ class SpikeDataFrame(SpikeDataFrameBase):
 
             xc = xc.sortlevel(level=sl, axis=1)
 
-        xc.index.name = r'\gamma'
+        xc.index.name = r'$\ell$'
 
         return xc
 
