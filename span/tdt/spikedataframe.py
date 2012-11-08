@@ -1,30 +1,6 @@
 #!/usr/bin/env python
 
 """
-Summary
--------
-
-
-Extended Summary
-----------------
-
-
-Routine Listing
----------------
-
-
-See Also
---------
-
-
-Notes
------
-
-
-References
-----------
-
-
 Examples
 --------
 
