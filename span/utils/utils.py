@@ -2,6 +2,7 @@
 
 from future_builtins import map, zip
 
+import gc
 import os
 import operator
 import glob

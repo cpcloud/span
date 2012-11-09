@@ -6,9 +6,7 @@ Examples
 
 """
 
-import gc
 import numbers
-import collections
 import functools
 import abc
 import operator
