@@ -1,6 +1,8 @@
 #!/usr/bin/env python
 
-"""Encapsulate TDT's Tank files.
+"""
+Examples
+--------
 """
 
 from future_builtins import zip
@@ -10,22 +12,22 @@ import abc
 import re
 
 import numpy as np
-from numpy import float32, int32, uint32, uint16, float64, int64
-from pandas import Series, DataFrame, MultiIndex, date_range, datetools
+from numpy import (float32 as f4, int32 as i4, uint32 as u4, uint16 as u2,
+                   float64 as f8, int64 as i8)
+from pandas import Series, DataFrame, date_range, datetools
 
 from span.tdt.spikeglobals import Indexer, EventTypes, DataTypes
 from span.tdt.spikedataframe import SpikeDataFrame
 from span.tdt._read_tev import read_tev
 
-from span.utils import (name2num, thunkify, cached_property,
-                        nonzero_existing_file, fromtimestamp)
+from span.utils import (name2num, thunkify, cached_property, fromtimestamp,
+                        nonzero_existing_file)
 
 
 TsqFields = ('size', 'type', 'name', 'channel', 'sort_code', 'timestamp',
              'fp_loc', 'format', 'fs')
 
-TsqNumpyTypes = (int32, int32, uint32, uint16, uint16, float64, int64, int32,
-                 float32)
+TsqNumpyTypes = i4, i4, u4, u2, u2, f8, i8, i4, f4
 
 
 def _get_first_match(pattern, string):
@@ -80,7 +82,6 @@ class TdtTankAbstractBase(object):
 
     Attributes
     ----------
-    _read_tsq
     tsq
     """
 
@@ -91,19 +92,6 @@ class TdtTankAbstractBase(object):
 
     @abc.abstractmethod
     def _read_tev(self, event_name):
-        """Read a TDT *.tev file and parse a particular set of events.
-
-        Parameters
-        ----------
-        event_name : str
-            The name of the event, must be 4 letters long
-
-        Returns
-        -------
-        d : span.tdt.SpikeDataFrame
-            An instance of span.tdt.SpikeDataFrame with a few extra methods
-            that are commonly used in spike analysis.
-        """
         pass
 
     @abc.abstractproperty
@@ -119,10 +107,12 @@ class TdtTankAbstractBase(object):
         Parameters
         ----------
         event_name : str
+            The name of the event whose data you'd like to retrieve.
 
         Returns
         -------
-        data : SpikeDataFrame
+        tev : SpikeDataFrame
+            The raw data from the TEV file
         """
         return self._read_tev(event_name)()
 
@@ -132,7 +122,8 @@ class TdtTankBase(TdtTankAbstractBase):
 
     Parameters
     ----------
-    tankname : str
+    path : str
+        The path to the tank file sans extension.
 
     Attributes
     ----------
@@ -145,6 +136,11 @@ class TdtTankBase(TdtTankAbstractBase):
 
     header_ext
     raw_ext
+
+    path
+    name
+    age
+    site
     """
 
     fields = TsqFields
@@ -169,31 +165,20 @@ class TdtTankBase(TdtTankAbstractBase):
         assert nonzero_existing_file(tank_with_ext + self.header_ext), \
             '{0} does not exist'.format(tank_with_ext + self.header_ext)
 
-        self.__path = path
-        self.__name = os.path.basename(path)
-        self.__age = _match_int(self.age_re, self.name)
-        self.__site = _match_int(self.site_re, self.name)
-
-    @property
-    def path(self): return self.__path
-
-    @property
-    def name(self): return self.__name
-
-    @property
-    def age(self): return self.__age
-
-    @property
-    def site(self): return self.__site
+        self.path = path
+        self.name = os.path.basename(path)
+        self.age = _match_int(self.age_re, self.name)
+        self.site = _match_int(self.site_re, self.name)
 
     @property
     @thunkify
     def _read_tsq(self):
-        """Read the meta data file of a TDT Tank.
+        """Read the metadata (TSQ) file of a TDT Tank.
 
         Returns
         -------
         b : pandas.DataFrame
+            Recording metadata
         """
         # create the path name
         tsq_name = self.path + os.extsep + self.header_ext
@@ -203,7 +188,7 @@ class TdtTankBase(TdtTankAbstractBase):
 
         # zero based indexing
         b.channel -= 1
-        b.channel = b.channel.astype(float64)
+        b.channel = b.channel.astype(f8)
 
         # -1s are invalid
         b.channel[b.channel == -1] = np.nan
@@ -236,13 +221,13 @@ class PandasTank(TdtTankBase):
 
     Parameters
     ----------
-    tankname : str
-        Name of the tank files without the tsq or tev extension.
+    path : str
+        Name of the tank files sans extension.
 
     See Also
     --------
     TdtTankBase
-        Base class implementing metadata reading and properties.
+        Base class implementing TSQ reading.
     """
     def __init__(self, path):
         super(PandasTank, self).__init__(path)
@@ -311,6 +296,7 @@ class PandasTank(TdtTankBase):
         meta = meta.reset_index(drop=True)
         groups = DataFrame(meta.groupby('channel').groups).values
 
+        # create a thunk to start this computation
         sdf = _reshape_spikes(spikes, groups, meta, meta.fs.unique().item(),
                               meta.channel.dropna().nunique(),
                               meta.timestamp[0])
@@ -318,10 +304,26 @@ class PandasTank(TdtTankBase):
 
 
 @thunkify
-def _reshape_spikes(raw, groups, meta, fs, nchans, date):
+def _reshape_spikes(raw, group_indices, meta, fs, nchans, date):
+    """Reshape the spikes to a :math:`m\times n` ``SpikeDataFrame`` where
+    :math:`m` is the number of samples and :math:`n` is the number of channels.
+
+    Parameters
+    ----------
+    raw : array_like
+    group_indices : array_like
+    meta : DataFrame
+    fs : float
+    nchans : int
+    date : datetime
+
+    Returns
+    -------
+    reshaped_spikes : SpikeDataFrame
+    """
     from span.tdt.spikeglobals import ChannelIndex as columns
 
-    vals = raw[groups]
+    vals = raw[group_indices]
     shpsort = np.argsort(vals.shape)[::-1]
     newshp = int(vals.size / nchans), nchans
     valsr = vals.transpose(shpsort).reshape(newshp)
