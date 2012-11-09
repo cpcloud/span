@@ -130,7 +130,16 @@ def detrend_linear(y):
 
 
 def cartesian(arrays, out=None, dtype=None):
-    """Cartesian product of arrays.
+    """Returns the Cartesian product of arrays.
+
+    The Cartesian product is defined as
+    .. math::
+       A_{1} \times \cdots \times A_{n} =
+       \left\{\left(a_{1},\ldots,a_{n}\right) : a_{1} \in A_{1}\textrm{ and }
+       \cdots \textrm{ and }a_{n} \in A_{n}\right\}
+
+    This function works on arbitrary objects arrays and attempts to coerce the
+    entire array to a single non-object dtype if possible.
 
     Parameters
     ----------
@@ -144,7 +153,7 @@ def cartesian(arrays, out=None, dtype=None):
     arrays = tuple(map(np.asanyarray, arrays))
     dtypes = tuple(map(operator.attrgetter('dtype'), arrays))
     all_dtypes_same = all(map(operator.eq, dtypes, itools.repeat(dtypes[0])))
-    dtype = dtypes[0] if all_dtypes_same else np.object_
+    dtype = dtypes[0] if all_dtypes_same else object
 
     n = np.prod(tuple(map(operator.attrgetter('size'), arrays)))
 
@@ -256,7 +265,6 @@ def composemap(*args):
     Returns
     -------
     h : callable
-
     """
     maps = itools.repeat(map, len(args))
     return fntools.reduce(compose2, map(fntools.partial, maps, args))
@@ -275,7 +283,7 @@ def ndlinspace(ranges, *nelems):
     -------
     n_linspaces : array_like
     """
-    x = ndtuples(*nelems) + 1.0
+    x = span.utils.ndtuples(*nelems) + 1.0
     b = np.asanyarray(nelems)
     zipped = zip(*((r[0], r[1]) for r in ranges))
     lbounds, ubounds = map(np.fromiter, zipped, itools.repeat(float))
