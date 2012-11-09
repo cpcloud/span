@@ -12,23 +12,6 @@ cimport cython
 @cython.wraparound(False)
 cdef void _read_tev(char* filename, i8 nsamples, i8[:] fp_locs,
                     f4[:, :] spikes) nogil:
-    """Read a TDT tev file in. Slightly faster than the pure Python version.
-
-    Parameters
-    ----------
-    filename : char *
-        Name of the TDT file to load.
-
-    nsamples : i8
-        The number of samples per chunk of data.
-
-    fp_locs : i8[:]
-        The array of locations of each chunk in the TEV file.
-
-    spikes : f4[:, :]
-        Output array
-    """
-
     cdef:
         i8 i, j, n = fp_locs.shape[0], f4_bytes = sizeof(f4)
 
@@ -77,6 +60,22 @@ cdef void _read_tev(char* filename, i8 nsamples, i8[:] fp_locs,
 @cython.boundscheck(False)
 def read_tev(char* filename, i8 nsamples, i8[:] fp_locs not None,
              f4[:, :] spikes not None):
+    """Read a TDT tev file in. Slightly faster than the pure Python version.
+
+    Parameters
+    ----------
+    filename : char *
+        Name of the TDT file to load.
+
+    nsamples : i8
+        The number of samples per chunk of data.
+
+    fp_locs : i8[:]
+        The array of locations of each chunk in the TEV file.
+
+    spikes : f4[:, :]
+        Output array
+    """
     assert filename is not NULL, 'filename (1st argument) cannot be empty'
     assert nsamples > 0, '"nsamples" must be greater than 0'
     _read_tev(filename, nsamples, fp_locs, spikes)
