@@ -559,3 +559,6 @@ def side_by_side(*args, **kwargs):
 
 def nonzero_existing_file(f):
     return os.path.exists(f) and os.path.isfile(f) and os.path.getsize(f) > 0
+
+def assert_nonzero_existing_file(f):
+    assert nonzero_existing_file(f), '%s does not exist' % f

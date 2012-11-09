@@ -21,7 +21,7 @@ from span.tdt.spikedataframe import SpikeDataFrame
 from span.tdt._read_tev import read_tev
 
 from span.utils import (name2num, thunkify, cached_property, fromtimestamp,
-                        nonzero_existing_file)
+                        assert_nonzero_existing_file)
 
 
 TsqFields = ('size', 'type', 'name', 'channel', 'sort_code', 'timestamp',
@@ -201,12 +201,11 @@ class TdtTankBase(TdtTankAbstractBase):
         super(TdtTankBase, self).__init__()
 
         tank_with_ext = path + os.extsep
+        tev_path = tank_with_ext + self.raw_ext
+        tsq_path = tank_with_ext + self.header_ext
 
-        assert nonzero_existing_file(tank_with_ext + self.raw_ext), \
-            '{0} does not exist'.format(tank_with_ext + self.raw_ext)
-
-        assert nonzero_existing_file(tank_with_ext + self.header_ext), \
-            '{0} does not exist'.format(tank_with_ext + self.header_ext)
+        assert_nonzero_existing_file(tev_path)
+        assert_nonzero_existing_file(tsq_path)
 
         self.path = path
         self.name = os.path.basename(path)
