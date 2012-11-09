@@ -133,11 +133,14 @@ def cartesian(arrays, out=None, dtype=None):
     r"""Returns the Cartesian product of arrays.
 
     The Cartesian product is defined as
-    .. math::
-       A_{1} \times \cdots \times A_{n} =
-       \left\{\left(a_{1},\ldots,a_{n}\right) : a_{1} \in A_{1}\textrm{ and }
-       \cdots \textrm{ and }a_{n} \in A_{n}\right\}
 
+.. math::
+     A_{1} \times \cdots \times A_{n} =
+     \left\{\left(a_{1},\ldots,a_{n}\right) : a_{1} \in A_{1}\textrm{ and }
+     \cdots \textrm{ and }a_{n} \in A_{n}\right\}
+
+    Notes
+    -----
     This function works on arbitrary objects arrays and attempts to coerce the
     entire array to a single non-object dtype if possible.
 
