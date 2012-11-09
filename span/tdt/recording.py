@@ -23,11 +23,19 @@ def distance_map(nshanks, electrodes_per_shank, within_shank, between_shank,
 
     between_shank, within_shank : float
 
-    metric : str, optional
+    metric : str or callable, optional
         The distance measure to use to compute the distance between electrodes.
 
     p : number, optional
-        See scipy.spatial.distance for more details here.
+        See ``scipy.spatial.distance`` for more details.
+
+    Raises
+    ------
+    AssertionError
+        If `nshanks` < 1 or `nshanks` is not an instance of numbers.Integral or
+        if neither of those same conditions holds for `electrodes_per_shank` or
+        if `metric` is not a string or callable or if `p` is not an instance of
+        ``numbers.Real`` and <= 0
 
     Returns
     -------
@@ -40,6 +48,10 @@ def distance_map(nshanks, electrodes_per_shank, within_shank, between_shank,
         'must have at least one electrode per shank'
     assert isinstance(electrodes_per_shank, numbers.Integral), \
         '"electrodes_per_shank" must be an integer'
+    assert isinstance(metric, basestring) or callable(metric), \
+        '"metric" must be a string or callable'
+    assert isinstance(p, numbers.Real) and p > 0, \
+        '"p" must be a positive real number'
 
     locs = ndtuples(electrodes_per_shank, nshanks)
     w = asanyarray((between_shank, within_shank), dtype=float)
@@ -53,7 +65,7 @@ class ElectrodeMap(DataFrame):
     Parameters
     ----------
     map_ : array_like
-        The electrode configuration.
+        The electrode configuration. Can have an arbitrary integer base.
 
     order : None or str, optional
         If there is a topography to the are that was recorded from, indicate here
@@ -69,7 +81,7 @@ class ElectrodeMap(DataFrame):
         Number of shanks.
 
     nchans : int
-        Total number of channels.
+        Number of channels.
     """
     def __init__(self, map_, order=None, base_index=0):
         map_ = asanyarray(map_).squeeze()
@@ -112,18 +124,26 @@ class ElectrodeMap(DataFrame):
     def distance_map(self, within, between, metric='wminkowski', p=2.0):
         """Create a distance map from the current electrode configuration.
 
+        This method performs some type checking on its arguments.
+
         Parameters
         ----------
         within, between : number
-            `between_shank` is the distance between shanks and `within_shank` is
-            the distance between electrodes on any given shank.
+            `between` is the distance between shanks and `within` is the
+            distance between electrodes on any given shank.
 
-        metric : str, optional
+        metric : str or callable, optional
             Metric to use to calculate the distance between electrodes/shanks.
 
-        p : number, optional
-            The $p$ of the norm to use. Defaults to 2 for weighted Euclidean
-            distance.
+        p : numbers.Real, optional
+            The :math:`p` of the norm to use. Defaults to 2 for weighted
+            Euclidean distance.
+
+        Raises
+        ------
+        AssertionError
+            If either `within`, `between` or `p` is not an instance of
+            ``numbers.Real`` or metric is not a string or a callable
 
         Returns
         -------
@@ -183,10 +203,7 @@ class ElectrodeMap(DataFrame):
 
     @property
     def one_based(self):
-        """Return an electrode configuration with 1 based indexing.
-
-        This could be used for plotting.
-        """
+        """Return an electrode configuration with 1 based indexing."""
         values = self.values.copy().T
         index = Series(self.index.values + 1, name='channel')
 
