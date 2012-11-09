@@ -1,6 +1,3 @@
-"""
-"""
-
 from numpy cimport (uint8_t as u1, ndarray, PyArray_EMPTY, NPY_ULONG,
                     npy_intp as i8, import_array, uint64_t as u8)
 
@@ -14,14 +11,6 @@ import_array()
 @cython.wraparound(False)
 @cython.boundscheck(False)
 cdef void _bin_data(u1[:, :] a, u8[:] bins, u8[:, :] out) nogil:
-    """Sum the counts of spikes in `a` in each of the bins.
-
-    Parameters
-    ----------
-    a : array_like
-    bins : array_like
-    out : array_like
-    """
     cdef i8 i, j, k, m, n
 
     m = out.shape[0], n = out.shape[1]
