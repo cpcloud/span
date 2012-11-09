@@ -164,7 +164,7 @@ def _normalize(c, lsize):
     return c / cdiv
 
 
-SCALE_FUNCTIONS = {
+_SCALE_FUNCTIONS = {
     None: lambda c, lsize: c,
     'none': lambda c, lsize: c,
     'unbiased': _unbiased,
@@ -252,5 +252,5 @@ def xcorr(x, y=None, maxlags=None, detrend=detrend_mean, scale_type='normalize')
     lags = pd.Int64Index(np.r_[1 - maxlags:maxlags])
     return_type = pd.DataFrame if x.ndim == 2 else pd.Series
 
-    scale_function = SCALE_FUNCTIONS[scale_type]
+    scale_function = _SCALE_FUNCTIONS[scale_type]
     return scale_function(return_type(ctmp[lags], index=lags), lsize)
