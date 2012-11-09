@@ -136,11 +136,16 @@ def _normalize(c, lsize):
     Parameters
     ----------
     c : array_like
-        The cross correlation array
+        The cross correlation array to normalize
 
     lsize : int
         The size of the largest of the inputs to the cross correlation
-        function.
+        function
+
+    Raises
+    ------
+    AssertionError
+        If `c` is not a 1D or 2D array
 
     Returns
     -------
@@ -204,20 +209,23 @@ def xcorr(x, y=None, maxlags=None, detrend=detrend_mean, scale_type='normalize')
         The type of scaling to perform on the data
         The default of 'normalize' returns the cross correlation scaled by the
         lag 0 cross correlation i.e., the cross correlation scaled by the
-        product of the standard deviations of the signals at lag 0.
+        product of the standard deviations of the arrays at lag 0.
 
     Raises
     ------
     AssertionError
         If `y` is not None and `x` is a matrix
         If `x` is not a vector when y is None or y is x or all(x == y)
+        If `detrend` is not callable
+        If `scale_type` is not a string or ``None``
+        If `maxlags` is > `lsize`, see source for details.
 
     Returns
     -------
     c : Series or DataFrame
-        The 2 * `maxlags` - 1 length pandas.Series or the  by x.shape[1] ** 2
-        2 * `maxlags` - 1 pandas.DataFrame of all the cross correlations of the
-        columns of `x`.
+        Autocorrelation of `x` if `y` is ``None``, cross-correlation of `x` if
+        `x` is a matrix and `y` is ``None``, or the cross-correlation of `x`
+        and `y` if both `x` and `y` are vectors.
     """
     assert x.ndim in (1, 2), 'x must be a 1D or 2D array'
     assert callable(detrend), 'detrend must be a callable object'
