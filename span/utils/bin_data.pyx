@@ -1,8 +1,8 @@
 """
 """
 
-from numpy cimport (uint8_t as u1, ndarray, PyArray_EMPTY, NPY_ULONG, npy_intp,
-                    import_array, uint64_t as u8)
+from numpy cimport (uint8_t as u1, ndarray, PyArray_EMPTY, NPY_ULONG,
+                    npy_intp as i8, import_array, uint64_t as u8)
 
 from cython.parallel cimport prange, parallel
 
@@ -13,7 +13,7 @@ import_array()
 
 @cython.wraparound(False)
 @cython.boundscheck(False)
-cdef void _bin_data(u1[:, :] a, u8[:] bins, u8[:, :] out):
+cdef void _bin_data(u1[:, :] a, u8[:] bins, u8[:, :] out) nogil:
     """Sum the counts of spikes in `a` in each of the bins.
 
     Parameters
@@ -22,11 +22,12 @@ cdef void _bin_data(u1[:, :] a, u8[:] bins, u8[:, :] out):
     bins : array_like
     out : array_like
     """
-    cdef npy_intp i, j, k
-    cdef npy_intp m = out.shape[0], n = out.shape[1]
+    cdef i8 i, j, k, m, n
 
-    with nogil, parallel():
-        for k in prange(n):
+    m = out.shape[0], n = out.shape[1]
+
+    with parallel():
+        for k in prange(n, schedule='guided'):
             for i in xrange(m):
                 out[i, k] = 0
 
@@ -37,28 +38,33 @@ cdef void _bin_data(u1[:, :] a, u8[:] bins, u8[:, :] out):
 @cython.wraparound(False)
 @cython.boundscheck(False)
 def bin_data(u1[:, :] a not None, u8[:] bins not None):
-    """Wrapper around bin_data._bin_data.
+    """Bin `a` (a boolean matrix) according to `bins`.
+
+    For the :math:`k`th channel
+        For the :math:`i`th sample
+            Sum :math:`a_{jk}` where :math:`j \in` `bins`:math:`_{i},\ldots,`
+            `bins`:math:`_{i+1}`.
+
 
     Parameters
     ----------
     a, bins : array_like
-        The array whose values to count up in the bins given by bins.
-    out : array, optional
-        An optional output array. If given then it is destructively updated and
-        also returned.
+        The array whose values to count up in the bins given by `bins`.
 
     Returns
     -------
     out : array_like
         The binned data from `a`.
     """
-    cdef npy_intp dims[2]
+    cdef:
+        i8 dims[2]
+        ndarray[u8, ndim=2] out
 
     dims[0] = bins.shape[0] - 1
     dims[1] = a.shape[1]
 
     # ndim, size of dims, type, c if 0 else fortran order
-    cdef ndarray[u8, ndim=2] out = PyArray_EMPTY(2, dims, NPY_ULONG, 0)
+    out = PyArray_EMPTY(2, dims, NPY_ULONG, 0)
 
     _bin_data(a, bins, out)
 

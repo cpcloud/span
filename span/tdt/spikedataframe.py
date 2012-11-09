@@ -1,38 +1,12 @@
 #!/usr/bin/env python
 
 """
-Summary
--------
-
-
-Extended Summary
-----------------
-
-
-Routine Listing
----------------
-
-
-See Also
---------
-
-
-Notes
------
-
-
-References
-----------
-
-
 Examples
 --------
 
 """
 
-import gc
 import numbers
-import collections
 import functools
 import abc
 import operator
@@ -41,29 +15,17 @@ import numpy as np
 import scipy
 import scipy.signal
 
-import pandas as pd
 from pandas import (Series, DataFrame, MultiIndex, date_range, datetools,
                     Timestamp)
 
 import span
 from span.xcorr import xcorr
-from span.utils.decorate import cached_property, thunkify
+from span.utils.decorate import cached_property
 
 try:
     from pylab import subplots
 except RuntimeError:
     subplots = None
-
-
-def is_valid_array(a):
-    assert ((hasattr(a, 'values') and not isinstance(a, collections.Mapping))
-            or isinstance(a, np.ndarray)), \
-        '{} must be an instance of '
-
-
-def find_names(obj):
-    return [k for ref in gc.get_referrers(obj) if isinstance(ref, dict)
-            for k, v in ref.iteritems() if v is obj]
 
 
 class SpikeDataFrameAbstractBase(DataFrame):
@@ -220,31 +182,67 @@ class SpikeDataFrame(SpikeDataFrameBase):
 
     Attributes
     ----------
+    _constructor
 
     See Also
     --------
     pandas.DataFrame
-        Root class of this class
-
     span.tdt.SpikeDataFrameBase
-        Base class
     """
     def __init__(self, *args, **kwargs):
         super(SpikeDataFrame, self).__init__(*args, **kwargs)
 
-    @property
+    @cached_property
     def _constructor(self):
-        return lambda *args, **kwargs: SpikeDataFrame(*args, meta=self.meta,
-                                                 **kwargs)
+        self_t = type(self)
+        return lambda *args, **kwargs: self_t(*args, meta=self.meta, **kwargs)
 
     def channel(self, i):
+        """Return a particular channel.
+
+        Parameters
+        ----------
+        i : int
+
+        Returns
+        -------
+        ``self.ix[:, i]``: TimeSeries
+        """
         return self.ix[:, i]
 
     def shank(self, i):
+        """Return the data from a particular shank.
+
+        Parameters
+        ----------
+        i : int
+
+        Raises
+        ------
+        AssertionError
+
+        Returns
+        -------
+
+        """
         assert isinstance(i, numbers.Integral), '"i" must be an integer'
         return self.select(lambda x: x[1] == i, axis=1)
 
     def side(self, side):
+        """Return the data of a particular side.
+
+        Parameters
+        ----------
+        side : str
+
+        Raises
+        ------
+        AssertionError
+
+        Returns
+        -------
+        side_data : DataFrame
+        """
         assert isinstance(side, basestring), '"side" must be a string'
         return self.select(lambda x: x[-1] == side, axis=1)
 
@@ -262,6 +260,10 @@ class SpikeDataFrame(SpikeDataFrameBase):
         reject_count : int, optional
 
         dropna : bool, optional
+
+        Raises
+        ------
+        AssertionError
 
         Returns
         -------
@@ -351,14 +353,15 @@ class SpikeDataFrame(SpikeDataFrameBase):
             Threshold scalar array.
 
         level : str, optional
-            The level of the data set on which to run the analyses.
+            The level of the data set on which to run the analyses. Defaults
+            to "channel".
 
         axis : int, optional
-            The axis on which to look for the level, defaults to 1.
+            The axis on which to look for the level; defaults to 1.
 
         sem : bool, optional
             Whether to return the standard error of the mean along with the
-            average firing rate.
+            average firing rate; defaults to ``False``.
 
         Returns
         -------
@@ -472,12 +475,22 @@ class SpikeDataFrame(SpikeDataFrameBase):
 
             xc = xc.sortlevel(level=sl, axis=1)
 
-        xc.index.name = r'\gamma'
+        xc.index.name = r'$\ell$'
 
         return xc
 
 
 def _create_xcorr_inds(nchannels):
+    """Create a ``MultiIndex`` for `nchannels` channels.
+
+    Parameters
+    ----------
+    nchannels : int
+
+    Returns
+    -------
+    xc_inds : MultiIndex
+    """
     from span.utils import ndtuples
     from span.tdt.spikeglobals import Indexer
 

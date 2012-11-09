@@ -2,6 +2,7 @@
 
 from future_builtins import map, zip
 
+import gc
 import os
 import operator
 import glob
@@ -34,6 +35,23 @@ except RuntimeError as e:
     def remove_legend(ax=None):
         raise NotImplementedError('matplotlib not available on this ' \
                                   'system: {}'.format(e))
+
+
+def find_names(obj):
+    """Find all of the names referring to a Python object.
+
+    Parameters
+    ----------
+    obj : object
+        Any Python object, which is to say: anything.
+
+    Returns
+    -------
+    names : list
+    """
+    return [k for ref in gc.get_referrers(obj) if isinstance(ref, dict)
+            for k, v in ref.iteritems() if v is obj]
+
 
 
 def cast(a, dtype, copy=False):
@@ -541,3 +559,6 @@ def side_by_side(*args, **kwargs):
 
 def nonzero_existing_file(f):
     return os.path.exists(f) and os.path.isfile(f) and os.path.getsize(f) > 0
+
+def assert_nonzero_existing_file(f):
+    assert nonzero_existing_file(f), '%s does not exist' % f

@@ -11,11 +11,11 @@ import pandas as pd
 
 from span.utils import (detrend_mean, get_fft_funcs, isvector, nextpow2,
                         pad_larger)
-                
+
 from span.xcorr._mult_mat_xcorr import mult_mat_xcorr
 
 
-def autocorr(x, nfft):
+def _autocorr(x, nfft):
     """Compute the autocorrelation of `x` using a FFT.
 
     Parameters
@@ -37,7 +37,7 @@ def autocorr(x, nfft):
     return ifft(a, nfft)
 
 
-def crosscorr(x, y, nfft):
+def _crosscorr(x, y, nfft):
     """Compute the cross correlation of `x` and `y` using a FFT.
 
     Parameters
@@ -57,7 +57,7 @@ def crosscorr(x, y, nfft):
     return ifft(fft(x, nfft) * fft(y, nfft).conj(), nfft)
 
 
-def matrixcorr(x, nfft):
+def _matrixcorr(x, nfft):
     """Cross-correlation of the columns of a matrix.
 
     Parameters
@@ -85,7 +85,7 @@ def matrixcorr(x, nfft):
     return ifft(c, nfft).T
 
 
-def unbiased(c, lsize):
+def _unbiased(c, lsize):
     """Compute the unbiased estimate of `c`.
 
     This function returns `c` scaled by number of data points available at
@@ -110,7 +110,7 @@ def unbiased(c, lsize):
     return type(c)(c.values / denom, index=c.index)
 
 
-def biased(c, lsize):
+def _biased(c, lsize):
     """Compute the biased estimate of `c`.
 
     Parameters
@@ -130,17 +130,22 @@ def biased(c, lsize):
     return c / lsize
 
 
-def normalize(c, lsize):
+def _normalize(c, lsize):
     """Normalize `c` by the lag 0 cross correlation
 
     Parameters
     ----------
     c : array_like
-        The cross correlation array
+        The cross correlation array to normalize
 
     lsize : int
         The size of the largest of the inputs to the cross correlation
-        function.
+        function
+
+    Raises
+    ------
+    AssertionError
+        If `c` is not a 1D or 2D array
 
     Returns
     -------
@@ -164,12 +169,12 @@ def normalize(c, lsize):
     return c / cdiv
 
 
-SCALE_FUNCTIONS = {
+_SCALE_FUNCTIONS = {
     None: lambda c, lsize: c,
     'none': lambda c, lsize: c,
-    'unbiased': unbiased,
-    'biased': biased,
-    'normalize': normalize
+    'unbiased': _unbiased,
+    'biased': _biased,
+    'normalize': _normalize
 }
 
 
@@ -204,20 +209,23 @@ def xcorr(x, y=None, maxlags=None, detrend=detrend_mean, scale_type='normalize')
         The type of scaling to perform on the data
         The default of 'normalize' returns the cross correlation scaled by the
         lag 0 cross correlation i.e., the cross correlation scaled by the
-        product of the standard deviations of the signals at lag 0.
+        product of the standard deviations of the arrays at lag 0.
 
     Raises
     ------
     AssertionError
         If `y` is not None and `x` is a matrix
         If `x` is not a vector when y is None or y is x or all(x == y)
+        If `detrend` is not callable
+        If `scale_type` is not a string or ``None``
+        If `maxlags` is > `lsize`, see source for details.
 
     Returns
     -------
     c : Series or DataFrame
-        The 2 * `maxlags` - 1 length pandas.Series or the  by x.shape[1] ** 2
-        2 * `maxlags` - 1 pandas.DataFrame of all the cross correlations of the
-        columns of `x`.
+        Autocorrelation of `x` if `y` is ``None``, cross-correlation of `x` if
+        `x` is a matrix and `y` is ``None``, or the cross-correlation of `x`
+        and `y` if both `x` and `y` are vectors.
     """
     assert x.ndim in (1, 2), 'x must be a 1D or 2D array'
     assert callable(detrend), 'detrend must be a callable object'
@@ -230,16 +238,16 @@ def xcorr(x, y=None, maxlags=None, detrend=detrend_mean, scale_type='normalize')
         assert y is None, 'y argument not allowed when x is a 2D array'
         lsize = x.shape[0]
         inputs = x,
-        corrfunc = matrixcorr
+        corrfunc = _matrixcorr
     elif y is None or y is x or np.array_equal(x, y):
         assert isvector(x), 'x must be 1D'
         lsize = max(x.shape)
         inputs = x,
-        corrfunc = autocorr
+        corrfunc = _autocorr
     else:
         x, y, lsize = pad_larger(x, detrend(y))
         inputs = x, y
-        corrfunc = crosscorr
+        corrfunc = _crosscorr
 
     ctmp = corrfunc(*inputs, nfft=int(2 ** nextpow2(2 * lsize - 1)))
 
@@ -252,5 +260,5 @@ def xcorr(x, y=None, maxlags=None, detrend=detrend_mean, scale_type='normalize')
     lags = pd.Int64Index(np.r_[1 - maxlags:maxlags])
     return_type = pd.DataFrame if x.ndim == 2 else pd.Series
 
-    scale_function = SCALE_FUNCTIONS[scale_type]
+    scale_function = _SCALE_FUNCTIONS[scale_type]
     return scale_function(return_type(ctmp[lags], index=lags), lsize)
