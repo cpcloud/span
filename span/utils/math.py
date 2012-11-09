@@ -130,7 +130,7 @@ def detrend_linear(y):
 
 
 def cartesian(arrays, out=None, dtype=None):
-    """Returns the Cartesian product of arrays.
+    r"""Returns the Cartesian product of arrays.
 
     The Cartesian product is defined as
     .. math::
