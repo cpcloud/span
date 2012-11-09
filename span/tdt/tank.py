@@ -57,10 +57,18 @@ def _match_int(pattern, string, get_exc=False, excs=(AttributeError, ValueError,
     Parameters
     ----------
     pattern : str or compiled regex
+        Regular expression to use to match elements of `string`
+
     string : str
+        The string to match
+
     get_exc : bool, optional, default False
+        Whether to return the exceptions caught
+
     excs : tuple of Exceptions, optional, default (AttributeError, ValueError,
                                                      TypeError)
+        The exceptions to catch when trying to match an integer in the regular
+        expression `pattern`
 
     Returns
     -------
@@ -94,9 +102,44 @@ class TdtTankAbstractBase(object):
     def _read_tev(self, event_name):
         pass
 
-    @abc.abstractproperty
+    @property
+    @thunkify
     def _read_tsq(self):
-        pass
+        """Read the metadata (TSQ) file of a TDT Tank.
+
+        Returns
+        -------
+        b : pandas.DataFrame
+            Recording metadata
+        """
+        # create the path name
+        tsq_name = self.path + os.extsep + self.header_ext
+
+        # read in the raw data as a numpy rec array and conver to DataFrame
+        b = DataFrame(np.fromfile(tsq_name, dtype=self.tsq_dtype))
+
+        # zero based indexing
+        b.channel -= 1
+        b.channel = b.channel.astype(f8)
+
+        # -1s are invalid
+        b.channel[b.channel == -1] = np.nan
+
+        b.type = EventTypes[b.type].reset_index(drop=True)
+        b.format = DataTypes[b.format].reset_index(drop=True)
+
+        b.timestamp[np.logical_not(b.timestamp)] = np.nan
+        b.fs[np.logical_not(b.fs)] = np.nan
+
+        # fragile subtraction (i.e., what if TDT changes this value?)
+        b.size -= 10
+
+        # create some new indices based on the electrode array
+        srt = Indexer.sort('channel').reset_index(drop=True)
+        shank = srt.shank[b.channel].reset_index(drop=True)
+        side = srt.side[b.channel].reset_index(drop=True)
+
+        return b.join(shank).join(side)
 
     @cached_property
     def tsq(self): return self._read_tsq()
@@ -169,45 +212,6 @@ class TdtTankBase(TdtTankAbstractBase):
         self.name = os.path.basename(path)
         self.age = _match_int(self.age_re, self.name)
         self.site = _match_int(self.site_re, self.name)
-
-    @property
-    @thunkify
-    def _read_tsq(self):
-        """Read the metadata (TSQ) file of a TDT Tank.
-
-        Returns
-        -------
-        b : pandas.DataFrame
-            Recording metadata
-        """
-        # create the path name
-        tsq_name = self.path + os.extsep + self.header_ext
-
-        # read in the raw data as a numpy rec array and conver to DataFrame
-        b = DataFrame(np.fromfile(tsq_name, dtype=self.tsq_dtype))
-
-        # zero based indexing
-        b.channel -= 1
-        b.channel = b.channel.astype(f8)
-
-        # -1s are invalid
-        b.channel[b.channel == -1] = np.nan
-
-        b.type = EventTypes[b.type].reset_index(drop=True)
-        b.format = DataTypes[b.format].reset_index(drop=True)
-
-        b.timestamp[np.logical_not(b.timestamp)] = np.nan
-        b.fs[np.logical_not(b.fs)] = np.nan
-
-        # fragile subtraction (i.e., what if TDT changes this value?)
-        b.size -= 10
-
-        # create some new indices based on the electrode array
-        srt = Indexer.sort('channel').reset_index(drop=True)
-        shank = srt.shank[b.channel].reset_index(drop=True)
-        side = srt.side[b.channel].reset_index(drop=True)
-
-        return b.join(shank).join(side)
 
     @cached_property
     def spikes(self): return self.tev('Spik')
