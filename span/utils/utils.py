@@ -36,6 +36,23 @@ except RuntimeError as e:
                                   'system: {}'.format(e))
 
 
+def find_names(obj):
+    """Find all of the names referring to a Python object.
+
+    Parameters
+    ----------
+    obj : object
+        Any Python object, which is to say: anything.
+
+    Returns
+    -------
+    names : list
+    """
+    return [k for ref in gc.get_referrers(obj) if isinstance(ref, dict)
+            for k, v in ref.iteritems() if v is obj]
+
+
+
 def cast(a, dtype, copy=False):
     """Cast `a` to dtype `dtype`.
 
