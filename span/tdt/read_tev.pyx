@@ -1,4 +1,4 @@
-from numpy cimport float32_t as f4, npy_intp
+from numpy cimport float32_t as f4, npy_intp as i8
 
 from libc.stdio cimport fopen, fclose, fread, fseek, SEEK_SET, FILE
 from libc.stdlib cimport malloc, free
@@ -10,8 +10,8 @@ cimport cython
 
 @cython.boundscheck(False)
 @cython.wraparound(False)
-cdef void _read_tev(char* filename, npy_intp nsamples, npy_intp[:] fp_locs,
-                    f4[:, :] spikes):
+cdef void _read_tev(char* filename, i8 nsamples, i8[:] fp_locs,
+                    f4[:, :] spikes) nogil:
     """Read a TDT tev file in. Slightly faster than the pure Python version.
 
     Parameters
@@ -19,10 +19,10 @@ cdef void _read_tev(char* filename, npy_intp nsamples, npy_intp[:] fp_locs,
     filename : char *
         Name of the TDT file to load.
 
-    nsamples : npy_intp
+    nsamples : i8
         The number of samples per chunk of data.
 
-    fp_locs : npy_intp[:]
+    fp_locs : i8[:]
         The array of locations of each chunk in the TEV file.
 
     spikes : f4[:, :]
@@ -30,13 +30,13 @@ cdef void _read_tev(char* filename, npy_intp nsamples, npy_intp[:] fp_locs,
     """
 
     cdef:
-        npy_intp i, j, n = fp_locs.shape[0], f4_bytes = sizeof(f4)
+        i8 i, j, n = fp_locs.shape[0], f4_bytes = sizeof(f4)
 
         f4* chunk = NULL
 
         FILE* f = NULL
 
-    with nogil, parallel():
+    with parallel():
         chunk = <f4*> malloc(f4_bytes * nsamples)
 
         f = fopen(filename, 'rb')
@@ -75,7 +75,7 @@ cdef void _read_tev(char* filename, npy_intp nsamples, npy_intp[:] fp_locs,
 
 @cython.wraparound(False)
 @cython.boundscheck(False)
-def read_tev(char* filename, npy_intp nsamples, npy_intp[:] fp_locs not None,
+def read_tev(char* filename, i8 nsamples, i8[:] fp_locs not None,
              f4[:, :] spikes not None):
     assert filename is not NULL, 'filename (1st argument) cannot be empty'
     assert nsamples > 0, '"nsamples" must be greater than 0'
