@@ -118,8 +118,6 @@ class SpikeDataFrameBase(SpikeDataFrameAbstractBase):
     span.tdt.spikedataframe.SpikeDataFrame
     """
 
-    __metaclass__ = DocStringInheritor
-
     def __init__(self, *args, **kwargs):
         super(SpikeDataFrameBase, self).__init__(*args, **kwargs)
 
@@ -224,6 +222,9 @@ class SpikeDataFrame(SpikeDataFrameBase):
     pandas.DataFrame
     span.tdt.SpikeDataFrameBase
     """
+
+    __metaclass__ = DocStringInheritor
+
 
     def __init__(self, *args, **kwargs):
         super(SpikeDataFrame, self).__init__(*args, **kwargs)
