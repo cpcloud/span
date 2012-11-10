@@ -125,6 +125,18 @@ class TdtTankAbstractBase(object):
     def _read_tev(self, event_name):
         pass
 
+    @abc.abstractproperty
+    def path(self):
+        pass
+
+    @abc.abstractproperty
+    def header_ext(self):
+        pass
+
+    @abc.abstractproperty
+    def tsq_dtype(self):
+        pass
+
     @property
     @thunkify
     def _read_tsq(self):
