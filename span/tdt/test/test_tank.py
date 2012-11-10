@@ -43,6 +43,10 @@ class TestPandasTank(unittest.TestCase):
         tn = os.path.join(tankname, os.path.basename(tankname))
         cls.tank = PandasTank(tn)
 
+    @classmethod
+    def tearDownClass(cls):
+        del cls.tank
+
     def test__parse_date(self):
         d = self.tank._parse_date('')
         now = pd.datetime.now()
@@ -51,13 +55,9 @@ class TestPandasTank(unittest.TestCase):
         self.assertEqual(d.year, now.year + 2000)
 
         # date-like string case
-        s = self.tank.tankname
+        s = self.tank.name
         d = self.tank._parse_date(s)
         self.assertIsInstance(d, datetime.date)
-
-    def test_date(self):
-        assert hasattr(self.tank, 'date')
-        self.assertIsInstance(self.tank.date, datetime.date)
 
     def test_age(self):
         assert hasattr(self.tank, 'age')
@@ -65,7 +65,7 @@ class TestPandasTank(unittest.TestCase):
 
     def test_site(self):
         assert hasattr(self.tank, 'site')
-        assert assertIsinstance(self.tank.site, (type(None), int))
+        self.assertIsinstance(self.tank.site, (type(None), int))
 
     def test__read_tev(self):
         tev = self.tank._read_tev('Spik')()
