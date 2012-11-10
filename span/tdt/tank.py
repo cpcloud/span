@@ -23,6 +23,9 @@
 """
 Examples
 --------
+>>> import span
+>>> path = 'some/path/to/a/tank/file'
+>>> tank = span.tdt.PandasTank(path)
 """
 
 from future_builtins import zip
@@ -44,10 +47,10 @@ from span.utils import (name2num, thunkify, cached_property, fromtimestamp,
                         assert_nonzero_existing_file)
 
 
-TsqFields = ('size', 'type', 'name', 'channel', 'sort_code', 'timestamp',
+_TsqFields = ('size', 'type', 'name', 'channel', 'sort_code', 'timestamp',
              'fp_loc', 'format', 'fs')
 
-TsqNumpyTypes = i4, i4, u4, u2, u2, f8, i8, i4, f4
+_TsqNumpyTypes = i4, i4, u4, u2, u2, f8, i8, i4, f4
 
 
 def _get_first_match(pattern, string):
@@ -92,7 +95,7 @@ def _match_int(pattern, string, get_exc=False, excs=(AttributeError, ValueError,
 
     Returns
     -------
-    r : int or None or tuple of int or None and Exception
+    r : {int, None, tuple of int, tuple of None and Exception}
     """
     try:
         r = int(_get_first_match(pattern, string))
@@ -206,8 +209,8 @@ class TdtTankBase(TdtTankAbstractBase):
     site
     """
 
-    fields = TsqFields
-    np_types = TsqNumpyTypes
+    fields = _TsqFields
+    np_types = _TsqNumpyTypes
     tsq_dtype = np.dtype(list(zip(fields, np_types)))
     types = Series(list(map(np.dtype, np_types)), index=fields)
 
