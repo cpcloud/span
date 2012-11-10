@@ -110,7 +110,7 @@ class TdtTankAbstractBase(object):
 
     Attributes
     ----------
-    tsq
+    tsq (pandas.DataFrame) : Recording metadata
     """
 
     __metaclass__ = abc.ABCMeta
