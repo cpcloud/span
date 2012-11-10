@@ -1,5 +1,25 @@
 #!/usr/bin/env python
 
+# spikedataframe.py ---
+
+# Copyright (C) 2012 Phillip Cloud <phillip@phillip-LinuxBook>
+
+# Author: Phillip Cloud <phillip@phillip-LinuxBook>
+
+# This program is free software; you can redistribute it and/or
+# modify it under the terms of the GNU General Public License
+# as published by the Free Software Foundation; either version 3
+# of the License, or (at your option) any later version.
+
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+
+# You should have received a copy of the GNU General Public License
+# along with this program. If not, see <http://www.gnu.org/licenses/>.
+
+
 """
 Examples
 --------
@@ -38,15 +58,6 @@ class SpikeDataFrameAbstractBase(DataFrame):
     meta : array_like, optional
         TDT tsq file meta data. Defaults to None
 
-    args, kwargs : tuple, dict
-        Arguments to DataFrame
-
-    Attributes
-    ----------
-    channels
-    fs
-    nchans
-
     See Also
     --------
     pandas.DataFrame
@@ -54,6 +65,8 @@ class SpikeDataFrameAbstractBase(DataFrame):
 
     numpy.ndarray
         The basis for numerics in Python
+
+    span.tdt.spikedataframe.SpikeDataFrame
     """
 
     __metaclass__ = abc.ABCMeta
@@ -68,12 +81,10 @@ class SpikeDataFrameAbstractBase(DataFrame):
 
     @abc.abstractproperty
     def fs(self):
-        """The sampling rate of the event."""
         pass
 
     @abc.abstractproperty
     def nchans(self):
-        """The number of channels in the array."""
         pass
 
     @abc.abstractproperty
@@ -82,7 +93,6 @@ class SpikeDataFrameAbstractBase(DataFrame):
 
     @abc.abstractmethod
     def threshold(self, threshes):
-        """Thresholding function for spike detection."""
         pass
 
 
@@ -91,12 +101,30 @@ class SpikeDataFrameBase(SpikeDataFrameAbstractBase):
 
     Attributes
     ----------
+    fs : float
+        Sampling rate
 
-    Parameters
-    ----------
+    nchans : int
+        Number of channels
+
+    nsamples : int
+        Number of samples per channel
+
+    chunk_size : int
+        Samples per chunk
+
+    sort_code : int
+        I have no idea what the sort code is
+
+    fmt : dtype
+        The dtype of the event
+
+    tdt_type : int
+        The integer corresponding to the type of event (assigned by TDT)
 
     See Also
     --------
+    span.tdt.spikedataframe.SpikeDataFrame
     """
     def __init__(self, *args, **kwargs):
         super(SpikeDataFrameBase, self).__init__(*args, **kwargs)
@@ -106,15 +134,25 @@ class SpikeDataFrameBase(SpikeDataFrameAbstractBase):
 
         Parameters
         ----------
-        factor
-        n
-        ftype
-        axis
+        factor : int
+            Factor by which to downsample
+
+        n : int, optional
+
+        ftype : str, optional
+            Type of filter to use to downsample
+
+        axis : int, optional
+            Axis over which to downsample
 
         Returns
         -------
         dns : DataFrame
-            Downsampled data in a DataFrame
+            Downsampled data.
+
+        See Also
+        --------
+        scipy.signal.decimate
         """
         dec_s = scipy.signal.decimate(self.values.T, factor, n, ftype, axis)
         return DataFrame(dec_s.T, columns=self.columns)
@@ -154,6 +192,10 @@ class SpikeDataFrameBase(SpikeDataFrameAbstractBase):
         ----------
         threshes : array_like
 
+        Raises
+        ------
+        AssertionError
+
         Returns
         -------
         threshed : array_like
@@ -182,7 +224,6 @@ class SpikeDataFrame(SpikeDataFrameBase):
 
     Attributes
     ----------
-    _constructor
 
     See Also
     --------
