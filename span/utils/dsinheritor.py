@@ -39,4 +39,4 @@ class DocStringInheritor(type):
                         attribute.__doc__ = doc
                         break
 
-        return super().__new__(meta, name, bases, clsdict)
+        return type.__new__(meta, name, bases, clsdict)
