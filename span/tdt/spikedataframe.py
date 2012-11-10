@@ -101,26 +101,13 @@ class SpikeDataFrameBase(SpikeDataFrameAbstractBase):
 
     Attributes
     ----------
-    fs : float
-        Sampling rate
-
-    nchans : int
-        Number of channels
-
-    nsamples : int
-        Number of samples per channel
-
-    chunk_size : int
-        Samples per chunk
-
-    sort_code : int
-        I have no idea what the sort code is
-
-    fmt : dtype
-        The dtype of the event
-
-    tdt_type : int
-        The integer corresponding to the type of event (assigned by TDT)
+    fs (float) : Sampling rate
+    nchans (int) : Number of channels
+    nsamples (int) : Number of samples per channel
+    chunk_size (int) : Samples per chunk
+    sort_code (int) : I have no idea what the sort code is
+    fmt (dtype) : The dtype of the event
+    tdt_type (int) : The integer corresponding to the type of event
 
     See Also
     --------
