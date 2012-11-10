@@ -2,9 +2,9 @@
 
 # spikedataframe.py ---
 
-# Copyright (C) 2012 Phillip Cloud <phillip@phillip-LinuxBook>
+# Copyright (C) 2012 Copyright (C) 2012 Phillip Cloud <cpcloud@gmail.com>
 
-# Author: Phillip Cloud <phillip@phillip-LinuxBook>
+# Author: Phillip Cloud <cpcloud@gmail.com>
 
 # This program is free software; you can redistribute it and/or
 # modify it under the terms of the GNU General Public License
@@ -23,7 +23,10 @@
 """
 Examples
 --------
-
+>>> import span
+>>> tank = span.tdt.PandasTank('some/tank/file/folder')
+>>> sp = tank.spikes
+>>> assert isinstance(sp, span.tdt.SpikeDataFrame)
 """
 
 import numbers

@@ -1,5 +1,25 @@
 #!/usr/bin/env python
 
+# serv2mat.py ---
+
+# Copyright (C) 2012 Copyright (C) 2012 Phillip Cloud <cpcloud@gmail.com>
+
+# Author: Phillip Cloud <cpcloud@gmail.com>
+
+# This program is free software; you can redistribute it and/or
+# modify it under the terms of the GNU General Public License
+# as published by the Free Software Foundation; either version 3
+# of the License, or (at your option) any later version.
+
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+
+# You should have received a copy of the GNU General Public License
+# along with this program. If not, see <http://www.gnu.org/licenses/>.
+
+
 """
 """
 
@@ -48,7 +68,7 @@ def parse_args():
 def main():
     dn = parse_args().rstrip(os.sep)
     tev, = glob.glob(os.path.join(dn, '*.tev'))
-    tev_name, _ = os.path.splitext(tev)    
+    tev_name, _ = os.path.splitext(tev)
     mat_filename = os.path.join(tev_name + os.extsep + 'mat')
     print '\nConverting TDT Tank to MATLAB: {0}'.format(mat_filename)
     serv2mat(span.tdt.PandasTank(tev_name).spikes.channels.values,

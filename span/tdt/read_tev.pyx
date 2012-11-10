@@ -1,3 +1,23 @@
+# read_tev.pyx ---
+
+# Copyright (C) 2012 Copyright (C) 2012 Phillip Cloud <cpcloud@gmail.com>
+
+# Author: Phillip Cloud <cpcloud@gmail.com>
+
+# This program is free software; you can redistribute it and/or
+# modify it under the terms of the GNU General Public License
+# as published by the Free Software Foundation; either version 3
+# of the License, or (at your option) any later version.
+
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+
+# You should have received a copy of the GNU General Public License
+# along with this program. If not, see <http://www.gnu.org/licenses/>.
+
+
 from numpy cimport float32_t as f4, npy_intp as i8
 
 from libc.stdio cimport fopen, fclose, fread, fseek, SEEK_SET, FILE
@@ -11,7 +31,7 @@ cimport cython
 @cython.boundscheck(False)
 @cython.wraparound(False)
 cdef void _read_tev(char* filename, i8 nsamples, i8[:] fp_locs,
-                    f4[:, :] spikes) nogil:
+                    f4[:, :] spikes):
     cdef:
         i8 i, j, n = fp_locs.shape[0], f4_bytes = sizeof(f4)
 
@@ -19,7 +39,7 @@ cdef void _read_tev(char* filename, i8 nsamples, i8[:] fp_locs,
 
         FILE* f = NULL
 
-    with parallel():
+    with nogil, parallel():
         chunk = <f4*> malloc(f4_bytes * nsamples)
 
         f = fopen(filename, 'rb')
