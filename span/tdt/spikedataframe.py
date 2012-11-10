@@ -44,6 +44,7 @@ from pandas import (Series, DataFrame, MultiIndex, date_range, datetools,
 import span
 from span.xcorr import xcorr
 from span.utils.decorate import cached_property
+from span.utils.dsinheritor import DocStringInheritor
 
 try:
     from pylab import subplots
@@ -116,6 +117,9 @@ class SpikeDataFrameBase(SpikeDataFrameAbstractBase):
     --------
     span.tdt.spikedataframe.SpikeDataFrame
     """
+
+    __metaclass__ = DocStringInheritor
+
     def __init__(self, *args, **kwargs):
         super(SpikeDataFrameBase, self).__init__(*args, **kwargs)
 
@@ -220,6 +224,7 @@ class SpikeDataFrame(SpikeDataFrameBase):
     pandas.DataFrame
     span.tdt.SpikeDataFrameBase
     """
+
     def __init__(self, *args, **kwargs):
         super(SpikeDataFrame, self).__init__(*args, **kwargs)
 
