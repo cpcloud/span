@@ -238,48 +238,6 @@ class SpikeDataFrame(SpikeDataFrameBase):
         self_t = type(self)
         return lambda *args, **kwargs: self_t(*args, meta=self.meta, **kwargs)
 
-    # @property
-    # def channel(self):
-    #     """Return a particular channel.
-
-    #     Parameters
-    #     ----------
-    #     i : int
-
-    #     Returns
-    #     -------
-    #     channel : TimeSeries
-    #     """
-    #     return _ChannelGetter(self.ix)
-
-    # @property
-    # def shank(self):
-    #     """Return the data from a particular shank.
-
-    #     Parameters
-    #     ----------
-    #     i : int
-
-    #     Returns
-    #     -------
-    #     shanks : DataFrame
-    #     """
-    #     return _ShankGetter(self)
-
-    # @property
-    # def side(self):
-    #     """Return the data of a particular side.
-
-    #     Parameters
-    #     ----------
-    #     side : str
-
-    #     Returns
-    #     -------
-    #     side : DataFrame
-    #     """
-    #     return _SideGetter(self)
-
     def bin(self, cleared, binsize, reject_count=100, dropna=False):
         """Bin spike data by `ms` millisecond bins.
 
