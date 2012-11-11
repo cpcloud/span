@@ -30,8 +30,7 @@ Examples
 """
 
 import numbers
-import functools
-import abc
+import functools as fntools
 import operator
 
 import numpy as np
@@ -44,7 +43,7 @@ from pandas import (Series, DataFrame, MultiIndex, date_range, datetools,
 import span
 from span.xcorr import xcorr
 from span.utils.decorate import cached_property
-from span.utils.dsinheritor import DocStringInheritor
+
 
 try:
     from pylab import subplots
@@ -52,55 +51,55 @@ except RuntimeError:
     subplots = None
 
 
-class SpikeDataFrameAbstractBase(DataFrame):
-    """Abstract base class for spike data frames.
+class _ChannelGetter(object):
+    def __init__(self, obj):
+        super(_ChannelGetter, self).__init__()
+        self.obj = obj
 
-    Parameters
-    ----------
-    data : array_like
-
-    meta : array_like, optional
-        TDT tsq file meta data. Defaults to None
-
-    See Also
-    --------
-    pandas.DataFrame
-        The superclass of this class.
-
-    numpy.ndarray
-        The basis for numerics in Python
-
-    span.tdt.spikedataframe.SpikeDataFrame
-    """
-
-    __metaclass__ = abc.ABCMeta
-
-    def __init__(self, data, meta, *args, **kwargs):
-        super(SpikeDataFrameAbstractBase, self).__init__(data, *args, **kwargs)
-
-        assert meta is not None, 'meta cannot be None'
-
-        self.meta = meta
-        self.date = Timestamp(self.meta.timestamp[0])
-
-    @abc.abstractproperty
-    def fs(self):
-        pass
-
-    @abc.abstractproperty
-    def nchans(self):
-        pass
-
-    @abc.abstractproperty
-    def nsamples(self):
-        pass
-
-    @abc.abstractmethod
-    def threshold(self, threshes):
-        pass
+    def __getitem__(self, i):
+        return self.obj.ix[:, i]
 
 
-class SpikeDataFrameBase(SpikeDataFrameAbstractBase):
+class _ShankGetter(object):
+    def __init__(self, df):
+        super(_ShankGetter, self).__init__()
+        self.df = df
+
+    def __getitem__(self, i):
+        return self.df.select(lambda x: x[1] == i, axis=1)
+
+
+class _SideGetter(object):
+    def __init__(self, df):
+        super(_SideGetter, self).__init__()
+        self.df = df
+
+    def __getitem__(self, i):
+        return self.df.select(lambda x: x[-1] == i, axis=1)
+
+
+class SpikeGrouper(type):
+    def __new__(cls, name, parents, dct):
+        dct['channel'] = property(fget=_ChannelGetter)
+        dct['shank'] = property(fget=_ShankGetter)
+        dct['side'] = property(fget=_SideGetter)
+
+        return type.__new__(cls, name, parents, dct)
+
+
+class GroupedDataFrame(DataFrame):
+
+    __metaclass__ = SpikeGrouper
+
+    def __init__(self, *args, **kwargs):
+        super(GroupedDataFrame, self).__init__(*args, **kwargs)
+
+    @property
+    def _constructor(self):
+        return GroupedDataFrame
+
+
+class SpikeDataFrameBase(GroupedDataFrame):
     """Base class implementing basic spike data set properties and methods.
 
     Attributes
@@ -118,8 +117,13 @@ class SpikeDataFrameBase(SpikeDataFrameAbstractBase):
     span.tdt.spikedataframe.SpikeDataFrame
     """
 
-    def __init__(self, *args, **kwargs):
-        super(SpikeDataFrameBase, self).__init__(*args, **kwargs)
+    def __init__(self, data, meta, *args, **kwargs):
+        super(SpikeDataFrameBase, self).__init__(data, *args, **kwargs)
+
+        assert meta is not None, 'meta cannot be None'
+
+        self.meta = meta
+        self.date = Timestamp(self.meta.timestamp[0])
 
     def downsample(self, factor, n=None, ftype='iir', axis=-1):
         """Downsample the data by an integer factor.
@@ -187,6 +191,8 @@ class SpikeDataFrameBase(SpikeDataFrameAbstractBase):
         Raises
         ------
         AssertionError
+            If `threshes` is not a scalar or a vector of length == number of
+            channels
 
         Returns
         -------
@@ -202,10 +208,11 @@ class SpikeDataFrameBase(SpikeDataFrameAbstractBase):
 
         if threshes.size == self.nchans:
             threshes = Series(threshes, index=self.columns)
-            f = functools.partial(self.lt if is_neg else self.gt, axis=1)
+            cmpf = self.lt if is_neg else self.gt
+            f = fntools.partial(cmpf, axis=1)
         else:
             cmpf = operator.lt if is_neg else operator.gt
-            f = functools.partial(cmpf, self)
+            f = fntools.partial(cmpf, self)
 
         return f(threshes)
 
@@ -231,54 +238,47 @@ class SpikeDataFrame(SpikeDataFrameBase):
         self_t = type(self)
         return lambda *args, **kwargs: self_t(*args, meta=self.meta, **kwargs)
 
-    def channel(self, i):
-        """Return a particular channel.
+    # @property
+    # def channel(self):
+    #     """Return a particular channel.
 
-        Parameters
-        ----------
-        i : int
+    #     Parameters
+    #     ----------
+    #     i : int
 
-        Returns
-        -------
-        ``self.ix[:, i]``: TimeSeries
-        """
-        return self.ix[:, i]
+    #     Returns
+    #     -------
+    #     channel : TimeSeries
+    #     """
+    #     return _ChannelGetter(self.ix)
 
-    def shank(self, i):
-        """Return the data from a particular shank.
+    # @property
+    # def shank(self):
+    #     """Return the data from a particular shank.
 
-        Parameters
-        ----------
-        i : int
+    #     Parameters
+    #     ----------
+    #     i : int
 
-        Raises
-        ------
-        AssertionError
+    #     Returns
+    #     -------
+    #     shanks : DataFrame
+    #     """
+    #     return _ShankGetter(self)
 
-        Returns
-        -------
+    # @property
+    # def side(self):
+    #     """Return the data of a particular side.
 
-        """
-        assert isinstance(i, numbers.Integral), '"i" must be an integer'
-        return self.select(lambda x: x[1] == i, axis=1)
+    #     Parameters
+    #     ----------
+    #     side : str
 
-    def side(self, side):
-        """Return the data of a particular side.
-
-        Parameters
-        ----------
-        side : str
-
-        Raises
-        ------
-        AssertionError
-
-        Returns
-        -------
-        side_data : DataFrame
-        """
-        assert isinstance(side, basestring), '"side" must be a string'
-        return self.select(lambda x: x[-1] == side, axis=1)
+    #     Returns
+    #     -------
+    #     side : DataFrame
+    #     """
+    #     return _SideGetter(self)
 
     def bin(self, cleared, binsize, reject_count=100, dropna=False):
         """Bin spike data by `ms` millisecond bins.
@@ -324,7 +324,8 @@ class SpikeDataFrame(SpikeDataFrameBase):
         index = date_range(start=self.date, periods=btmp.shape[0], freq=freq,
                            name='time', tz='US/Eastern')
 
-        binned = DataFrame(btmp, index, cleared.columns, float)
+        binned = DataFrame(btmp, index=index, columns=cleared.columns,
+                           dtype=float)
 
         # samples / (samples / s) == s
         rec_len_s = self.nsamples / self.fs
@@ -340,7 +341,7 @@ class SpikeDataFrame(SpikeDataFrameBase):
         if dropna:
             binned = binned.dropna(axis=1)
 
-        return binned
+        return GroupedDataFrame(binned)
 
     def clear_refrac(self, threshed, ms=2):
         """Remove spikes from the refractory period of all channels.
@@ -359,7 +360,7 @@ class SpikeDataFrame(SpikeDataFrameBase):
 
         Returns
         -------
-        r : DataFrame
+        r : SpikeDataFrame
             The thresholded and refractory-period-cleared array of booleans
             indicating the sample point at which a spike was above threshold.
         """
@@ -372,7 +373,8 @@ class SpikeDataFrame(SpikeDataFrameBase):
             # TODO: make sure samples by channels is shape of clr
             ms_fs = span.utils.fs2ms(self.fs, ms)
             span.utils.clear_refrac(clr.view(np.uint8), ms_fs)
-            r = DataFrame(clr, threshed.index, threshed.columns)
+            r = SpikeDataFrame(clr, self.meta, index=threshed.index,
+                               columns=threshed.columns)
         else:
             r = threshed
 
