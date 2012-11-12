@@ -83,8 +83,8 @@ def _matrixcorr(x, nfft):
         with the others
 
     nfft : int
-        The number of points used to compute the FFT (faster when this number is
-        a power of 2).
+        The number of points used to compute the FFT (faster when this number
+        is a power of 2).
 
     Returns
     -------
@@ -194,7 +194,8 @@ _SCALE_FUNCTIONS = {
 }
 
 
-def xcorr(x, y=None, maxlags=None, detrend=detrend_mean, scale_type='normalize'):
+def xcorr(x, y=None, maxlags=None, detrend=detrend_mean,
+          scale_type='normalize'):
     """Compute the cross correlation of `x` and `y`.
 
     This function computes the cross correlation of `x` and `y`. It uses the
