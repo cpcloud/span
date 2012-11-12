@@ -22,9 +22,8 @@
 
 r"""
 
-=======
 Summary
-=======
+-------
 
 --------------------------
 Cross-correlation analysis
