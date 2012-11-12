@@ -43,7 +43,7 @@ from pandas import (Series, DataFrame, MultiIndex, date_range, datetools,
 import span
 from span.xcorr import xcorr
 from span.utils.decorate import cached_property
-
+from span.utils import sem, cast, fs2ms, bin_data, clear_refrac, ndtuples
 
 try:
     from pylab import subplots
@@ -87,19 +87,22 @@ class SpikeGrouper(type):
         return type.__new__(cls, name, parents, dct)
 
 
-class GroupedDataFrame(DataFrame):
+class SpikeGroupedDataFrame(DataFrame):
 
     __metaclass__ = SpikeGrouper
 
     def __init__(self, *args, **kwargs):
-        super(GroupedDataFrame, self).__init__(*args, **kwargs)
+        super(SpikeGroupedDataFrame, self).__init__(*args, **kwargs)
 
     @property
     def _constructor(self):
-        return GroupedDataFrame
+        return SpikeGroupedDataFrame
+
+    def sem(self, axis=0, ddof=0):
+        return self.apply(sem, axis=axis, ddof=ddof)
 
 
-class SpikeDataFrameBase(GroupedDataFrame):
+class SpikeDataFrameBase(SpikeGroupedDataFrame):
     """Base class implementing basic spike data set properties and methods.
 
     Attributes
@@ -238,41 +241,50 @@ class SpikeDataFrame(SpikeDataFrameBase):
     def bin(self, cleared, binsize, reject_count=100, dropna=False):
         """Bin spike data by `ms` millisecond bins.
 
+        Roughly, sum up the ones (and zeros) in the data using bins of size
+        `binsize`.
+
+        See ``span.utils.utils.bin_data`` for the actual loop that
+        executes this binning. This method is a wrapper around that function.
+
         Parameters
         ----------
         cleared : array_like
-            The refractory-period-cleared array of spike booleans to bin.
+            The refractory-period-cleared array of booleans to bin.
 
-        binsize : float, optional
+        binsize : numbers.Real
             The size of the bins to use, in milliseconds
 
-        reject_count : int, optional
+        reject_count : numbers.Real, optional, default 100
+            NaN channels whose firing rates are less than this number / sec
 
         dropna : bool, optional
+            Whether to drop NaN'd values if any
 
         Raises
         ------
         AssertionError
+            If `binsize` is not a positive number or if `reject_count` is not a
+            nonnegative number
 
         Returns
         -------
-        binned : DataFrame
+        binned : SpikeGroupedDataFrame of float64
 
         See Also
         --------
-        span.utils.bin
+        span.utils.utils.bin_data
         """
-        assert hasattr(cleared, 'values') or isinstance(cleared, np.ndarray), \
-            '"cleared" must be have the "values" attribute or be an instance '\
-            'of numpy.ndarray'
         assert binsize > 0 and isinstance(binsize, numbers.Real), \
             '"binsize" must be a positive number'
-        assert reject_count >= 0, '"reject_count" must be a nonnegative integer'
+        assert reject_count >= 0 and isinstance(reject_count, numbers.Real), \
+            '"reject_count" must be a nonnegative real number'
 
-        conv = 1e3
-        bin_samples = span.utils.cast(np.floor(binsize * self.fs / conv), int)
-        bins = np.arange(0, self.nsamples - 1, bin_samples, np.uint64)
-        btmp = span.utils.bin_data(cleared.values.view(np.uint8), bins)
+        ms_per_s = 1e3
+        bin_samples = cast(np.floor(binsize * self.fs / ms_per_s), np.int64)
+        bins = np.arange(start=0, stop=self.nsamples - 1, step=bin_samples,
+                         dtype=np.uint64)
+        btmp = bin_data(cleared.values.view(np.uint8), bins)
 
         # make a datetime index of seconds
         freq = binsize * datetools.Milli()
@@ -280,7 +292,7 @@ class SpikeDataFrame(SpikeDataFrameBase):
                            name='time', tz='US/Eastern')
 
         binned = DataFrame(btmp, index=index, columns=cleared.columns,
-                           dtype=float)
+                           dtype=np.float64)
 
         # samples / (samples / s) == s
         rec_len_s = self.nsamples / self.fs
@@ -291,12 +303,14 @@ class SpikeDataFrame(SpikeDataFrameBase):
         # spikes / s * ms / ms == spikes / s
         sp_per_s = binned.mean() * (1e3 / binsize)
 
+        # nan out the counts that are not about reject_count / s
+        # firing rate
         binned.ix[:, sp_per_s < min_sp_per_s] = np.nan
 
         if dropna:
             binned = binned.dropna(axis=1)
 
-        return GroupedDataFrame(binned)
+        return SpikeGroupedDataFrame(binned)
 
     def clear_refrac(self, threshed, ms=2):
         """Remove spikes from the refractory period of all channels.
@@ -305,7 +319,7 @@ class SpikeDataFrame(SpikeDataFrameBase):
         ----------
         threshed : array_like
 
-        ms : float, optional
+        ms : float, optional, default 2
             The length of the refractory period in milliseconds.
 
         Raises
@@ -323,11 +337,16 @@ class SpikeDataFrame(SpikeDataFrameBase):
             'refractory period must be a positive integer or None'
 
         if ms > 0:
+            # copy so we don't write over the values
             clr = threshed.values.copy()
 
+            # get the number of samples in ms milliseconds
+            ms_fs = fs2ms(self.fs, ms)
+
             # TODO: make sure samples by channels is shape of clr
-            ms_fs = span.utils.fs2ms(self.fs, ms)
-            span.utils.clear_refrac(clr.view(np.uint8), ms_fs)
+            # WARNING: you must pass a np.uint8 type array (view or otherwise)
+            clear_refrac(clr.view(np.uint8), ms_fs)
+
             r = SpikeDataFrame(clr, self.meta, index=threshed.index,
                                columns=threshed.columns)
         else:
@@ -366,7 +385,7 @@ class SpikeDataFrame(SpikeDataFrameBase):
         r = gm.mean()
 
         if sem:
-            r = r, gm.apply(span.utils.math.sem)
+            r = r, gm.apply(sem)
 
         return r
 
@@ -482,7 +501,6 @@ def _create_xcorr_inds(nchannels):
     -------
     xc_inds : MultiIndex
     """
-    from span.utils import ndtuples
     from span.tdt.spikeglobals import Indexer
 
     channel_i, channel_j = 'channel i', 'channel j'
