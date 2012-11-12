@@ -166,8 +166,10 @@ class ElectrodeMap(DataFrame):
         Raises
         ------
         AssertionError
-            If either `within`, `between` or `p` is not an instance of
-            ``numbers.Real`` or metric is not a string or a callable
+            - If `within` is not an instance of ``numbers.Real``
+            - If `between` is not an instance of ``numbers.Real``
+            - If `p` is not an instance of ``numbers.Real``
+            - If metric is not a string or a callable
 
         Returns
         -------
