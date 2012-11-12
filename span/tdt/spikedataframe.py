@@ -98,7 +98,26 @@ class SpikeGroupedDataFrame(DataFrame):
     def _constructor(self):
         return SpikeGroupedDataFrame
 
-    def sem(self, axis=0, ddof=0):
+    def sem(self, axis=0, ddof=1):
+        r"""Return the standard error of the mean of array along `axis`. I.e.,
+
+.. math::
+
+        \sqrt{\frac{\frac{1}{n - \mathit{ddof}}\sum_{i=1}^{n}\left(x -
+        \bar{x}\right)^{2}}{\sqrt{n}}}
+
+        where :math:`n` is the number of elements along the axis `axis`.
+
+        Parameters
+        ----------
+        axis : int, optional, default 0
+            The axis along which to compute the standard error of the mean.
+
+        ddof : int, optional, default 1
+            Delta degrees of freedom. 0 computes the sem using the population
+            standard deviation, 1 computes the sem using the sample standard
+            deviation.
+        """
         return self.apply(sem, axis=axis, ddof=ddof)
 
 
