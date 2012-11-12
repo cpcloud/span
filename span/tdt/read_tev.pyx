@@ -49,6 +49,10 @@ cdef void _read_tev(char* filename, integral nsamples, integral[:] fp_locs,
     with nogil, parallel():
         chunk = <floating*> malloc(floating_bytes * nsamples)
 
+        if chunk is NULL:
+            with gil:
+                raise MemoryError('Out of memory when allocating chunk')
+
         f = fopen(filename, 'rb')
 
         if not f:
