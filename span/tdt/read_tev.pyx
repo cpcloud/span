@@ -17,7 +17,7 @@
 # You should have received a copy of the GNU General Public License
 # along with this program. If not, see <http://www.gnu.org/licenses/>.
 
-
+cimport numpy as np
 from libc.stdio cimport fopen, fclose, fread, fseek, SEEK_SET, FILE
 from libc.stdlib cimport malloc, free
 
@@ -25,7 +25,14 @@ from cython.parallel cimport parallel, prange
 
 cimport cython
 
-from cython cimport floating, integral
+from cython cimport floating
+
+ctypedef fused integral:
+    np.int8_t
+    np.int16_t
+    np.int32_t
+    np.int64_t
+    np.npy_intp
 
 
 @cython.boundscheck(False)
@@ -53,7 +60,7 @@ cdef void _read_tev(char* filename, integral nsamples, integral[:] fp_locs,
                 assert chunk is NULL, 'memory leak when freeing chunk'
                 raise IOError('Unable to open file %s' % filename)
 
-        for i in prange(n):
+        for i in prange(n, schedule='guided'):
             # go to the ith file pointer location
             fseek(f, fp_locs[i], SEEK_SET)
 
