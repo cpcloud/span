@@ -16,20 +16,24 @@ class TestXCorr(unittest.TestCase):
         cls.matrix = np.random.randn(cls.m, cls.n)
         cls.vector = cls.matrix[:, np.random.randint(cls.n)]
 
+    @classmethod
+    def tearDownClass(cls):
+        del cls.vector, cls.matrix, cls.m, cls.n
+
     def assert_matrix_shape(self, c):
-        assert c.ndim == 2
+        self.assertEqual(c.ndim, 2)
 
         m, n = c.shape
 
-        assert m == 2 * self.m - 1
-        assert n == self.n ** 2, 'n:{}, wanted: {}'.format(n, self.n ** 2)
+        self.assertEqual(m, 2 * self.m - 1)
+        self.assertEqual(n, self.n ** 2)
 
     def assert_vector_shape(self, v):
-        assert v.ndim == 1
+        self.assertEqual(v.ndim, 1)
 
         m, = v.shape
 
-        assert m == 2 * self.m - 1
+        self.assertEqual(m, 2 * self.m - 1)
 
     def test_all(self):
         scale_types = None, 'none', 'unbiased', 'biased', 'normalize'
