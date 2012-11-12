@@ -57,7 +57,6 @@ cdef void _read_tev(char* filename, integral nsamples, integral[:] fp_locs,
                 chunk = NULL
 
             with gil:
-                assert chunk is NULL, 'memory leak when freeing chunk'
                 raise IOError('Unable to open file %s' % filename)
 
         for i in prange(n, schedule='guided'):
@@ -75,9 +74,6 @@ cdef void _read_tev(char* filename, integral nsamples, integral[:] fp_locs,
         if chunk:
             free(chunk)
             chunk = NULL
-
-            with gil:
-                assert chunk is NULL, 'memory leak when freeing chunk'
 
         fclose(f)
         f = NULL
