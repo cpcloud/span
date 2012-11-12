@@ -103,7 +103,10 @@ def _match_int(pattern, string, get_exc=False, excs=(AttributeError, ValueError,
         r = None
 
     if get_exc:
-        r = r, e
+        try:
+            r = r, e
+        except NameError:
+            r = r, None
 
     return r
 
@@ -123,7 +126,7 @@ class TdtTankAbstractBase(object):
 
     @abc.abstractmethod
     def _read_tev(self, event_name):
-        pass
+        pass # pragma: no cover
 
     @property
     @thunkify
