@@ -7,17 +7,61 @@ import itertools
 from nose.tools import nottest
 
 import numpy as np
+from numpy.random import randn
 from numpy.testing.decorators import slow
 
 import pandas as pd
+from pandas import Series, DataFrame
 
 from span.tdt.tank import PandasTank
-from span.tdt.spikedataframe import SpikeDataFrameAbstractBase, SpikeDataFrame
+from span.tdt.spikedataframe import (SpikeDataFrameBase, SpikeDataFrame,
+                                     SpikeGroupedDataFrame)
 from span.utils import detrend_none, detrend_mean, detrend_linear
+from span.testing import assert_all_dtypes
 
 
-def _assert_all_dtypes(df, dtype, msg='dtypes not all the same'):
-    assert all(dt == dtype for dt in df.dtypes), msg
+class TestSpikeGrouper(unittest.TestCase):
+    pass
+
+
+class TestChannelGrouper(unittest.TestCase):
+    pass
+
+
+class TestShankGrouper(unittest.TestCase):
+    pass
+
+
+class TestSideGrouper(unittest.TestCase):
+    pass
+
+
+class TestSpikeGroupedDataFrame(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        cls.x = randn(10, 12)
+
+    @classmethod
+    def tearDownClass(cls):
+        del cls.x
+
+    def test_constructor(self):
+        df0 = SpikeGroupedDataFrame(self.x)
+
+        df1 = df0._constructor(df0)
+        df2 = df0._constructor(df0.values)
+        df3 = df0._constructor(self.x)
+
+        for df in (df1, df2, df3):
+            self.assertEqual(df0, df)
+
+    def test_sem(self):
+        df = SpikeGroupedDataFrame(self.x)
+
+        for axis, ddof in itertools.product((0, 1), (0, 1)):
+            s = df.sem(axis=axis, ddof=ddof)
+            self.assertIsInstance(s, Series)
+            self.assertEqual(s.values.size, df.shape[1 - axis])
 
 
 class TestSpikeDataFrameAbstractBase(unittest.TestCase):
@@ -79,7 +123,7 @@ class TestSpikeDataFrame(TestSpikeDataFrameAbstractBase):
         shp = self.spikes.shape
         for thresh in self.threshes:
             threshed = self.spikes.threshold(thresh)
-            _assert_all_dtypes(threshed, np.bool_)
+            assert_all_dtypes(threshed, np.bool_)
             self.assertTupleEqual(threshed.shape, shp)
 
     @slow
@@ -92,7 +136,7 @@ class TestSpikeDataFrame(TestSpikeDataFrameAbstractBase):
             bin_samples = int(np.floor(binsize * self.spikes.fs / 1e3))
             self.assertTupleEqual(binned.shape, (max_sample / bin_samples,
                                                  self.spikes.shape[1]))
-            _assert_all_dtypes(binned, np.int64)
+            assert_all_dtypes(binned, np.int64)
 
     @slow
     def test_fr(self):
@@ -123,7 +167,7 @@ class TestSpikeDataFrame(TestSpikeDataFrameAbstractBase):
         for arg_set in itertools.product(self.threshes, self.mses):
             thresh, ms = arg_set
             cleared = self.spikes.clear_refrac(thresh, ms)
-            _assert_all_dtypes(cleared, np.bool_)
+            assert_all_dtypes(cleared, np.bool_)
 
     def test__constructor(self):
         s = self.spikes
@@ -148,7 +192,7 @@ class TestSpikeDataFrame(TestSpikeDataFrameAbstractBase):
                                       scale, reject_count)
             self.assertTupleEqual(xc.values.shape, (self.spikes.nchans ** 2,
                                                     2 * maxlag - 1))
-            _assert_all_dtypes(xc, np.float64)
+            assert_all_dtypes(xc, np.float64)
 
         self.assertRaises(AssertionError, self.spikes.xcorr, maxlags=int(1e10))
 
