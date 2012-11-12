@@ -60,9 +60,8 @@ cdef void _read_tev(char* filename, integral nsamples, integral[:] fp_locs,
         f = fopen(filename, 'rb')
 
         if not f:
-            if chunk:
-                free(chunk)
-                chunk = NULL
+            free(chunk)
+            chunk = NULL
 
             with gil:
                 raise IOError('Unable to open file %s' % filename)
@@ -79,9 +78,8 @@ cdef void _read_tev(char* filename, integral nsamples, integral[:] fp_locs,
                 spikes[i, j] = chunk[j]
 
         # get rid of the chunk data
-        if chunk:
-            free(chunk)
-            chunk = NULL
+        free(chunk)
+        chunk = NULL
 
         fclose(f)
         f = NULL
