@@ -40,16 +40,20 @@ ctypedef fused integral:
 cdef void _read_tev(char* filename, integral nsamples, integral[:] fp_locs,
                     floating[:, :] spikes):
     cdef:
-        integral i, j, n = fp_locs.shape[0], floating_bytes = sizeof(floating)
+        np.npy_intp i, j, n
+        size_t f_bytes
 
         floating* chunk = NULL
 
         FILE* f = NULL
 
-    with nogil, parallel():
-        chunk = <floating*> malloc(floating_bytes * nsamples)
+    n = fp_locs.shape[0]
+    f_bytes = sizeof(floating)
 
-        if chunk is NULL:
+    with nogil, parallel():
+        chunk = <floating*> malloc(f_bytes * nsamples)
+
+        if not chunk:
             with gil:
                 raise MemoryError('Out of memory when allocating chunk')
 
@@ -68,7 +72,7 @@ cdef void _read_tev(char* filename, integral nsamples, integral[:] fp_locs,
             fseek(f, fp_locs[i], SEEK_SET)
 
             # read floating_bytes * nsamples bytes into chunk_data
-            fread(chunk, floating_bytes, nsamples, f)
+            fread(chunk, f_bytes, nsamples, f)
 
             # assign the chunk data to the spikes array
             for j in xrange(nsamples):
