@@ -79,6 +79,12 @@ class _SideGetter(object):
 
 
 class SpikeGrouper(type):
+    """Metaclass for creating grouping selectors.
+
+    This is mostly for convenience, and could probably be made more general.
+    That is, have a function to create classes on the fly that index into the
+    ix or call select to retreive a subset of the data.
+    """
     def __new__(cls, name, parents, dct):
         dct['channel'] = property(fget=_ChannelGetter)
         dct['shank'] = property(fget=_ShankGetter)
@@ -100,24 +106,34 @@ class SpikeGroupedDataFrame(DataFrame):
         return SpikeGroupedDataFrame
 
     def sem(self, axis=0, ddof=1):
-        r"""Return the standard error of the mean of array along `axis`. I.e.,
-
-.. math::
-
-        \sqrt{\frac{\frac{1}{n - \mathit{ddof}}\sum_{i=1}^{n}\left(x -
-        \bar{x}\right)^{2}}{\sqrt{n}}}
-
-        where :math:`n` is the number of elements along the axis `axis`.
+        r"""Return the standard error of the mean of array along `axis`.
 
         Parameters
         ----------
-        axis : int, optional, default 0
+        axis : int, optional
             The axis along which to compute the standard error of the mean.
 
-        ddof : int, optional, default 1
+        ddof : int, optional
             Delta degrees of freedom. 0 computes the sem using the population
             standard deviation, 1 computes the sem using the sample standard
             deviation.
+
+        Returns
+        -------
+        sem : Series
+            The standard error of the mean of the object along `axis`.
+
+        Notes
+        -----
+        The standard error of the mean is defined as:
+
+        .. math::
+
+           \operatorname{sem}\left(\mathbf{x}\right)=\frac{\sqrt{\frac{1}{n -
+           \textrm{ddof}}\sum_{i=1}^{n}\left(x_{i} -
+           \bar{\mathbf{x}}\right)^{2}}}{\sqrt{n}}
+
+        where :math:`n` is the number of elements along the axis `axis`.
         """
         return self.apply(sem, axis=axis, ddof=ddof)
 
@@ -137,7 +153,7 @@ class SpikeDataFrameBase(SpikeGroupedDataFrame):
 
     See Also
     --------
-    span.tdt.spikedataframe.SpikeDataFrame
+    SpikeDataFrame
     """
 
     def __init__(self, data, meta, *args, **kwargs):
@@ -247,7 +263,7 @@ class SpikeDataFrame(SpikeDataFrameBase):
     See Also
     --------
     pandas.DataFrame
-    span.tdt.spikedataframe.SpikeDataFrameBase
+    SpikeDataFrameBase
     """
 
     def __init__(self, *args, **kwargs):
@@ -460,13 +476,13 @@ class SpikeDataFrame(SpikeDataFrameBase):
 
         See Also
         --------
-        span.tdt.xcorr.xcorr
+        span.xcorr.xcorr
             General cross correlation function.
 
         SpikeDataFrame.bin
             Binning function.
 
-        SpikeDataFrame.cleared
+        SpikeDataFrame.clear_refrac
             Clear the refractory period of a channel.
         """
         assert callable(detrend), 'detrend must be a callable class or '\
