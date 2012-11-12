@@ -5,9 +5,11 @@ import numpy as np
 from numpy.random import randn, randint, rand
 from numpy.testing import assert_allclose, assert_array_equal
 
+from pandas import Series, DataFrame, Panel
+
 from span.utils.math import *
 
-from span.utils.test.test_utils import rand_int_tuple
+from span.utils.tests.test_utils import rand_int_tuple
 
 
 class TestTrimmean(unittest.TestCase):
@@ -38,7 +40,7 @@ class TestTrimmean(unittest.TestCase):
             self.assertEqual(x, m)
 
     def test_1d_array(self):
-        x = randn(58)
+        x = randn(5)
         axes = self.axes
         arg_sets = itertools.product(self.alphas, self.includes, axes)
         for arg_set in arg_sets:
@@ -49,7 +51,7 @@ class TestTrimmean(unittest.TestCase):
                 self.assertEqual(m.dtype, float)
 
     def test_2d_array(self):
-        x = randn(50, 13)
+        x = randn(10, 4)
         axes = self.axes + (1,)
         arg_sets = itertools.product(self.alphas, self.includes, axes)
         for arg_set in arg_sets:
@@ -61,7 +63,7 @@ class TestTrimmean(unittest.TestCase):
                 self.assertIsInstance(m, float)
 
     def test_3d_array(self):
-        x = randn(10, 6, 4)
+        x = randn(5, 6, 4)
         axes = self.axes + (1, 2)
         arg_sets = itertools.product(self.alphas, self.includes, axes)
         for arg_set in arg_sets:
@@ -73,7 +75,7 @@ class TestTrimmean(unittest.TestCase):
                 self.assertIsInstance(m, float)
 
     def test_series(self):
-        x = Series(randn(18))
+        x = Series(randn(5))
         axes = self.axes
         arg_sets = itertools.product(self.alphas, self.includes, axes)
         for arg_set in arg_sets:
@@ -83,7 +85,7 @@ class TestTrimmean(unittest.TestCase):
                 self.assertRaises(TypeError, trimmean, x, alpha, include, axis)
 
     def test_dataframe(self):
-        x = DataFrame(randn(51, 17))
+        x = DataFrame(randn(10, 2))
         axes = self.axes + (1,)
         arg_sets = itertools.product(self.alphas, self.includes, axes)
         for arg_set in arg_sets:
@@ -96,7 +98,71 @@ class TestTrimmean(unittest.TestCase):
 
 
 class TestSem(unittest.TestCase):
-    pass
+    @classmethod
+    def setUpClass(cls):
+        cls.axes, cls.ddof = (0, 1), (0, 1)
+        cls.args = tuple(itertools.product(cls.axes, cls.ddof))
+
+    @classmethod
+    def tearDownClass(cls):
+        del cls.args, cls.ddof, cls.axes
+
+    def test_0d(self):
+        x = randn()
+        for axis, ddof in self.args:
+            s = sem(x, axis, ddof)
+            self.assertEqual(s, 0.0)
+
+    def test_1d(self):
+        x = randn(10)
+
+        for axis, ddof in self.args:
+            if axis == 1:
+                self.assertRaises(IndexError, sem, x, axis, ddof)
+            else:
+                s = sem(x, axis, ddof)
+
+
+    def test_2d(self):
+        x = randn(10, 11)
+
+        for axis, ddof in self.args:
+            s = sem(x, axis, ddof)
+
+    def test_3d(self):
+        x = randn(5, 4, 3)
+        axes = self.axes + (2,)
+        args = itertools.product(axes, self.ddof)
+
+        for axis, ddof in args:
+            s = sem(x, axis, ddof)
+
+    def test_series(self):
+        x = Series(randn(13))
+
+        for axis, ddof in self.args:
+
+            if axis == 1:
+                self.assertRaises(IndexError, sem, x, axis, ddof)
+            else:
+                s = sem(x, axis, ddof)
+                self.assertIsInstance(s, (float, np.float64))
+
+    def test_dataframe(self):
+        x = DataFrame(randn(5, 7))
+
+        for axis, ddof in self.args:
+            s = sem(x, axis, ddof)
+            self.assertIsInstance(s, Series)
+
+    def test_panel(self):
+        x = Panel(randn(5, 4, 3))
+        axes = self.axes + (2,)
+        args = itertools.product(axes, self.ddof)
+
+        for axis, ddof in args:
+            s = sem(x, axis, ddof)
+            self.assertIsInstance(s, DataFrame)
 
 
 def test_ndtuples():
@@ -181,8 +247,12 @@ def test_fractional():
     assert not fractional(randint(1, np.iinfo(int).max))
 
 
-def test_fs2ms():
-    assert False
+class TestFs2Ms(unittest.TestCase):
+    def test_fs2ms(self):
+        args = np.arange(10)
+        fs = 24414.0625
+        r = list(map(type, (fs2ms(fs, arg) for arg in args)))
+        self.assertListEqual(r, list(itertools.repeat(int, len(r))))
 
 
 class TestCompose2(unittest.TestCase):
@@ -229,21 +299,3 @@ def test_composemap():
     xnew, ynew = composemap(f, g)((x, y))
     assert_allclose(x, xnew)
     assert_allclose(y, ynew)
-
-
-class TestNdlinspace(unittest.TestCase):
-    @classmethod
-    def setUpClass(cls):
-        cls.ranges = randn(randint(5, 10), randint(10, 20)).tolist()
-
-    def test_1elem(self):
-        sizes = randint(5, 10)
-        x = ndlinspace(self.ranges, sizes)
-
-    def test_2elem(self):
-        sizes = randint(5, 10, size=2)
-        x = ndlinspace(self.ranges, *sizes.tolist())
-
-    def test_3elem(self):
-        sizes = randint(5, 10, size=3)
-        x = ndlinspace(self.ranges, *sizes.tolist())
