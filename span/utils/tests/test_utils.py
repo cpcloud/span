@@ -3,122 +3,64 @@ import string
 import random
 import itertools
 import tempfile
+import functools
 
 import numpy as np
 from numpy.random import randint, rand, randn
-from numpy.testing import assert_allclose, assert_array_equal
+from numpy.testing import assert_allclose
 from numpy.testing.decorators import slow
-# from nose.tools import nottest
+from nose.tools import nottest
+from nose import SkipTest
 
 import pandas as pd
 
 from pylab import gca
 
-from span.utils import (
-    cast, dirsize, fractional, get_fft_funcs, group_indices,
-    iscomplex, isvector, name2num, nans, ndlinspace, ndtuples, nextpow2,
-    pad_larger, pad_larger2, remove_legend, cartesian, trimmean, num2name,
-    detrend_none, detrend_mean, detrend_linear, hascomplex, compose, composemap,
-    nans_like, md5string, md5int, md5file)
+from span.utils.utils import *
+from span.utils.math import nextpow2
 
-from span.utils.utils import compose2
+from span.testing import skip
 
 
 def rand_array_delegate(func, n, ndims):
     return func(*randint(n, size=ndims).tolist())
 
 
-def randn_array(n=50, ndims=3): return rand_array_delegate(randn, n, ndims)
+def randn_array(n=50, ndims=3):
+    return rand_array_delegate(randn, n, ndims)
 
 
-def rand_int_tuple(m=5, n=10): return tuple(randint(1, m, size=n).tolist())
+def rand_int_tuple(m=5, n=10):
+    return tuple(randint(1, m, size=n).tolist())
 
-
-def test_nextpow2():
-    int_max = 100
-    n = randint(int_max)
-    np2 = nextpow2(n)
-    tp2 = 2 ** np2
-    assert tp2 >= n, '{} < {}'.format(tp2, n)
-    assert_allclose(np2, np.log2(tp2))
-
-
-def test_fractional():
-    m, n = 100, 1
-    x = randn(n)
-    xi = randint(m)
-    assert fractional(x)
-    assert fractional(rand())
-    assert not fractional(xi)
-    assert not fractional(randint(1, np.iinfo(int).max))
-
-
-def test_ndtuples():
-    t = rand_int_tuple()
-    k = ndtuples(*t)
-    uk = np.unique(k.ravel())
-    uk.sort()
-    assert_array_equal(uk, np.arange(max(t)))
-
-
-class TestCartesian(unittest.TestCase):
-    def test_cartesian(self):
-        ncols = randint(2, 6)
-        sizes = [randint(5, 10) for _ in xrange(ncols)]
-        prod_arrays = map(randn, sizes)
-        c = cartesian(prod_arrays)
-        self.assertEqual(c.size, np.prod(sizes) * ncols)
-
-
-def test_dirsize():
-    cd_ds = dirsize()
-    assert isinstance(cd_ds, int)
-
-
-class TestNdlinspace(unittest.TestCase):
-    @classmethod
-    def setUpClass(cls):
-        cls.ranges = randn(randint(5, 10), randint(10, 20)).tolist()
-
-    def test_1elem(self):
-        sizes = randint(5, 10)
-        x = ndlinspace(self.ranges, sizes)
-
-    def test_2elem(self):
-        sizes = randint(5, 10, size=2)
-        x = ndlinspace(self.ranges, *sizes.tolist())
-
-    def test_3elem(self):
-        sizes = randint(5, 10, size=3)
-        x = ndlinspace(self.ranges, *sizes.tolist())
-    
 
 def test_nans():
-    shape = 100, 10
+    shape = 6, 3
     x = nans(shape)
     assert np.isnan(x).all(), 'not all values are nans'
     assert x.dtype == np.float64
 
 
-
 class TestNansLike(unittest.TestCase):
     def test_series(self):
-        x = pd.Series(randn(100))
+        x = pd.Series(randn(7))
         nas = nans_like(x)
         self.assert_(np.isnan(nas).all())
 
     def test_dataframe(self):
-        x = pd.DataFrame(randn(100, 10))
+        x = pd.DataFrame(randn(10, 3))
         nas = nans_like(x)
-        self.assert_(np.isnan(nas).all())
+        self.assert_(np.isnan(nas.values).all())
 
     def test_panel(self):
-        x = pd.Panel(randn(100, 10, 20))
+        x = pd.Panel(randn(5, 4, 3))
         nas = nans_like(x)
-        self.assert_(np.isnan(nas).all())
+
+        # panel has no all member for some reason
+        self.assert_(np.isnan(nas.values).all())
 
     def test_other(self):
-        arrays = randn(100), randn(100, 10), randn(100, 10, 20)
+        arrays = randn(10), randn(10, 4), randn(10, 8, 3)
         for array in arrays:
             nas = nans_like(array)
             self.assert_(np.isnan(nas).all())
@@ -137,10 +79,6 @@ def test_num2name():
     assert name == expected, '{} != {}'.format(name, expected)
 
 
-def test_group_indices():
-    assert False
-
-
 class TestPadLarger(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
@@ -153,6 +91,10 @@ class TestPadLarger(unittest.TestCase):
         cls.ybig = randn_array(n=nbig, ndims=ndims)
         cls.bigs = randint(nsmall, nbig)
         cls.smalls = randint(nsmall)
+
+    @classmethod
+    def tearDownClass(cls):
+        del cls.smalls, cls.bigs, cls.ybig, cls.xsmall, cls.ysmall, cls.xbig
 
     def test_pad_larger2(self):
         x, y, lsize = pad_larger2(self.xbig, self.ysmall)
@@ -169,26 +111,33 @@ class TestPadLarger(unittest.TestCase):
         assert lsize == max(x.shape + y.shape)
 
 
-
 class TestIsComplex(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         n = 20
         cls.x = randn(n, randint(1, n)) + rand() * 1j
-        
+
+    @classmethod
+    def tearDownClass(cls):
+        del cls.x
+
     def test_iscomplex_dataframe(self):
         x = pd.DataFrame(self.x)
-        self.assert_(iscomplex(x), 'x is not complex and has dtypes {}'.format(x.dtypes))
+        self.assert_(iscomplex(x),
+                     'x is not complex and has dtypes {0}'.format(x.dtypes))
 
     def test_is_not_complex_dataframe(self):
-        pass
+        x = pd.DataFrame(self.x.real)
+        self.assert_(not iscomplex(x))
 
     def test_iscomplex(self):
         x = self.x
-        self.assert_(iscomplex(x), 'x is not complex and has type {}'.format(x.dtype))
+        self.assert_(iscomplex(x),
+                     'x is not complex and has type {0}'.format(x.dtype))
 
     def test_is_not_complex(self):
-        pass
+        x = self.x.real
+        self.assert_(not iscomplex(x))
 
 
 class TestHasComplex(unittest.TestCase):
@@ -197,7 +146,11 @@ class TestHasComplex(unittest.TestCase):
         cls.n = 20
         n = cls.n
         cls.x = randn(n, randint(1, n)) + rand() * 1j
-    
+
+    @classmethod
+    def tearDownClass(cls):
+        del cls.x, cls.n
+
     def test_hascomplex_dataframe(self):
         x = pd.DataFrame(self.x)
         self.assert_(hascomplex(x))
@@ -209,7 +162,7 @@ class TestHasComplex(unittest.TestCase):
 
     def test_hascomplex(self):
         n = self.n
-        x = randn(n, randint(1, n)) * 1j
+        x = randn(n, randint(1, n)) + 1j
         self.assert_(hascomplex(x))
 
     def test_not_hascomplex(self):
@@ -244,6 +197,7 @@ def test_name2num():
     base = 256 ** np.arange(str_len)
     mn = base.dot(np.repeat(x.min(), str_len))
     mx = base.dot(np.repeat(x.max(), str_len))
+
     for _ in xrange(num_to_test):
         name = random.sample(letters, str_len)
         num = name2num(name)
@@ -288,223 +242,45 @@ class TestIsVector(unittest.TestCase):
         self.assert_(isvector(x))
 
 
-def test_electrode_distance():
-    assert False
-
-
-def test_distance_map():
-    assert False
-
-
-class TestTrimmean(unittest.TestCase):
+class TestNonzeroExistingFile(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
-        cls.alphas = np.r_[:100]
-        cls.includes = tuple(itertools.product((True, False), (True, False)))
-        cls.axes = None, 0
+        cls.name = 'blah.npy'
 
-    def test_number(self):
-        x = float(randn())
-        axes = self.axes
-        arg_sets = itertools.product(self.alphas, self.includes, axes)
-        for arg_set in arg_sets:
-            alpha, include, axis = arg_set
-            m = trimmean(x, alpha, include, axis)
-            self.assertIsInstance(m, float)
-            self.assertEqual(x, m)
-            
-    def test_0d_array(self):
-        x = np.asanyarray(randn())
-        axes = self.axes
-        arg_sets = itertools.product(self.alphas, self.includes, axes)
-        for arg_set in arg_sets:
-            alpha, include, axis = arg_set
-            m = trimmean(x, alpha, include, axis)
-            self.assertIsInstance(m, float)
-            self.assertEqual(x, m)
-        
-    def test_1d_array(self):
-        x = randn(58)
-        axes = self.axes
-        arg_sets = itertools.product(self.alphas, self.includes, axes)
-        for arg_set in arg_sets:
-            alpha, include, axis = arg_set
-            m = trimmean(x, alpha, include, axis)
-            self.assertIsInstance(m, float)
-            if isinstance(m, np.ndarray):
-                self.assertEqual(m.dtype, float)
-
-    def test_2d_array(self):
-        x = randn(50, 13)
-        axes = self.axes + (1,)
-        arg_sets = itertools.product(self.alphas, self.includes, axes)
-        for arg_set in arg_sets:
-            alpha, include, axis = arg_set
-            m = trimmean(x, alpha, include, axis)
-            if axis is not None:
-                self.assertEqual(m.ndim, x.ndim - 1)
-            else:
-                self.assertIsInstance(m, float)
-
-    def test_3d_array(self):
-        x = randn(10, 6, 4)
-        axes = self.axes + (1, 2)
-        arg_sets = itertools.product(self.alphas, self.includes, axes)
-        for arg_set in arg_sets:
-            alpha, include, axis = arg_set
-            if axis is not None:
-                self.assertRaises(Exception, trimmean, x, alpha, include, axis)
-            else:
-                m = trimmean(x, alpha, include, axis)
-                self.assertIsInstance(m, float)
-
-    def test_series(self):
-        x = pd.Series(randn(18))
-        axes = self.axes
-        arg_sets = itertools.product(self.alphas, self.includes, axes)
-        for arg_set in arg_sets:
-            alpha, include, axis = arg_set
-            print alpha, include, axis
-            if axis == 1:
-                self.assertRaises(TypeError, trimmean, x, alpha, include, axis)
-
-    def test_dataframe(self):
-        x = pd.DataFrame(randn(51, 17))
-        axes = self.axes + (1,)
-        arg_sets = itertools.product(self.alphas, self.includes, axes)
-        for arg_set in arg_sets:
-            alpha, include, axis = arg_set
-            m = trimmean(x, alpha, include, axis)
-            if axis is not None:
-                self.assertEqual(m.ndim, x.ndim - 1)
-            else:
-                self.assertIsInstance(m, float)
-
-
-class TestDetrend(unittest.TestCase):
-    def test_detrend_none(self):
-        x = np.random.randn(10, 11)
-        dtx = detrend_none(x)
-        assert_array_equal(x, dtx)
-
-    def test_detrend_mean(self):
-        x = np.random.randn(10, 9)
-        dtx = detrend_mean(x)
-        expect = x - x.mean()
-        assert expect.dtype == dtx.dtype
-        assert_array_equal(dtx, expect)
-        assert_allclose(dtx.mean(), 0.0, atol=np.finfo(dtx.dtype).eps)
-
-    def test_detrend_mean_dataframe(self):
-        x = pd.DataFrame(np.random.randn(10, 13))
-        dtx = detrend_mean(x)
-        m = dtx.mean()
-        eps = np.finfo(float).eps
-        assert_allclose(m.values.squeeze(), np.zeros(m.shape),
-                        atol=eps)
-        print m.values.squeeze().size
-
-    def test_detrend_linear(self):
-        n = 100
-        x = np.random.randn(n)
-        dtx = detrend_linear(x)
-        eps = np.finfo(dtx.dtype).eps
-        ord_mag = int(np.floor(np.log10(n)))
-        rtol = 10.0 ** (1 - ord_mag) + (ord_mag - 1)
-        assert_allclose(dtx.mean(), 0.0, rtol=rtol, atol=eps)
-        assert_allclose(dtx.std(), 1.0, rtol=rtol, atol=eps)
-
-    def test_detrend_linear_series(self):
-        n = 100
-        x = pd.Series(np.random.randn(n))
-        dtx = detrend_linear(x)
-        m = dtx.mean()
-        s = dtx.std()
-        ord_mag = int(np.floor(np.log10(n)))
-        rtol = 10.0 ** (1 - ord_mag) + (ord_mag - 1)
-        eps = np.finfo(float).eps
-        assert_allclose(m, 0.0, rtol=rtol, atol=eps)
-        assert_allclose(s, 1.0, rtol=rtol, atol=eps)
-
-
-class TestCompose2(unittest.TestCase):
-    def test_compose2(self):
-        # fail if not both callables
-        f, g = 1, 2
-        self.assertRaises(TypeError, compose2, f, g)
-
-        f, g = 1, np.exp
-        self.assertRaises(TypeError, compose2, f, g)
-
-        f, g = np.log, 2
-        self.assertRaises(TypeError, compose2, f, g)
-
-        # don't fail if both callables
-        f, g = np.log, np.exp
-        h = compose2(f, g)
-        x = randn(10, 20)
-        assert_allclose(x, h(x))
-
-
-class TestCompose(unittest.TestCase):
-    def test_compose(self):
-        # fail if not both callables
-        f, g, h, q = 1, 2, np.log, np.exp
-        self.assertRaises(TypeError, compose, f, g, h, q)
-
-        f, g, h, q = 1, np.exp, 1.0, 'sd'
-        self.assertRaises(TypeError, compose, f, g, h, q)
-
-        f, g, h, q = np.log, 2, object(), []
-        self.assertRaises(TypeError, compose, f, g, h, q)
-
-        # don't fail if all callables
-        f, g, h, q = np.log, np.exp, np.log, np.exp
-        h = compose(f, g, h, q)
-        x = randn(10, 20)
-        assert_allclose(x, h(x))
-
-
-def test_composemap():
-    f, g = np.log, np.exp
-    x, y = randn(11), randn(10)
-    xnew, ynew = composemap(f, g)((x, y))
-    assert_allclose(x, xnew)
-    assert_allclose(y, ynew)
-
-
-def test_roll_with_zeros():
-    assert False
-
-
-def test_neighbors():
-    assert False
-
-
-def test_unique_neighbors():
-    assert False
-
-
-class TestMD5(unittest.TestCase):
     @classmethod
-    def setUpClass(cls):
-        cls.data = randn(100).tostring()
+    def tearDownClass(cls):
+        del cls.name
 
-    def test_md5string(self):
-        h = md5string(self.data)
-        self.assertIsInstance(h, basestring)
+    def test_nonzero_existing_file(self):
+        name = self.name
 
-    def test_md5int(self):
-        hs = md5string(self.data)
-        hi = md5int(self.data)
-        self.assertEqual(int(hs, 16), hi)
+        with open(name, 'wb') as tf:
+            randn(100).tofile(tf)
 
-    def test_md5file(self):
-        hs = md5string(self.data)
+        self.assert_(nonzero_existing_file(name))
 
-        with tempfile.NamedTemporaryFile('tmpfile.dat', 'wb') as tmpfile:
-            tmpfile.write(self.data)
+        os.remove(name)
 
-        hf = md5file(self.data)
+        self.assertFalse(nonzero_existing_file(name))
 
-        self.assertEqual(hs, hf)
+    def test_assert_non_existing_file(self):
+        name = self.name
+
+        with open(name, 'wb') as tf:
+            randn(100).tofile(tf)
+
+        assert_nonzero_existing_file(name)
+
+        os.remove(name)
+
+        self.assertRaises(AssertionError, assert_nonzero_existing_file, name)
+
+
+class TestTryConvertFirst(unittest.TestCase):
+    def test_try_convert_first(self):
+        assert False
+
+
+class TestIndexValues(unittest.TestCase):
+    def test_index_values(self):
+        assert False
