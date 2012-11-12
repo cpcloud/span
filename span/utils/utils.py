@@ -278,23 +278,6 @@ def num2name(num, base=256, slen=4):
     return ''.join(map(chr, w))
 
 
-def group_indices(group, dtype=int):
-    """Return the indices of a particular grouping as a `pandas.DataFrame`.
-
-    Parameters
-    ----------
-    group : pandas.Grouper
-    dtype : dtype
-
-    Returns
-    -------
-    inds : pandas.DataFrame
-    """
-    inds = pd.DataFrame(group.indices)
-    inds.columns = cast(inds.columns, dtype)
-    return inds
-
-
 def pad_larger2(x, y):
     """Pad the larger of two arrays and the return the arrays and the size of
     the larger array.
@@ -393,7 +376,7 @@ def hascomplex(x):
     except AttributeError:
         v = x.values.imag
 
-    return iscomplex(v) and not np.logical_not(v).all()
+    return iscomplex(x) and not np.logical_not(v).all()
 
 
 def get_fft_funcs(*arrays):
