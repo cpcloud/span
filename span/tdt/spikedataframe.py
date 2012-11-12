@@ -47,7 +47,7 @@ from span.utils.decorate import cached_property
 
 try:
     from pylab import subplots
-except RuntimeError:
+except RuntimeError: # pragma: no cover
     subplots = None
 
 
@@ -151,7 +151,7 @@ class SpikeDataFrameBase(GroupedDataFrame):
         scipy.signal.decimate
         """
         dec_s = scipy.signal.decimate(self.values.T, factor, n, ftype, axis)
-        return DataFrame(dec_s.T, columns=self.columns)
+        return self._constructor(dec_s.T, self.meta, columns=self.columns)
 
     @cached_property
     def fs(self):
@@ -221,13 +221,10 @@ class SpikeDataFrame(SpikeDataFrameBase):
     """Class encapsulting a Pandas DataFrame with extensions for analyzing
     spike train data.
 
-    Attributes
-    ----------
-
     See Also
     --------
     pandas.DataFrame
-    span.tdt.SpikeDataFrameBase
+    span.tdt.spikedataframe.SpikeDataFrameBase
     """
 
     def __init__(self, *args, **kwargs):
