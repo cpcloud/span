@@ -32,7 +32,7 @@ ctypedef fused integral:
 @cython.wraparound(False)
 @cython.boundscheck(False)
 cdef void _clear_refrac(integral[:, :] a, integral window) nogil:
-    cdef integral channel, i, sample, sp1, nsamples, nchannels
+    cdef np.npy_intp channel, i, sample, sp1, nsamples, nchannels
 
     nsamples = a.shape[0]
     nchannels = a.shape[1]
