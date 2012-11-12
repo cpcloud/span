@@ -53,27 +53,10 @@ try:
             ax = gca()
         ax.legend_ = None
 
-except RuntimeError as e:
+except RuntimeError as e: # pragma: no cover
     def remove_legend(ax=None):
         raise NotImplementedError('matplotlib not available on this ' \
-                                  'system: {}'.format(e))
-
-
-def find_names(obj):
-    """Find all of the names referring to a Python object.
-
-    Parameters
-    ----------
-    obj : object
-        Any Python object, which is to say: anything.
-
-    Returns
-    -------
-    names : list
-    """
-    return [k for ref in gc.get_referrers(obj) if isinstance(ref, dict)
-            for k, v in ref.iteritems() if v is obj]
-
+                                  'system: {0}'.format(e))
 
 
 def cast(a, dtype, copy=False):
@@ -153,30 +136,6 @@ def ndtuples(*dims):
         n *= d
 
     return cur
-
-
-def dirsize(d='.'):
-    """Recusively compute the size of a directory.
-
-    Parameters
-    ----------
-    d : str, optional
-        The directory of which to compute the size. Defaults to the current
-        directory.
-
-    Returns
-    -------
-    s : int
-        The size of the directory `d`.
-    """
-    s = os.path.getsize(d)
-    for item in glob.glob(os.path.join(d, '*')):
-        path = os.path.join(d, item)
-        if os.path.isfile(path):
-            s += os.path.getsize(path)
-        elif os.path.isdir(path):
-            s += dirsize(path)
-    return s
 
 
 def nans(shape):
@@ -417,110 +376,7 @@ def isvector(x):
     return functools.reduce(operator.mul, x.shape) == max(x.shape)
 
 
-def roll_with_zeros(a, shift=0, axis=None):
-    """
-    """
-    a, shift = map(np.asanyarray, a, shift)
-    if not shift:
-        return a
-
-    rshp = axis is None
-    n = a.size if rshp else a.shape[axis]
-
-    if np.abs(shift) > n:
-        res = np.zeros_like(n)
-    elif shift < 0:
-        shift += n
-        zs = np.zeros_like(a.take(np.arange(n - shift), axis))
-        res = np.concatenate((a.take(np.arange(n - shift, n), axis), zs), axis)
-    else:
-        zs = np.zeros_like(a.take(np.arange(n - shift, n) ,axis))
-        res = np.concatenate((zs, a.take(np.arange(n - shift), axis)), axis)
-
-    if rshp:
-        res.shape = a.shape
-
-    return res
-
-
-def neighbors(a, i, j, n=2):
-    """
-
-    Parameters
-    ----------
-    a : array_like
-    i, j, n : int
-
-    Returns
-    -------
-    rld_and_pd : array_like
-    """
-    assert n >= 2, 'n must be greater than 2, got %i' % n
-    dim0_roll = roll_with_zeros(a, shift=1 - i, axis=0)
-    rld_and_pd = roll_with_zeros(dim0_roll, shift=1 - j, axis=1)
-    return rld_and_pd[:n, :n]
-
-
-def unique_neighbors(neigh, axis=None):
-    """Get the unique neighbors of an array.
-
-    Parameters
-    ----------
-    neigh : array_like
-    axis : int or None, optional
-
-    Returns
-    -------
-    u_neigh : array_like
-    """
-    return neigh.take(neigh.ravel().nonzero(), axis=axis).squeeze()
-
-
-def sha1(s):
-    """Hash a string using the MD5 algorithm.
-
-    Parameters
-    ----------
-    s : str
-
-    Returns
-    -------
-    hexdigest : str
-    """
-    return hashlib.sha1(s).hexdigest()
-
-
-def sha1i(s):
-    """Return the integer SHA1 hash of a string.
-
-    Parameters
-    ----------
-    s : str
-
-    Returns
-    -------
-    hexdigest : str
-    """
-    return int(sha1(s), 16)
-
-
-def sha1file(fn):
-    """Hash a file using SHA1.
-
-    Parameters
-    ----------
-    fn : str
-
-    Returns
-    -------
-    hexdigest : str
-    """
-    with open(fn, 'rb') as f:
-        r = sha1(f.read())
-    return r
-
-
-def _try_convert_first(x):
+def try_convert_first(x):
     """Convert an object array's columns to the correct type.
 
     If any exceptions are thrown, return the input.
@@ -552,18 +408,12 @@ def index_values(multi_index):
     """
     m = map(lambda x: np.asanyarray(x, object), multi_index)
     df = pd.DataFrame(np.fromiter(m, object), columns=multi_index.names)
-    return df.apply_map(_try_convert_first)
-
-
-def side_by_side(*args, **kwargs):
-    from pandas.core.common import adjoin
-    space = kwargs.get('space', 4)
-    reprs = map(lambda arg: repr(arg).split('\n'), args)
-    print adjoin(space, *reprs)
+    return df.apply_map(try_convert_first)
 
 
 def nonzero_existing_file(f):
     return os.path.exists(f) and os.path.isfile(f) and os.path.getsize(f) > 0
+
 
 def assert_nonzero_existing_file(f):
     assert nonzero_existing_file(f), '%s does not exist' % f
