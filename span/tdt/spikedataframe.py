@@ -88,6 +88,7 @@ class SpikeGrouper(type):
 
 
 class SpikeGroupedDataFrame(DataFrame):
+    """Base class for spike data frames."""
 
     __metaclass__ = SpikeGrouper
 
