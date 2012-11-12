@@ -219,3 +219,7 @@ class TestLfpDataFrame(unittest.TestCase):
     def tearDownClass(cls):
         del cls.binsizes, cls.mses, cls.threshes, cls.meta, cls.lfps
         del cls.rows, cls.columns, cls.tank
+
+
+class TestCreateXCorrInds(unittest.TestCase):
+    pass
