@@ -196,12 +196,12 @@ class ElectrodeMap(DataFrame):
         cols = tuple(map(values_getter, cols))
         names = 'channel', 'shank', 'side'
 
-        def _label_maker(i):
-            names = tuple(map(lambda x: x + ' %s' % i, names))
-            return MultiIndex.from_arrays(cols, names=names)
+        def _label_maker(i, names):
+            new_names = tuple(map(lambda x: x + ' %s' % i, names))
+            return MultiIndex.from_arrays(cols, names=new_names)
 
-        index = _label_maker('i')
-        columns = _label_maker('j')
+        index = _label_maker('i', names)
+        columns = _label_maker('j', names)
         df = DataFrame(dm, index=index, columns=columns)
 
         nnames = len(names)
