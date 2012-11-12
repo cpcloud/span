@@ -30,6 +30,8 @@ import functools as fntools
 import numpy as np
 from pandas import Series, DataFrame
 
+from span.utils import ndtuples
+
 
 try:
     # weird bug in latest scipy
@@ -76,7 +78,7 @@ try:
 
         return Series(trimmed, index=index)
 
-except ImportError:
+except ImportError: # pragma: no cover
     def trimmean(x, alpha, inclusive=(False, False), axis=None):
         raise NotImplementedError("Unable to import scipy.stats;" +
                                   " cannot define trimmean")
@@ -97,8 +99,18 @@ def sem(a, axis=0, ddof=1):
     -------
     sem : array_like
     """
+    if np.isscalar(a):
+        return 0.0
+
     n = a.shape[axis]
-    return a.std(axis=axis, ddof=ddof) / np.sqrt(n)
+
+    try:
+        s = a.std(axis=axis, ddof=ddof)
+    except:
+        s = a.std(axis=axis)
+
+    return s / np.sqrt(n)
+
 
 
 def detrend_none(x):
@@ -293,23 +305,3 @@ def composemap(*args):
     """
     maps = itools.repeat(map, len(args))
     return fntools.reduce(compose2, map(fntools.partial, maps, args))
-
-
-def ndlinspace(ranges, *nelems):
-    """Create `n` linspaces between the ranges of `ranges` with `nelems`
-    elements.
-
-    Parameters
-    ----------
-    ranges : array_like
-    nelems : int, optional
-
-    Returns
-    -------
-    n_linspaces : array_like
-    """
-    x = span.utils.ndtuples(*nelems) + 1.0
-    b = np.asanyarray(nelems)
-    zipped = zip(*((r[0], r[1]) for r in ranges))
-    lbounds, ubounds = map(np.fromiter, zipped, itools.repeat(float))
-    return (lbounds + (x - 1) / (b - 1) * (ubounds - lbounds)).T
