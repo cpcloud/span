@@ -24,15 +24,15 @@ class TestSpikeGrouper(unittest.TestCase):
     pass
 
 
-class TestChannelGrouper(unittest.TestCase):
+class TestChannelGetter(unittest.TestCase):
     pass
 
 
-class TestShankGrouper(unittest.TestCase):
+class TestShankGetter(unittest.TestCase):
     pass
 
 
-class TestSideGrouper(unittest.TestCase):
+class TestSideGetter(unittest.TestCase):
     pass
 
 
