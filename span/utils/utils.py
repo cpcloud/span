@@ -53,10 +53,10 @@ try:
             ax = gca()
         ax.legend_ = None
 
-except RuntimeError as e: # pragma: no cover
+except RuntimeError as e:  # pragma: no cover
     def remove_legend(ax=None):
-        raise NotImplementedError('matplotlib not available on this ' \
-                                  'system: {0}'.format(e))
+        raise NotImplementedError("matplotlib not available on this "
+                                  "system: {0}".format(e))
 
 
 def cast(a, dtype, copy=False):
@@ -160,9 +160,11 @@ def nans(shape):
 
 
 def nans_like(a):
-    """Returns an array of nans in the shape of `x` while preserving `a`'s type.
-    This function also attempts to preserve the index and columns of a DataFrame
-    or Series.
+    """Returns an array of nans in the shape of `x` while preserving `a`'s
+    type.
+
+    This function also attempts to preserve the index and columns of a
+    DataFrame or Series.
 
     Parameters
     ----------
@@ -256,13 +258,14 @@ def pad_larger2(x, y):
     if xsize != ysize:
         size_diff = lsize - min(xsize, ysize)
 
-        pad_func = lambda a: np.pad(a, (0, size_diff), mode='constant',
-                               constant_values=(0,))
+        def _pad_func(a):
+            return np.pad(a, (0, size_diff), mode='constant',
+                          constant_values=(0,))
 
         if xsize > ysize:
-            y = pad_func(y)
+            y = _pad_func(y)
         else:
-            x = pad_func(x)
+            x = _pad_func(x)
 
     return x, y, lsize
 
@@ -284,7 +287,8 @@ def pad_larger(*arrays):
         Tuple of zero padded arrays.
     """
     assert all(map(isinstance, arrays, itools.repeat(np.ndarray))), \
-    'all arguments must be instances of ndarray or implement the ndarray interface'
+        ("all arguments must be instances of ndarray or implement the ndarray"
+         " interface")
     if len(arrays) == 2:
         return pad_larger2(*arrays)
 

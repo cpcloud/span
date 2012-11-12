@@ -47,7 +47,7 @@ from span.utils import sem, cast, fs2ms, bin_data, clear_refrac, ndtuples
 
 try:
     from pylab import subplots
-except RuntimeError: # pragma: no cover
+except RuntimeError:  # pragma: no cover
     subplots = None
 
 
