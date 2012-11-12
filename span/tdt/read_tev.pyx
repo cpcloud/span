@@ -105,6 +105,6 @@ def read_tev(char* filename, integral nsamples, integral[:] fp_locs not None,
     spikes : floating[:, :]
         Output array
     """
-    assert filename is not NULL, 'filename (1st argument) cannot be empty'
+    assert filename, 'filename (1st argument) cannot be empty'
     assert nsamples > 0, '"nsamples" must be greater than 0'
     _read_tev(filename, nsamples, fp_locs, spikes)
