@@ -18,15 +18,21 @@
 # along with this program. If not, see <http://www.gnu.org/licenses/>.
 
 
-from numpy cimport uint8_t as u1, npy_intp as i8
-
 cimport cython
+cimport numpy as np
+
+ctypedef fused integral:
+    np.int8_t
+    np.int16_t
+    np.int32_t
+    np.int64_t
+    np.npy_intp
 
 
 @cython.wraparound(False)
 @cython.boundscheck(False)
-cdef void _clear_refrac(u1[:, :] a, i8 window) nogil:
-    cdef i8 channel, i, sample, sp1, nsamples, nchannels
+cdef void _clear_refrac(integral[:, :] a, integral window) nogil:
+    cdef integral channel, i, sample, sp1, nsamples, nchannels
 
     nsamples = a.shape[0]
     nchannels = a.shape[1]
@@ -48,7 +54,7 @@ cdef void _clear_refrac(u1[:, :] a, i8 window) nogil:
 
 @cython.wraparound(False)
 @cython.boundscheck(False)
-def clear_refrac(u1[:, :] a not None, i8 window):
+def clear_refrac(integral[:, :] a not None, integral window):
     """Clear the refractory period of a boolean array.
 
     Parameters

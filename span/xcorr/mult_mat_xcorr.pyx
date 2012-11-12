@@ -18,19 +18,27 @@
 # along with this program. If not, see <http://www.gnu.org/licenses/>.
 
 
-from numpy cimport complex128_t as c16, npy_intp as i8
+from numpy cimport (complex64_t as c8, complex128_t as c16, npy_intp as ip,
+                    int64_t as i8)
 
 from cython.parallel cimport prange, parallel
 
 cimport cython
 
+ctypedef fused floating:
+    float
+    double
+
+    c8
+    c16
+
 
 @cython.wraparound(False)
 @cython.boundscheck(False)
-cdef void _mult_mat_xcorr(c16[:, :] X, c16[:, :] Xc, c16[:, :] c, i8 n,
-                          i8 nx) nogil:
+cdef void _mult_mat_xcorr(floating[:, :] X, floating[:, :] Xc,
+                          floating[:, :] c, ip n, ip nx) nogil:
 
-    cdef i8 i, j, k, r
+    cdef ip i, j, k, r
 
     with parallel():
         for i in prange(n, schedule='guided'):
@@ -41,15 +49,15 @@ cdef void _mult_mat_xcorr(c16[:, :] X, c16[:, :] Xc, c16[:, :] c, i8 n,
 
 @cython.wraparound(False)
 @cython.boundscheck(False)
-def mult_mat_xcorr(c16[:, :] X not None, c16[:, :] Xc not None,
-                   c16[:, :] c not None, i8 n, i8 nx):
+def mult_mat_xcorr(floating[:, :] X not None, floating[:, :] Xc not None,
+                   floating[:, :] c not None, ip n, ip nx):
     """Perform the necessary matrix-vector multiplication and fill the cross-
     correlation array. Slightly faster than pure Python.
 
     Parameters
     ----------
     X, Xc, c : c16[:, :]
-    n, nx : i8
+    n, nx : ip
 
     Raises
     ------

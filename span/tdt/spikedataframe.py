@@ -317,10 +317,14 @@ class SpikeDataFrame(SpikeDataFrameBase):
             '"reject_count" must be a nonnegative real number'
 
         ms_per_s = 1e3
-        bin_samples = cast(np.floor(binsize * self.fs / ms_per_s), np.int64)
+        bin_samples = cast(np.floor(binsize * self.fs / ms_per_s), np.uint64)
         bins = np.arange(start=0, stop=self.nsamples - 1, step=bin_samples,
                          dtype=np.uint64)
-        btmp = bin_data(cleared.values.view(np.uint8), bins)
+
+        shape = bins.shape[0] - 1, cleared.shape[1]
+        btmp = np.empty(shape, np.uint64)
+
+        bin_data(cleared.values.view(np.uint8), bins, btmp)
 
         # make a datetime index of seconds
         freq = binsize * datetools.Milli()
@@ -381,7 +385,7 @@ class SpikeDataFrame(SpikeDataFrameBase):
 
             # TODO: make sure samples by channels is shape of clr
             # WARNING: you must pass a np.uint8 type array (view or otherwise)
-            clear_refrac(clr.view(np.uint8), ms_fs)
+            clear_refrac(clr.view(np.int8), ms_fs)
 
             r = SpikeDataFrame(clr, self.meta, index=threshed.index,
                                columns=threshed.columns)

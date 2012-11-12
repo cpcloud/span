@@ -17,21 +17,17 @@
 # You should have received a copy of the GNU General Public License
 # along with this program. If not, see <http://www.gnu.org/licenses/>.
 
-
-from numpy cimport (uint8_t as u1, ndarray, PyArray_EMPTY, NPY_ULONG,
-                    npy_intp as i8, import_array, uint64_t as u8)
-
-from cython.parallel cimport prange, parallel
-
 cimport cython
 
-import_array()
+from numpy cimport uint8_t as u1, uint64_t as u8, npy_intp as ip
+
+from cython.parallel cimport prange, parallel
 
 
 @cython.wraparound(False)
 @cython.boundscheck(False)
 cdef void _bin_data(u1[:, :] a, u8[:] bins, u8[:, :] out):
-    cdef i8 i, j, k, m, n
+    cdef ip i, j, k, m, n
 
     m = out.shape[0]
     n = out.shape[1]
@@ -47,7 +43,7 @@ cdef void _bin_data(u1[:, :] a, u8[:] bins, u8[:, :] out):
 
 @cython.wraparound(False)
 @cython.boundscheck(False)
-def bin_data(u1[:, :] a not None, u8[:] bins not None):
+def bin_data(u1[:, :] a not None, u8[:] bins not None, u8[:, :] out not None):
     """Bin `a` (a boolean matrix) according to `bins`.
 
     For the :math:`k`th channel
@@ -55,27 +51,10 @@ def bin_data(u1[:, :] a not None, u8[:] bins not None):
             Sum :math:`a_{jk}` where :math:`j \in` `bins`:math:`_{i},\ldots,`
             `bins`:math:`_{i+1}`.
 
-
     Parameters
     ----------
-    a, bins : array_like
-        The array whose values to count up in the bins given by `bins`.
-
-    Returns
-    -------
-    out : array_like
-        The binned data from `a`.
+    a, bins, out : array_like
+        The array whose values to count up in the bins given by `bins`. The
+        result is stored in `out`.
     """
-    cdef:
-        i8 dims[2]
-        ndarray[u8, ndim=2] out
-
-    dims[0] = bins.shape[0] - 1
-    dims[1] = a.shape[1]
-
-    # ndim, size of dims, type, c if 0 else fortran order
-    out = PyArray_EMPTY(2, dims, NPY_ULONG, 0)
-
     _bin_data(a, bins, out)
-
-    return out
