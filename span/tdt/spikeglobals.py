@@ -32,14 +32,14 @@ ElectrodeMap = pd.Series(np.array([[1, 3, 2, 6],
                                    [7, 4, 5, 8],
                                    [13, 12, 10, 9],
                                    [14, 16, 11, 15]]).ravel() - 1,
-                                   name='Electrode Map')
+                         name='Electrode Map')
 
 NShanks = 4
 ElectrodesPerShank = 4
 NSides = NShanks * 2
 ShankMap = pd.Series(np.outer(np.arange(NShanks),
                               np.ones(NShanks)).astype(int).ravel(),
-                              name='Shank Map')
+                     name='Shank Map')
 MedLatRaw = np.array(('lat', 'med'))[np.hstack((np.zeros(NSides, int),
                                                 np.ones(NSides, int)))]
 MedialLateral = pd.Series(MedLatRaw, name='Side Map')

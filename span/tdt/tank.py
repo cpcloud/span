@@ -48,7 +48,7 @@ from span.utils import (name2num, thunkify, cached_property, fromtimestamp,
 
 
 _TsqFields = ('size', 'type', 'name', 'channel', 'sort_code', 'timestamp',
-             'fp_loc', 'format', 'fs')
+              'fp_loc', 'format', 'fs')
 
 _TsqNumpyTypes = i4, i4, u4, u2, u2, f8, i8, i4, f4
 
@@ -73,8 +73,8 @@ def _get_first_match(pattern, string):
     return r.group(1)
 
 
-def _match_int(pattern, string, get_exc=False, excs=(AttributeError, ValueError,
-                                                     TypeError)):
+def _match_int(pattern, string, get_exc=False, excs=(AttributeError,
+                                                     ValueError, TypeError)):
     """Convert a string matched from a regex to an integer or return None.
 
     Parameters
@@ -126,7 +126,7 @@ class TdtTankAbstractBase(object):
 
     @abc.abstractmethod
     def _read_tev(self, event_name):
-        pass # pragma: no cover
+        pass  # pragma: no cover
 
     @property
     @thunkify
@@ -168,7 +168,8 @@ class TdtTankAbstractBase(object):
         return b.join(shank).join(side)
 
     @cached_property
-    def tsq(self): return self._read_tsq()
+    def tsq(self):
+        return self._read_tsq()
 
     def tev(self, event_name):
         """Return the data from a particular event.
@@ -239,10 +240,12 @@ class TdtTankBase(TdtTankAbstractBase):
         self.site = _match_int(self.site_re, self.name)
 
     @cached_property
-    def spikes(self): return self.tev('Spik')
+    def spikes(self):
+        return self.tev('Spik')
 
     @cached_property
-    def lfps(self): return self.tev('LFPs')
+    def lfps(self):
+        return self.tev('LFPs')
 
 
 class PandasTank(TdtTankBase):

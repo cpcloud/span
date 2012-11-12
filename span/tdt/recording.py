@@ -90,12 +90,12 @@ class ElectrodeMap(DataFrame):
         The electrode configuration. Can have an arbitrary integer base.
 
     order : None or str, optional
-        If there is a topography to the are that was recorded from, indicate here
-        by "lm". Defaults to None.
+        If there is a topography to the are that was recorded from, indicate
+        here by "lm". Defaults to None.
 
     base_index : int, optional
-        The number to start the channel indexing from. Defaults to 0 for ease of
-        use in Python.
+        The number to start the channel indexing from. Defaults to 0 for ease
+        of use in Python.
 
     Attributes
     ----------
@@ -138,10 +138,12 @@ class ElectrodeMap(DataFrame):
         super(ElectrodeMap, self).__init__(df.sort())
 
     @property
-    def nshanks(self): return self.shank.nunique()
+    def nshanks(self):
+        return self.shank.nunique()
 
     @property
-    def nchans(self): return self.index.unique().size
+    def nchans(self):
+        return self.index.unique().size
 
     def distance_map(self, within, between, metric='wminkowski', p=2.0):
         """Create a distance map from the current electrode configuration.
@@ -195,9 +197,8 @@ class ElectrodeMap(DataFrame):
         names = 'channel', 'shank', 'side'
 
         def _label_maker(i):
-            return MultiIndex.from_arrays(cols,
-                                          names=tuple(map(lambda x: x + ' %s' % i,
-                                                          names)))
+            names = tuple(map(lambda x: x + ' %s' % i, names))
+            return MultiIndex.from_arrays(cols, names=names)
 
         index = _label_maker('i')
         columns = _label_maker('j')
@@ -207,8 +208,8 @@ class ElectrodeMap(DataFrame):
         ninds = 2
         nlevels = nnames * ninds
 
-        reordering = tuple(reduce(lambda x, y: x + y, zip(xrange(nnames),
-                                                     xrange(nnames, nlevels))))
+        zipped = zip(xrange(nnames), xrange(nnames, nlevels))
+        reordering = tuple(reduce(lambda x, y: x + y, zipped))
 
         s = df.stack(0)
 
