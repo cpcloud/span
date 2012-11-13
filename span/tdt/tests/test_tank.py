@@ -9,24 +9,13 @@ from span.tdt.tank import TdtTankBase, PandasTank
 from span.tdt import SpikeDataFrame
 
 
-class TestNonZeroExistingFile(unittest.TestCase):
-    def test_success(self):
-        assert False
-
-    def test_fail(self):
-        assert False
-
-
 class TestGetFirstMatch(unittest.TestCase):
-    def test_success(self):
+    def test_get_first_match(self):
         assert False
 
 
 class TestMatchInt(unittest.TestCase):
-    def test_success(self):
-        assert False
-
-    def test_fail(self):
+    def test_match_int(self):
         assert False
 
 
