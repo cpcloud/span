@@ -36,18 +36,6 @@ class TestPandasTank(unittest.TestCase):
     def tearDownClass(cls):
         del cls.tank
 
-    def test__parse_date(self):
-        d = self.tank._parse_date('')
-        now = pd.datetime.now()
-        self.assertEqual(d.month, now.month)
-        self.assertEqual(d.day, now.day)
-        self.assertEqual(d.year, now.year + 2000)
-
-        # date-like string case
-        s = self.tank.name
-        d = self.tank._parse_date(s)
-        self.assertIsInstance(d, datetime.date)
-
     def test_age(self):
         assert hasattr(self.tank, 'age')
         self.assertIsInstance(self.tank.age, (type(None), int))
