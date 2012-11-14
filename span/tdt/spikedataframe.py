@@ -385,7 +385,7 @@ class SpikeDataFrame(SpikeDataFrameBase):
 
             # TODO: make sure samples by channels is shape of clr
             # WARNING: you must pass a np.uint8 type array (view or otherwise)
-            clear_refrac(clr.view(np.int8), ms_fs)
+            clear_refrac(clr.view(np.uint8), ms_fs)
 
             r = SpikeDataFrame(clr, self.meta, index=threshed.index,
                                columns=threshed.columns)
