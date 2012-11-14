@@ -17,7 +17,7 @@ from pandas.util.testing import assert_frame_equal, assert_series_equal
 from span.tdt.tank import PandasTank
 from span.tdt.spikedataframe import (SpikeDataFrameBase, SpikeDataFrame,
                                      SpikeGroupedDataFrame)
-from span.utils import detrend_none, detrend_mean, detrend_linear
+from span.utils import detrend_none, detrend_mean, detrend_linear, fromtimestamp
 from span.testing import assert_all_dtypes, randrange
 
 
@@ -65,7 +65,6 @@ class TestSpikeGroupedDataFrame(unittest.TestCase):
             self.assertEqual(s.values.size, df.shape[1 - axis])
 
 
-# @nottest
 class TestSpikeDataFrameBase(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
@@ -73,8 +72,9 @@ class TestSpikeDataFrameBase(unittest.TestCase):
                                 'Spont_Spikes_091210_p17rat_s4_657umV')
         tn = os.path.join(tankname, os.path.basename(tankname))
         cls.tank = PandasTank(tn)
-        tsq = cls.tank.tsq
-        cls.meta = tsq
+        tsq = cls.tank.stsq
+        cls.meta = tsq.reset_index(drop=True)
+        cls.meta.timestamp = fromtimestamp(cls.meta.timestamp)
 
         nsamples, _ = tsq.shape[0], tsq.size.unique().max()
         size = nsamples * tsq.shape[1], tsq.channel.nunique()
@@ -86,28 +86,45 @@ class TestSpikeDataFrameBase(unittest.TestCase):
         cls.mses = 2.0, 3.0
         cls.binsizes = 0, 1, np.random.randint(10, 1001)
 
-    def clean_up_tsq(self):
-        pass
-
     @classmethod
     def tearDownClass(cls):
         del cls.binsizes, cls.mses, cls.threshes, cls.meta, cls.raw
         del cls.rows, cls.columns, cls.tank
 
     def setUp(self):
-        self.spikes = SpikeDataFrame(self.raw, self.meta)
-        self.clean_up_tsq()
+        from span.tdt.spikeglobals import ChannelIndex as columns
+        self.index = self.create_date_range()
+        self.spikes = SpikeDataFrame(self.raw, self.meta, index=self.index,
+                                     columns=columns)
 
     def tearDown(self):
-        del self.spikes
+        del self.spikes, self.index
 
-    def test_init_noindex(self):
+    def create_date_range(self):
+        us_per_sample = (round(1e6 / self.meta.fs.unique().max()) *
+                         pd.datetools.Micro())
+        ts = self.meta.timestamp[0]
+        index = pd.date_range(ts, periods=self.rows, freq=us_per_sample,
+                              name='time', tz='US/Eastern')
+
+    def test_init_noindex_nocolumns(self):
         spikes = SpikeDataFrame(self.raw, self.meta)
         self.assertRaises(AssertionError, SpikeDataFrame, self.raw, None)
         self.assertRaises(TypeError, SpikeDataFrame, self.raw)
 
-    def test_init_with_index(self):
-        assert False
+    def test_init_noindex_columns(self):
+        from span.tdt.spikeglobals import ChannelIndex as columns
+        spikes = SpikeDataFrame(self.raw, self.meta, columns=columns)
+        self.assertRaises(AssertionError, SpikeDataFrame, self.raw, None)
+        self.assertRaises(TypeError, SpikeDataFrame, self.raw)
+
+    def test_init_with_index_nocolumns(self):
+        spikes = SpikeDataFrame(self.raw, self.meta, index=self.index)
+
+    def test_init_with_index_with_columns(self):
+        from span.tdt.spikeglobals import ChannelIndex as columns
+        spikes = SpikeDataFrame(self.raw, self.meta, index=self.index,
+                                columns=columns)
 
     def test_fs(self):
         fs = self.spikes.fs
@@ -126,70 +143,48 @@ class TestSpikeDataFrameBase(unittest.TestCase):
         values = cols.levels[cols.names.index('channel')].values
         self.assertEqual(nchans, values.max() + 1)
 
-    def test_indices_and_groups(self):
-        inds = 'channel', 'shank', 'side'
-        for ind in inds:
-            self.assert_(hasattr(self.spikes, ind + '_indices'))
-            self.assert_(hasattr(self.spikes, ind + '_group'))
-            indices = getattr(self.spikes, ind + '_indices')
-            grp = getattr(self.spikes, ind + '_group')
-            self.assertIsInstance(indices, (pd.DataFrame, pd.Series))
-            self.assertIsInstance(grp, (pd.core.groupby.DataFrameGroupBy,
-                                        pd.core.groupby.SeriesGroupBy))
-
 
 class TestSpikeDataFrame(TestSpikeDataFrameBase):
     def test_threshold(self):
-        shp = self.spikes.shape
-        for thresh in self.threshes:
-            threshed = self.spikes.threshold(thresh)
-            assert_all_dtypes(threshed, np.bool_)
-            self.assertTupleEqual(threshed.shape, shp)
+        assert False
 
     @slow
     def test_bin(self):
-        max_sample = self.spikes.index[-1]
-        for arg_set in itertools.product(self.threshes, self.mses,
-                                         self.binsizes):
-            thresh, ms, binsize = arg_set
-            binned = self.spikes.bin(thresh, ms, binsize)
-            bin_samples = int(np.floor(binsize * self.spikes.fs / 1e3))
-            self.assertTupleEqual(binned.shape, (max_sample / bin_samples,
-                                                 self.spikes.shape[1]))
-            assert_all_dtypes(binned, np.int64)
+        assert False
 
     @slow
     def test_fr(self):
-        index = self.spikes.index
-        levels = index.names
-        axes = 0, 1, None
-        arg_sets = itertools.product(self.threshes, levels, axes, self.binsizes,
-                                     self.mses)
-        raises = {0: ValueError, None: KeyError}
-        for arg_set in arg_sets:
-            thresh, level, axis, binsize, ms = arg_set
-            try:
-                self.assertRaises(raises[axis], self.spikes.fr, thresh, level,
-                                  axis, binsize, ms)
-            except KeyError:
-                fr, sem = self.spikes.fr(thresh, level, axis, binsize, ms)
-                sz = index.levels[levels.index(level)].size
-                self.assertEqual(fr.size, sz)
-                self.assertEqual(sem.size, sz)
+        sp = self.spikes
+        thr = sp.threshold(3 * sp.std())
+        clr = sp.clear_refrac(thr)
+        binned = sp.bin(clr, binsize=1000)
+        args = itertools.product(sp.columns.names,
+                                 xrange(len(sp.columns.names)), (0, 1),
+                                 (True, False))
 
-    def test_refrac_window(self):
-        args = np.arange(10)
-        r = list(map(type, [self.spikes.refrac_window(arg) for arg in args]))
-        self.assertListEqual(r, list(itertools.repeat(int, len(r))))
+        for level_name, level_number, axis, sem in args:
+            for t in (level_name, level_number):
+                if axis:
+                    if sem:
+                        mfr, sm = sp.fr(binned, t, axis, sem)
+                        self.assertEqual(mfr.shape, sm.shape)
+                    else:
+                        mfr = sp.fr(binned, t, axis, sem)
+
+                else:
+                    self.assertRaises(ValueError, sp.fr, binned, t, axis, sem)
+
+
 
     @slow
     def test_clear_refrac(self):
-        for arg_set in itertools.product(self.threshes, self.mses):
-            thresh, ms = arg_set
-            cleared = self.spikes.clear_refrac(thresh, ms)
+        thr = self.spikes.threshold(3 * self.spikes.std())
+        for ms in self.mses:
+            cleared = self.spikes.clear_refrac(thr, ms)
             assert_all_dtypes(cleared, np.bool_)
+            self.assertLessEqual(cleared.values.sum(), thr.values.sum())
 
-    def test__constructor(self):
+    def test_constructor(self):
         s = self.spikes
         ind = self.spikes.index
         cols = self.spikes.columns
@@ -200,21 +195,7 @@ class TestSpikeDataFrame(TestSpikeDataFrameBase):
 
     @slow
     def test_xcorr(self):
-        maxlags = 50, 100, None
-        detrends = detrend_mean, detrend_none, detrend_linear
-        scales = None, 'normalize', 'unbiased', 'biased'
-        reject_counts = 0, 1, 10, 100, 1000
-        arg_sets = itertools.product(self.threshes, self.mses, self.binsizes,
-                                     maxlags, detrends, scales, reject_counts)
-        for arg_set in arg_sets:
-            thresh, ms, binsize, maxlag, detrend, scale, reject_count = arg_set
-            xc, _ = self.spikes.xcorr(thresh, ms, binsize, maxlag, detrend,
-                                      scale, reject_count)
-            self.assertTupleEqual(xc.values.shape, (self.spikes.nchans ** 2,
-                                                    2 * maxlag - 1))
-            assert_all_dtypes(xc, np.float64)
-
-        self.assertRaises(AssertionError, self.spikes.xcorr, maxlags=int(1e10))
+        assert False
 
 
 @slow
