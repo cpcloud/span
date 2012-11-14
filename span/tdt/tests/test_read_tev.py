@@ -1,4 +1,5 @@
 import unittest
+from warnings import warn
 import os
 
 from glob import glob
@@ -7,9 +8,8 @@ import numpy as np
 
 from span.tdt import read_tev, PandasTank
 
+
 class TestReadTev(unittest.TestCase):
-    """Test the Cython'ed read_tev function.
-    """
     @classmethod
     def setUpClass(cls):
         path = os.path.join(os.path.expanduser('~'), 'Data', 'xcorr_data',
@@ -22,19 +22,26 @@ class TestReadTev(unittest.TestCase):
         del cls.tank, cls.path
 
     def test_read_tev(self):
-        tsq = self.tank.tsq
-        fp_locs = tsq.fp_loc
-        nsamples, chunk_size = tsq.shape[0], tsq.size.unique().max()
+        names = 'Spik', 'LFPs'
 
-        del tsq
+        for name in names:
+            tsq, _ = self.tank.tsq(name)
+            fp_locs = tsq.fp_loc
+            nsamples, chunk_size = fp_locs.size, tsq.size.unique().max()
 
-        try:
-            spikes = np.empty((nsamples, chunk_size), np.float32)
-        except MemoryError:
-            pass
-        else:
-            read_tev(self.path, nsamples, fp_locs, spikes)
+            del tsq
 
-            # should be on the order of millivolts
-            mag = np.log10(np.abs(spikes).mean())
-            self.assertLessEqual(mag, -3.0)
+            try:
+                spikes = np.empty((nsamples, chunk_size), np.float32)
+            except MemoryError:
+                warn('Out of memory when creating TEV file output array')
+            else:
+                read_tev(self.path, chunk_size, fp_locs, spikes)
+
+                # should be at least on the order of millivolts
+                mag = np.log10(np.abs(spikes).mean())
+                self.assertLessEqual(mag, -3.0)
+
+                del spikes, mag
+
+            del fp_locs
