@@ -128,9 +128,8 @@ class TdtTankAbstractBase(object):
     def _read_tev(self, event_name):
         pass  # pragma: no cover
 
-    @property
     @thunkify
-    def _read_tsq(self):
+    def _read_tsq(self, event_name):
         """Read the metadata (TSQ) file of a TDT Tank.
 
         Returns
@@ -165,11 +164,38 @@ class TdtTankAbstractBase(object):
         shank = srt.shank[b.channel].reset_index(drop=True)
         side = srt.side[b.channel].reset_index(drop=True)
 
-        return b.join(shank).join(side)
+        tsq = b.join(shank).join(side)
+
+        # convert the event_name to a number
+        name = name2num(event_name)
+
+        # get the row of the metadata where its value equals the name-number
+        row = tsq.name == name
+
+        # make sure there's at least one event
+        assert row.any(), 'no event named %s in tank: %s' % (event_name,
+                                                             self.path)
+
+        # get all the metadata for those events
+        tsq = tsq[row]
+
+        # convert to integer where possible
+        tsq.channel = meta.channel.astype(int)
+        tsq.shank = meta.shank.astype(int)
+
+        return tsq
+
+    def tsq(self, event_name):
+        getter = self._read_tsq(event_name)
+        return getter()
 
     @cached_property
-    def tsq(self):
-        return self._read_tsq()
+    def stsq(self):
+        return self.tsq('Spik')
+
+    @cached_property
+    def ltsq(self):
+        return self.tsq('LFPs')
 
     def tev(self, event_name):
         """Return the data from a particular event.
@@ -285,22 +311,6 @@ class PandasTank(TdtTankBase):
         --------
         span.tdt.SpikeDataFrame
         """
-        # convert the event_name to a number
-        name = name2num(event_name)
-
-        # get the row of the metadata where its value equals the name-number
-        row = self.tsq.name == name
-
-        # make sure there's at least one event
-        assert row.any(), 'no event named %s in tank: %s' % (event_name,
-                                                             self.path)
-
-        # get all the metadata for those events
-        meta = self.tsq[row]
-
-        # convert to integer where possible
-        meta.channel = meta.channel.astype(int)
-        meta.shank = meta.shank.astype(int)
 
         # first row of event type
         first_row = np.argmax(row)
