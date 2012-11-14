@@ -11,13 +11,14 @@ from numpy.random import randn
 from numpy.testing.decorators import slow
 
 import pandas as pd
-from pandas import Series, DataFrame
+from pandas import Series
+from pandas.util.testing import assert_frame_equal, assert_series_equal
 
 from span.tdt.tank import PandasTank
 from span.tdt.spikedataframe import (SpikeDataFrameBase, SpikeDataFrame,
                                      SpikeGroupedDataFrame)
 from span.utils import detrend_none, detrend_mean, detrend_linear
-from span.testing import assert_all_dtypes
+from span.testing import assert_all_dtypes, randrange
 
 
 class TestSpikeGrouper(unittest.TestCase):
@@ -53,7 +54,7 @@ class TestSpikeGroupedDataFrame(unittest.TestCase):
         df3 = df0._constructor(self.x)
 
         for df in (df1, df2, df3):
-            self.assertEqual(df0, df)
+            assert_frame_equal(df0, df)
 
     def test_sem(self):
         df = SpikeGroupedDataFrame(self.x)
@@ -64,36 +65,56 @@ class TestSpikeGroupedDataFrame(unittest.TestCase):
             self.assertEqual(s.values.size, df.shape[1 - axis])
 
 
-class TestSpikeDataFrameAbstractBase(unittest.TestCase):
+# @nottest
+class TestSpikeDataFrameBase(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         tankname = os.path.join(os.path.expanduser('~'), 'Data', 'xcorr_data',
                                 'Spont_Spikes_091210_p17rat_s4_657umV')
         tn = os.path.join(tankname, os.path.basename(tankname))
         cls.tank = PandasTank(tn)
-        cls.rows, cls.columns = cls.tank.spikes.shape
-        cls.spikes = cls.tank.spikes
-        cls.meta = cls.spikes.meta
+        tsq = cls.tank.tsq
+        cls.meta = tsq
+
+        nsamples, _ = tsq.shape[0], tsq.size.unique().max()
+        size = nsamples * tsq.shape[1], tsq.channel.nunique()
+
+        cls.rows, cls.columns = size
+        cls.raw = randrange(-5e-6, 5e-6, size=size)
+
         cls.threshes = 2e-5, 3e-5
         cls.mses = 2.0, 3.0
-        cls.binsizes = 0, 1, 1000
+        cls.binsizes = 0, 1, np.random.randint(10, 1001)
 
-    def test_init(self):
-        self.assertRaises(TypeError, SpikeDataFrameAbstractBase,
-                          pd.DataFrame(np.random.randn(10, 13)),
-                          pd.DataFrame(np.random.rand(108, 17)))
+    def clean_up_tsq(self):
+        pass
 
     @classmethod
     def tearDownClass(cls):
-        del cls.binsizes, cls.mses, cls.threshes, cls.meta, cls.spikes
+        del cls.binsizes, cls.mses, cls.threshes, cls.meta, cls.raw
         del cls.rows, cls.columns, cls.tank
 
+    def setUp(self):
+        self.spikes = SpikeDataFrame(self.raw, self.meta)
+        self.clean_up_tsq()
 
-class TestSpikeDataFrameBase(TestSpikeDataFrameAbstractBase):
+    def tearDown(self):
+        del self.spikes
+
+    def test_init_noindex(self):
+        spikes = SpikeDataFrame(self.raw, self.meta)
+        self.assertRaises(AssertionError, SpikeDataFrame, self.raw, None)
+        self.assertRaises(TypeError, SpikeDataFrame, self.raw)
+
+    def test_init_with_index(self):
+        assert False
+
     def test_fs(self):
         fs = self.spikes.fs
+
         self.assertEqual(fs, self.meta.fs.max())
         self.assertIn(fs, self.meta.fs)
+
         if hasattr(fs, 'dtype'):
             self.assert_(np.issubdtype(fs.dtype, np.floating))
         else:
@@ -117,8 +138,7 @@ class TestSpikeDataFrameBase(TestSpikeDataFrameAbstractBase):
                                         pd.core.groupby.SeriesGroupBy))
 
 
-@nottest
-class TestSpikeDataFrame(TestSpikeDataFrameAbstractBase):
+class TestSpikeDataFrame(TestSpikeDataFrameBase):
     def test_threshold(self):
         shp = self.spikes.shape
         for thresh in self.threshes:
