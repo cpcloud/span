@@ -281,6 +281,6 @@ class TestTryConvertFirst(unittest.TestCase):
         assert False
 
 
-class TestIndexValues(unittest.TestCase):
-    def test_index_values(self):
+class TestMi2Df(unittest.TestCase):
+    def test_mi2df(self):
         assert False
