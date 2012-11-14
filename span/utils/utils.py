@@ -24,19 +24,18 @@
 
 from future_builtins import map, zip
 
-import gc
 import os
 import operator
-import glob
 import itertools as itools
 import functools
-import hashlib
 
 import numpy as np
 import pandas as pd
 
+from pandas import DataFrame, datetime
 
-fromtimestamp = np.vectorize(pd.datetime.fromtimestamp)
+
+fromtimestamp = np.vectorize(datetime.fromtimestamp)
 
 try:
     from pylab import gca
@@ -84,8 +83,10 @@ def cast(a, dtype, copy=False):
     r : array_like
         The array `a` casted to type dtype
     """
-    assert hasattr(a, 'dtype'), 'first argument has no "dtype" attribute'
-    assert hasattr(a, 'astype'), 'first argument has no "astype" attribute'
+    assert hasattr(a, 'dtype'), ('argument "a" of type {0} has no "dtype" '
+                                 'attribute'.format(a.__class__))
+    assert hasattr(a, 'astype'), ('argument "a" of type {0} has no "astype" '
+                                 'method'.format(a.__class__))
 
     if a.dtype == dtype:
         return a
@@ -380,44 +381,61 @@ def isvector(x):
     return functools.reduce(operator.mul, x.shape) == max(x.shape)
 
 
-def try_convert_first(x):
-    """Convert an object array's columns to the correct type.
-
-    If any exceptions are thrown, return the input.
+def mi2df(mi):
+    """Return a `pandas`_ `MultiIndex`_ as a `DataFrame`_.
 
     Parameters
     ----------
-    x : array_like
+    mi : `MultiIndex`_
 
     Returns
     -------
-    cast_x : array_like
+    df : `DataFrame`_
     """
-    try:
-        return cast(x, type(x[0]))
-    except:
-        return x
 
+    def _try_convert_first(x):
+        """Convert an object array's columns to the correct type.
 
-def index_values(multi_index):
-    """Return a pandas MultiIndex as a DataFrame.
+        If any exceptions are thrown, return the input.
 
-    Parameters
-    ----------
-    multi_index : pd.MultiIndex
+        Parameters
+        ----------
+        x : array_like
 
-    Returns
-    -------
-    df : pd.DataFrame
-    """
-    m = map(lambda x: np.asanyarray(x, object), multi_index)
-    df = pd.DataFrame(np.fromiter(m, object), columns=multi_index.names)
-    return df.apply_map(try_convert_first)
+        Returns
+        -------
+        cast_x : array_like
+        """
+        try:
+            return cast(x, type(x[0]))
+        except Exception:
+            return x
+
+    # map each
+    m = tuple(map(lambda x: np.asanyarray(x, object), mi))
+    df = DataFrame(np.asanyarray(m, object), columns=mi.names)
+    return df.applymap(_try_convert_first)
 
 
 def nonzero_existing_file(f):
+    """Return whether a file exists and is not size 0.
+
+    Parameters
+    ----------
+    f : str
+
+    Returns
+    -------
+    nef : bool
+
+    Notes
+    -----
+    This doesn't perform as expected for temporary files. It returns False
+    on ``os.path.getsize(f) > 0`` even if the file has just been written to.
+    """
     return os.path.exists(f) and os.path.isfile(f) and os.path.getsize(f) > 0
 
 
 def assert_nonzero_existing_file(f):
-    assert nonzero_existing_file(f), '%s does not exist' % f
+    assert nonzero_existing_file(f), ("%s does not exist or has a size of 0 "
+                                      "bytes" % f)
