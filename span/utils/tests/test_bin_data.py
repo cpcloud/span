@@ -11,7 +11,8 @@ class TestBinDataNone(unittest.TestCase):
         x = rand(randint(25, 200), randint(10, 20)) > 0.5
         binsize = randint(10, max(x.shape))
         bins = cast(np.r_[:binsize:x.shape[0]], np.uint64)
-        binned = bin_data(x.view(np.uint8), bins)
-        self.assertRaises(ValueError, bin_data, x, bins)
+        binned = np.empty((bins.shape[0] - 1, x.shape[1]), np.uint64)
+        bin_data(x.view(np.uint8), bins, binned)
+        self.assertRaises(ValueError, bin_data, x, bins, binned)
         self.assertTupleEqual(binned.shape, (bins.shape[0] - 1, x.shape[1]))
         self.assertEqual(binned.dtype, np.uint64)
