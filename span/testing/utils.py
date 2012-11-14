@@ -2,6 +2,12 @@ import functools
 import nose
 
 import numpy as np
+from numpy.testing import assert_allclose, assert_array_equal
+from numpy.testing.decorators import slow
+
+from nose.tools import nottest
+from nose import SkipTest
+
 
 def assert_all_dtypes(df, dtype, msg='dtypes not all the same'):
     assert all(dt == dtype for dt in df.dtypes), msg
