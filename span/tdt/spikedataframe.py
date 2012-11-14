@@ -394,7 +394,7 @@ class SpikeDataFrame(SpikeDataFrameBase):
 
         return r
 
-    def fr(self, binned, level='channel', axis=1, sem=False):
+    def fr(self, binned, level='channel', axis=1, return_sem=False):
         """Compute the firing rate over a given level.
 
         Parameters
@@ -409,7 +409,7 @@ class SpikeDataFrame(SpikeDataFrameBase):
         axis : int, optional
             The axis on which to look for the level; defaults to 1.
 
-        sem : bool, optional
+        return_sem : bool, optional
             Whether to return the standard error of the mean along with the
             average firing rate; defaults to ``False``.
 
@@ -424,7 +424,7 @@ class SpikeDataFrame(SpikeDataFrameBase):
 
         r = gm.mean()
 
-        if sem:
+        if return_sem:
             r = r, gm.apply(sem)
 
         return r
