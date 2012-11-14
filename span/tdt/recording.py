@@ -28,7 +28,7 @@ import numbers
 
 from operator import attrgetter
 
-from numpy import asanyarray, sign, repeat, arange, ones
+from numpy import asanyarray, sign, repeat, arange, ones, atleast_1d
 from pandas import Series, DataFrame,  MultiIndex
 
 from span.utils import ndtuples
@@ -106,7 +106,7 @@ class ElectrodeMap(DataFrame):
         Number of channels.
     """
     def __init__(self, map_, order=None, base_index=0):
-        map_ = asanyarray(map_).squeeze()
+        map_ = atleast_1d(asanyarray(map_).squeeze())
         mm = map_.min()
 
         v = sign(base_index - mm)
