@@ -82,6 +82,10 @@ def cast(a, dtype, copy=False):
     -------
     r : array_like
         The array `a` casted to type dtype
+
+    See Also
+    --------
+    `numpy.ndarray.astype <>`_
     """
     assert hasattr(a, 'dtype'), ('argument "a" of type {0} has no "dtype" '
                                  'attribute'.format(a.__class__))
@@ -92,7 +96,7 @@ def cast(a, dtype, copy=False):
         return a
 
     try:
-        r = a.astype(dtype, order='K', casting='safe', subok=True, copy=copy)
+        r = a.astype(dtype, casting='safe', subok=True, copy=copy)
     except TypeError:
         r = a.astype(dtype)
     return r
@@ -120,7 +124,7 @@ def ndtuples(*dims):
 
     See Also
     --------
-    cartesian
+    span.utils.math.cartesian
         `ndtuples` is a special case of the Cartesian product
     """
     assert dims, 'no arguments given'
@@ -381,6 +385,25 @@ def isvector(x):
     return functools.reduce(operator.mul, x.shape) == max(x.shape)
 
 
+def try_convert_first(x):
+    """Convert an object array's columns to the correct type.
+
+    If any exceptions are thrown, return the input.
+
+    Parameters
+    ----------
+    x : array_like
+
+    Returns
+    -------
+    cast_x : array_like
+    """
+    try:
+        return cast(x, type(x[0]))
+    except Exception:
+        return x
+
+
 def mi2df(mi):
     """Return a `pandas`_ `MultiIndex`_ as a `DataFrame`_.
 
@@ -393,28 +416,10 @@ def mi2df(mi):
     df : `DataFrame`_
     """
 
-    def _try_convert_first(x):
-        """Convert an object array's columns to the correct type.
-
-        If any exceptions are thrown, return the input.
-
-        Parameters
-        ----------
-        x : array_like
-
-        Returns
-        -------
-        cast_x : array_like
-        """
-        try:
-            return cast(x, type(x[0]))
-        except Exception:
-            return x
-
     # map each
     m = tuple(map(lambda x: np.asanyarray(x, object), mi))
     df = DataFrame(np.asanyarray(m, object), columns=mi.names)
-    return df.applymap(_try_convert_first)
+    return df.applymap(try_convert_first)
 
 
 def nonzero_existing_file(f):
