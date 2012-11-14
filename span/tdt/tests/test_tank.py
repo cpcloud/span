@@ -44,26 +44,35 @@ class TestPandasTank(unittest.TestCase):
         assert hasattr(self.tank, 'site')
         self.assertIsInstance(self.tank.site, (type(None), int))
 
-    def test__read_tev(self):
-        tev = self.tank._read_tev('Spik')()
-        self.assertIsNotNone(tev)
-        self.assertIsInstance(tev, SpikeDataFrame)
+    def test_read_tev(self):
+        names = 'Spik', 'LFPs'
+        for name in names:
+            tev = self.tank._read_tev(name)()
+            self.assertIsNotNone(tev)
+            self.assertIsInstance(tev, SpikeDataFrame)
 
-        tev = self.tank._read_tev('LFPs')()
-        self.assertIsNotNone(tev)
-        self.assertIsInstance(tev, SpikeDataFrame)
-
-    def test__read_tsq(self):
-        tsq = self.tank._read_tsq()
-        self.assertIsNotNone(tsq)
-        self.assertIsInstance(tsq, pd.DataFrame)
+    def test_read_tsq(self):
+        names = 'Spik', 'LFPs'
+        for name in names:
+            tsq, _ = self.tank._read_tsq(name)()
+            self.assertIsNotNone(tsq)
+            self.assertIsInstance(tsq, pd.DataFrame)
 
     def test_tsq(self):
-        self.assertIsNotNone(self.tank.tsq)
+        names = 'Spik', 'LFPs'
+        for name in names:
+            self.assertIsNotNone(self.tank.tsq(name))
+
+    def test_stsq(self):
+        self.assertIsNotNone(self.tank.stsq)
+
+    def test_ltsq(self):
+        self.assertIsNotNone(self.tank.ltsq)
 
     def test_tev(self):
-        self.assertIsNotNone(self.tank.tev('Spik'))
-        self.assertIsNotNone(self.tank.tev('LFPs'))
+        names = 'Spik', 'LFPs'
+        for name in names:
+            self.assertIsNotNone(self.tank.tev(name))
 
     def test_spikes(self):
         self.assertIsNotNone(self.tank.spikes)
