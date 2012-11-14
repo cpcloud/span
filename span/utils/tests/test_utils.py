@@ -2,24 +2,31 @@ import unittest
 import string
 import random
 import itertools
-import tempfile
-import functools
 
 import numpy as np
 from numpy.random import randint, rand, randn
-from numpy.testing import assert_allclose
-from numpy.testing.decorators import slow
-from nose.tools import nottest
-from nose import SkipTest
 
-import pandas as pd
+from pandas import Series, DataFrame, Panel
 
-from pylab import gca
+try:
+    from pylab import gca
+except RuntimeError:
+    class TestRemoveLegend(unittest.TestCase):
+        def test_remove_legend(self):
+            pass
+else:
+    class TestRemoveLegend(unittest.TestCase):
+        def test_remove_legend(self):
+            ax = gca()
+            remove_legend(ax)
+            assert ax.legend_ is None
+
 
 from span.utils.utils import *
 from span.utils.math import nextpow2
 
 from span.testing import skip
+from span.testing import slow, assert_allclose, assert_array_equal
 
 
 def rand_array_delegate(func, n, ndims):
@@ -30,8 +37,8 @@ def randn_array(n=50, ndims=3):
     return rand_array_delegate(randn, n, ndims)
 
 
-def rand_int_tuple(m=5, n=10):
-    return tuple(randint(1, m, size=n).tolist())
+def rand_int_tuple(high=5, n=10):
+    return tuple(randint(1, high, size=n))
 
 
 def test_nans():
@@ -43,17 +50,17 @@ def test_nans():
 
 class TestNansLike(unittest.TestCase):
     def test_series(self):
-        x = pd.Series(randn(7))
+        x = Series(randn(7))
         nas = nans_like(x)
         self.assert_(np.isnan(nas).all())
 
     def test_dataframe(self):
-        x = pd.DataFrame(randn(10, 3))
+        x = DataFrame(randn(10, 3))
         nas = nans_like(x)
         self.assert_(np.isnan(nas.values).all())
 
     def test_panel(self):
-        x = pd.Panel(randn(5, 4, 3))
+        x = Panel(randn(5, 4, 3))
         nas = nans_like(x)
 
         # panel has no all member for some reason
@@ -66,35 +73,32 @@ class TestNansLike(unittest.TestCase):
             self.assert_(np.isnan(nas).all())
 
 
-def test_remove_legend():
-    ax = gca()
-    remove_legend(ax)
-    assert ax.legend_ is None
-
-
 @slow
-def test_num2name():
-    expected = 'Spik'
-    name = num2name(name2num(expected))
-    assert name == expected, '{} != {}'.format(name, expected)
+
+class TestNum2Name(unittest.TestCase):
+    def test_num2name(self):
+        expected_names = 'Spik', 'LFPs'
+        name2num2name = compose(num2name, name2num)
+        for expected_name in expected_names:
+            name = name2num2name(expected_name)
+            self.assertEqual(name, expected_name)
 
 
 class TestPadLarger(unittest.TestCase):
-    @classmethod
-    def setUpClass(cls):
+    def setUp(self):
         nbig = 20
         nsmall = 10
         ndims = 1
-        cls.xbig = randn_array(n=nbig, ndims=ndims)
-        cls.ysmall = randn_array(n=nsmall, ndims=ndims)
-        cls.xsmall = randn_array(n=nsmall, ndims=ndims)
-        cls.ybig = randn_array(n=nbig, ndims=ndims)
-        cls.bigs = randint(nsmall, nbig)
-        cls.smalls = randint(nsmall)
+        self.xbig = randn_array(n=nbig, ndims=ndims)
+        self.ysmall = randn_array(n=nsmall, ndims=ndims)
+        self.xsmall = randn_array(n=nsmall, ndims=ndims)
+        self.ybig = randn_array(n=nbig, ndims=ndims)
+        self.bigs = randint(nsmall, nbig)
+        self.smalls = randint(nsmall)
 
-    @classmethod
-    def tearDownClass(cls):
-        del cls.smalls, cls.bigs, cls.ybig, cls.xsmall, cls.ysmall, cls.xbig
+    def tearDown(self):
+        del self.smalls, self.bigs, self.ybig, self.xsmall, self.ysmall
+        del self.xbig
 
     def test_pad_larger2(self):
         x, y, lsize = pad_larger2(self.xbig, self.ysmall)
@@ -112,22 +116,20 @@ class TestPadLarger(unittest.TestCase):
 
 
 class TestIsComplex(unittest.TestCase):
-    @classmethod
-    def setUpClass(cls):
+    def setUp(self):
         n = 20
-        cls.x = randn(n, randint(1, n)) + rand() * 1j
+        self.x = randn(n, randint(1, n)) * 1j
 
-    @classmethod
-    def tearDownClass(cls):
-        del cls.x
+    def tearDown(self):
+        del self.x
 
     def test_iscomplex_dataframe(self):
-        x = pd.DataFrame(self.x)
+        x = DataFrame(self.x)
         self.assert_(iscomplex(x),
                      'x is not complex and has dtypes {0}'.format(x.dtypes))
 
     def test_is_not_complex_dataframe(self):
-        x = pd.DataFrame(self.x.real)
+        x = DataFrame(self.x.real)
         self.assert_(not iscomplex(x))
 
     def test_iscomplex(self):
@@ -141,23 +143,20 @@ class TestIsComplex(unittest.TestCase):
 
 
 class TestHasComplex(unittest.TestCase):
-    @classmethod
-    def setUpClass(cls):
-        cls.n = 20
-        n = cls.n
-        cls.x = randn(n, randint(1, n)) + rand() * 1j
+    def setUp(self):
+        self.n = 20
+        self.x = randn(self.n, randint(1, self.n)) * 1j
 
-    @classmethod
-    def tearDownClass(cls):
-        del cls.x, cls.n
+    def tearDown(cls):
+        del self.x, self.n
 
     def test_hascomplex_dataframe(self):
-        x = pd.DataFrame(self.x)
+        x = DataFrame(self.x)
         self.assert_(hascomplex(x))
 
     def test_not_hascomplex_dataframe(self):
         n = self.n
-        x = pd.DataFrame(randn(n, randint(1, n)))
+        x = DataFrame(randn(n, randint(1, n)))
         self.assertFalse(hascomplex(x))
 
     def test_hascomplex(self):
@@ -193,7 +192,7 @@ def test_name2num():
     num_to_test = 10
     str_len = 4
     letters = string.ascii_letters
-    x = pd.Series(dict(zip(letters, map(ord, letters))))
+    x = Series(dict(zip(letters, map(ord, letters))))
     base = 256 ** np.arange(str_len)
     mn = base.dot(np.repeat(x.min(), str_len))
     mx = base.dot(np.repeat(x.max(), str_len))
@@ -242,20 +241,47 @@ class TestIsVector(unittest.TestCase):
         self.assert_(isvector(x))
 
 
-class TestNonzeroExistingFile(unittest.TestCase):
-    @classmethod
-    def setUpClass(cls):
-        cls.name = 'blah.npy'
+class TestNdtuples(unittest.TestCase):
+    def setUp(cls):
+        pass
 
-    @classmethod
-    def tearDownClass(cls):
-        del cls.name
+    def tearDown(cls):
+        pass
+
+    def test_ndtuples_0(self):
+        zdims = 0,  False, [], (), {}, np.array([])
+
+        for zdim in zdims:
+            self.assertRaises(AssertionError, ndtuples, zdim)
+
+    def test_ndtuples_1(self):
+        n = randint(1, 6)
+        x = ndtuples(n)
+        assert_array_equal(x, np.arange(n))
+
+    def test_ndtuples_2(self):
+        m, n = randint(1, 5), randint(1, 4)
+        x = ndtuples(m, n)
+        self.assertTupleEqual((m * n, 2), x.shape)
+
+    def test_ndtuples_n(self):
+        m, n = randint(1, 5), randint(1, 4)
+        x = ndtuples(m, n)
+        self.assertTupleEqual((m * n, 2), x.shape)
+
+
+class TestNonzeroExistingFile(unittest.TestCase):
+    def setUp(self):
+        self.name = 'blah.npy'
+
+    def tearDown(self):
+        del self.name
 
     def test_nonzero_existing_file(self):
         name = self.name
 
         with open(name, 'wb') as tf:
-            randn(100).tofile(tf)
+            randn(10).tofile(tf)
 
         self.assert_(nonzero_existing_file(name))
 
@@ -267,7 +293,7 @@ class TestNonzeroExistingFile(unittest.TestCase):
         name = self.name
 
         with open(name, 'wb') as tf:
-            randn(100).tofile(tf)
+            randn(10).tofile(tf)
 
         assert_nonzero_existing_file(name)
 
@@ -278,7 +304,12 @@ class TestNonzeroExistingFile(unittest.TestCase):
 
 class TestTryConvertFirst(unittest.TestCase):
     def test_try_convert_first(self):
-        assert False
+        types = list(set(np.typeDict.values()))
+
+        for t in types:
+            xfrom = np.zeros(2, dtype=object)
+            xfrom[0] = t()
+            xto = try_convert_first(xfrom)
 
 
 class TestMi2Df(unittest.TestCase):
