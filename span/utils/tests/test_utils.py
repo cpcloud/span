@@ -23,7 +23,7 @@ else:
 
 
 from span.utils.utils import *
-from span.utils.math import nextpow2
+from span.utils.math import nextpow2, compose
 
 from span.testing import skip
 from span.testing import slow, assert_allclose, assert_array_equal
@@ -74,7 +74,6 @@ class TestNansLike(unittest.TestCase):
 
 
 @slow
-
 class TestNum2Name(unittest.TestCase):
     def test_num2name(self):
         expected_names = 'Spik', 'LFPs'
@@ -147,7 +146,7 @@ class TestHasComplex(unittest.TestCase):
         self.n = 20
         self.x = randn(self.n, randint(1, self.n)) * 1j
 
-    def tearDown(cls):
+    def tearDown(self):
         del self.x, self.n
 
     def test_hascomplex_dataframe(self):
@@ -242,10 +241,10 @@ class TestIsVector(unittest.TestCase):
 
 
 class TestNdtuples(unittest.TestCase):
-    def setUp(cls):
+    def setUp(self):
         pass
 
-    def tearDown(cls):
+    def tearDown(self):
         pass
 
     def test_ndtuples_0(self):
@@ -308,8 +307,12 @@ class TestTryConvertFirst(unittest.TestCase):
 
         for t in types:
             xfrom = np.zeros(2, dtype=object)
-            xfrom[0] = t()
-            xto = try_convert_first(xfrom)
+            try:
+                xfrom[0] = t()
+            except TypeError:
+                pass
+            else:
+                xto = try_convert_first(xfrom)
 
 
 class TestMi2Df(unittest.TestCase):
