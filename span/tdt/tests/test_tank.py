@@ -42,7 +42,7 @@ class TestPandasTank(unittest.TestCase):
 
     def test_site(self):
         assert hasattr(self.tank, 'site')
-        self.assertIsinstance(self.tank.site, (type(None), int))
+        self.assertIsInstance(self.tank.site, (type(None), int))
 
     def test__read_tev(self):
         tev = self.tank._read_tev('Spik')()

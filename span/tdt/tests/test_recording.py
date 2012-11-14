@@ -49,7 +49,7 @@ class TestElectrodeMap(unittest.TestCase):
 
         for arg_set in arg_sets:
             bb, ww, n, order, bi = arg_set
-            em = ElectrodeMap(np.random.randint(n, size=n), n, order, bi)
+            em = ElectrodeMap(np.random.randint(n, size=n), order, bi)
             dm = em.distance_map(1, ww, bb)
 
     def test_2d_map(self):
