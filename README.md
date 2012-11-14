@@ -2,7 +2,6 @@
 
 `span`
 ======
-
 is a Python module for
 [spike train](http://en.wikipedia.org/wiki/Neural_coding) analyses.
 
