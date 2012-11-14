@@ -180,10 +180,10 @@ class TdtTankAbstractBase(object):
         tsq = tsq[row]
 
         # convert to integer where possible
-        tsq.channel = meta.channel.astype(int)
-        tsq.shank = meta.shank.astype(int)
+        tsq.channel = tsq.channel.astype(int)
+        tsq.shank = tsq.shank.astype(int)
 
-        return tsq
+        return tsq, row
 
     def tsq(self, event_name):
         getter = self._read_tsq(event_name)
@@ -191,11 +191,13 @@ class TdtTankAbstractBase(object):
 
     @cached_property
     def stsq(self):
-        return self.tsq('Spik')
+        tsq, _ = self.tsq('Spik')
+        return tsq
 
     @cached_property
     def ltsq(self):
-        return self.tsq('LFPs')
+        tsq, _ = self.tsq('LFPs')
+        return tsq
 
     def tev(self, event_name):
         """Return the data from a particular event.
@@ -311,6 +313,7 @@ class PandasTank(TdtTankBase):
         --------
         span.tdt.SpikeDataFrame
         """
+        meta, row = self.tsq(event_name)
 
         # first row of event type
         first_row = np.argmax(row)
