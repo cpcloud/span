@@ -85,7 +85,7 @@ def cast(a, dtype, copy=False):
 
     See Also
     --------
-    `numpy.ndarray.astype <http://docs.scipy.org/doc/numpy/reference/generated/numpy.ndarray.astype.html>`_
+    numpy.ndarray.astype
     """
     assert hasattr(a, 'dtype'), ('argument "a" of type {0} has no "dtype" '
                                  'attribute'.format(a.__class__))
