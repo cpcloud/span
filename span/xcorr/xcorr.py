@@ -231,11 +231,11 @@ def xcorr(x, y=None, maxlags=None, detrend=detrend_mean,
     Raises
     ------
     AssertionError
-        If `y` is not None and `x` is a matrix
-        If `x` is not a vector when y is None or y is x or all(x == y)
-        If `detrend` is not callable
-        If `scale_type` is not a string or ``None``
-        If `maxlags` is > `lsize`, see source for details.
+        * If `y` is not None and `x` is a matrix
+        * If `x` is not a vector when y is None or y is x or all(x == y)
+        * If `detrend` is not callable
+        * If `scale_type` is not a string or ``None``
+        * If `maxlags` is > `lsize`, see source for details.
 
     Returns
     -------
