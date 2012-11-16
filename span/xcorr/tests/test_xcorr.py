@@ -73,6 +73,28 @@ class TestXCorr(unittest.TestCase):
                 assert_allclose(c.ix[0, jkl], 1.0)
                 assert v.ix[0] == 1.0
 
+        def test_vector_vs_numpy_correlate(self):
+            n = 10
+            x, y = map(randn, itertools.repeat(n))
+            xc_np = np.correlate(x, y, mode='full')
+            xc_span = span.xcorr.xcorr(x, y, detrend=None, scale_type=None)
+
+            assert_allclose(xc_np, xc_span.values)
+
+        def test_matrix_vs_numpy_correlate(self):
+            m, n = 20, 10
+            x = randn(m, n)
+
+            xc_np = np.zeros((2 * m - 1, n ** 2))
+
+            for ci, i, j in zip(itertools.count(), xrange(n), xrange(n)):
+                xi, xj = x[:, i], x[:, j]
+                xc_np[:, ci] = np.correlate(xi, xj, mode='full')
+
+            xc_span = span.xcorr.xcorr(x, detrend=None, scale_type=None)
+
+            assert_allclose(xc_np, xc_span.values)
+
 
 def test_mult_mat_xcorr():
     x = np.random.randn(np.random.randint(50, 71), np.random.randint(2, 21))
