@@ -1,5 +1,4 @@
 import unittest
-from warnings import warn
 import os
 
 from glob import glob
