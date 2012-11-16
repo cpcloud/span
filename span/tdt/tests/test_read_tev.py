@@ -10,38 +10,32 @@ from span.tdt import read_tev, PandasTank
 
 
 class TestReadTev(unittest.TestCase):
-    @classmethod
-    def setUpClass(cls):
-        path = os.path.join(os.path.expanduser('~'), 'Data', 'xcorr_data',
-                                'Spont_Spikes_091210_p17rat_s4_657umV')
-        cls.path = glob(os.path.join(path, '*%stev' % os.extsep))[0]
-        cls.tank = PandasTank(cls.path[:-4])
+    def setUp(self):
+        home = os.path.expanduser('~')
+        path = os.path.join(home, 'Data', 'xcorr_data',
+                            'Spont_Spikes_091210_p17rat_s4_657umV')
+        self.path = glob(os.path.join(path, '*%stev' % os.extsep))[0]
+        self.tank = PandasTank(self.path[:-4])
+        self.names = 'Spik', 'LFPs'
 
-    @classmethod
-    def tearDownClass(cls):
-        del cls.tank, cls.path
+    def tearDown(self):
+        del self.names, self.tank, self.path
 
     def test_read_tev(self):
-        names = 'Spik', 'LFPs'
 
-        for name in names:
+        for name in self.names:
             tsq, _ = self.tank.tsq(name)
             fp_locs = tsq.fp_loc
             nsamples, chunk_size = fp_locs.size, tsq.size.unique().max()
 
             del tsq
 
-            try:
-                spikes = np.empty((nsamples, chunk_size), np.float32)
-            except MemoryError:
-                warn('Out of memory when creating TEV file output array')
-            else:
-                read_tev(self.path, chunk_size, fp_locs, spikes)
+            spikes = np.empty((nsamples, chunk_size), np.float32)
 
-                # should be at least on the order of millivolts
-                mag = np.log10(np.abs(spikes).mean())
-                self.assertLessEqual(mag, -3.0)
+            read_tev(self.path, chunk_size, fp_locs, spikes)
 
-                del spikes, mag
+            # should be at least on the order of millivolts
+            mag = np.log10(np.abs(spikes).mean())
+            self.assertLessEqual(mag, -3.0)
 
-            del fp_locs
+            del spikes, mag, fp_locs
