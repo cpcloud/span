@@ -235,10 +235,10 @@ class TdtTankBase(TdtTankAbstractBase):
     header_ext
     raw_ext
 
-    path
-    name
-    age
-    site
+    path (str) : Full path of the tank sans extensions
+    name (str) : basename of self.path
+    age (int) : The postnatal day age of the animal
+    site (int) : The site number of the recording, can be ``None``
     """
 
     fields = _TsqFields
