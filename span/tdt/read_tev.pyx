@@ -39,11 +39,13 @@ ctypedef fused integer:
     i4
     i8
     ip
+    ssize_t
 
     u1
     u2
     u4
     u8
+    size_t
 
 
 @cython.boundscheck(False)
