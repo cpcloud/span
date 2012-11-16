@@ -38,13 +38,11 @@ class TestSideGetter(unittest.TestCase):
 
 
 class TestSpikeGroupedDataFrame(unittest.TestCase):
-    @classmethod
-    def setUpClass(cls):
-        cls.x = randn(10, 12)
+    def setUp(self):
+        self.x = randn(10, 12)
 
-    @classmethod
-    def tearDownClass(cls):
-        del cls.x
+    def tearDown(self):
+        del self.x
 
     def test_constructor(self):
         df0 = SpikeGroupedDataFrame(self.x)
@@ -145,12 +143,55 @@ class TestSpikeDataFrameBase(unittest.TestCase):
 
 
 class TestSpikeDataFrame(TestSpikeDataFrameBase):
-    def test_threshold(self):
-        assert False
+    def test_threshold_std_array(self):
+        sp = self.spikes
+        std = sp.std()
+        thresh = 2.0
+        thr = sp.threshold(thresh * std)
+        assert_all_dtypes(thr, np.bool_)
+        self.assertTupleEqual(thr.shape, sp.shape)
+
+    def test_threshold_std_scalar(self):
+        sp = self.spikes
+        std = sp.std()
+        thr = sp.threshold(2.0 * std[np.random.randint(std.size)])
+        assert_all_dtypes(thr, np.bool_)
+        self.assertTupleEqual(thr.shape, sp.shape)
+
+    def test_threshold_array(self):
+        sp = self.spikes
+        std = rand(sp.shape[1])
+        thr = sp.threshold(2.0 * std)
+        assert_all_dtypes(thr, np.bool_)
+        self.assertTupleEqual(thr.shape, sp.shape)
+
+    def test_threshold_scalar(self):
+        sp = self.spikes
+        std = rand()
+        thr = sp.threshold(2.0 * std)
+        assert_all_dtypes(thr, np.bool_)
+        self.assertTupleEqual(thr.shape, sp.shape)
 
     @slow
     def test_bin(self):
-        assert False
+        sp = self.spikes
+        thr = sp.threshold(np.random.randint(1, 4) * sp.std())
+        clr = sp.clear_refrac(thr)
+        binsizes = 0, 1, 1000
+        reject_counts = -1, 0, 100
+        dropnas = True, False
+        args = itertools.product(binsizes, reject_counts, dropnas)
+
+        for binsize, reject_count, dropna in args:
+            if binsize:
+                binned = sp.bin(clr, binsize, reject_count, dropna)
+            else:
+                self.assertRaises(AssertionError, sp.bin, clr, binsize,
+                                  reject_count, dropna)
+
+            if reject_count < 0:
+                self.assertRaises(AssertionError, sp.bin, clr, binsize,
+                                  reject_count, dropna)
 
     @slow
     def test_fr(self):
@@ -174,11 +215,10 @@ class TestSpikeDataFrame(TestSpikeDataFrameBase):
                 else:
                     self.assertRaises(ValueError, sp.fr, binned, t, axis, sem)
 
-
-
     @slow
     def test_clear_refrac(self):
         thr = self.spikes.threshold(3 * self.spikes.std())
+
         for ms in self.mses:
             cleared = self.spikes.clear_refrac(thr, ms)
             assert_all_dtypes(cleared, np.bool_)
@@ -195,31 +235,49 @@ class TestSpikeDataFrame(TestSpikeDataFrameBase):
 
     @slow
     def test_xcorr(self):
-        assert False
+        thr = self.spikes.threshold(3 * self.spikes.std())
+        clr = self.spikes.clear_refrac(thr, ms=2)
+        binned = self.spikes.bin(clr, binsize=1000)
+
+        maxlags = None, 1, 100
+        detrends = detrend_mean, detrend_none, detrend_linear
+        scale_types = None, 'none', 'normalize', 'unbiased', 'biased'
+        sortlevel_s = ('channel i', 'channel j', 'shank i', 'shank j',
+                       'side i', 'side j')
+        sortlevel_i = xrange(len(sortlevel_s))
+        dropnas = True, False
+        nan_autos = True, False
+
+        args = itertools.product(maxlags, detrends, scale_types, sortlevel_s,
+                                 sortlevel_i, dropnas, nan_autos)
+
+        for (maxlag, detrend, scale_type, level_s, level_i, dropna,
+             nan_auto) in args:
+            for level in (level_s, level_i):
+                xc = xcorr(binned, maxlag, detrend, scale_type, level, dropna,
+                           nan_auto)
 
 
 @slow
 class TestLfpDataFrame(unittest.TestCase):
-    @classmethod
-    def setUpClass(cls):
-        tankname = os.path.join(os.path.expanduser('~'), 'Data', 'xcorr_data',
+    def setUp(self):
+        self.tankname = os.path.join(os.path.expanduser('~'), 'Data', 'xcorr_data',
                                 'Spont_Spikes_091210_p17rat_s4_657umV')
-        tn = os.path.join(tankname, os.path.basename(tankname))
-        cls.tank = PandasTank(tn)
-        cls.rows, cls.columns = cls.tank.lfps.shape
-        cls.lfps = cls.tank.lfps
-        cls.meta = cls.lfps.meta
-        cls.threshes = 2e-5,
-        cls.mses = 2.0, 3.0
-        cls.binsizes = 0, 1, 1000
+        self.name = os.path.join(tankname, os.path.basename(tankname))
+        self.tank = PandasTank(self.name)
+        self.meta = self.tank.ltsq()
+        self.threshes = 2e-5,
+        self.mses = 2.0, 3.0
+        self.binsizes = 0, 1, 100
+
+    def tearDown(self):
+        del self.binsizes, self.mses, self.threshes, self.meta, self.tank
+        del self.name, self.tankname
 
     def test_fs(self):
         fs = self.lfps.fs
 
-    @classmethod
-    def tearDownClass(cls):
-        del cls.binsizes, cls.mses, cls.threshes, cls.meta, cls.lfps
-        del cls.rows, cls.columns, cls.tank
+
 
 
 class TestCreateXCorrInds(unittest.TestCase):
