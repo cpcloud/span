@@ -26,6 +26,9 @@ class TestReadTev(unittest.TestCase):
         for name in self.names:
             tsq, _ = self.tank.tsq(name)
             fp_locs = tsq.fp_loc
+
+            self.assertEqual(np.dtype(np.int64), fp_locs.dtype)
+
             nsamples, chunk_size = fp_locs.size, tsq.size.unique().max()
 
             del tsq
@@ -34,7 +37,7 @@ class TestReadTev(unittest.TestCase):
 
             read_tev(self.path, chunk_size, fp_locs, spikes)
 
-            # should be at least on the order of millivolts
+            # mean should be at least on the order of millivolts if not less
             mag = np.log10(np.abs(spikes).mean())
             self.assertLessEqual(mag, -3.0)
 
