@@ -101,7 +101,7 @@ class TestXCorr(unittest.TestCase):
 
 
 def test_mult_mat_xcorr():
-    x = np.random.randn(np.random.randint(50, 71), np.random.randint(2, 21))
+    x = randn(randint(50, 71), randint(2, 21))
     m, n = x.shape
     ifft, fft = get_fft_funcs(x)
     nfft = int(2 ** nextpow2(m))
