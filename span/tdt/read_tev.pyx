@@ -18,7 +18,10 @@
 # along with this program. If not, see <http://www.gnu.org/licenses/>.
 
 cimport numpy as np
-from numpy cimport npy_intp as ip, float32_t as f4, int64_t as i8
+from numpy cimport (npy_intp as ip, float32_t as f4, float64_t as f8,
+                    int64_t as i8, int32_t as i4, int16_t as i2, int8_t as i1)
+from numpy cimport (uint8_t as u1, uint16_t as u2, uint32_t as u4,
+                    uint64_t as u8)
 from libc.stdio cimport fopen, fclose, fread, fseek, SEEK_SET, FILE
 from libc.stdlib cimport malloc, free
 
@@ -26,23 +29,39 @@ from cython.parallel cimport parallel, prange
 
 cimport cython
 
+ctypedef fused floating:
+    f4
+    f8
+
+ctypedef fused integer:
+    i1
+    i2
+    i4
+    i8
+    ip
+
+    u1
+    u2
+    u4
+    u8
+
 
 @cython.boundscheck(False)
 @cython.wraparound(False)
-cdef void _read_tev(char* filename, ip nsamples, i8[:] fp_locs,
-                    f4[:, :] spikes):
+cdef void _read_tev(char* filename, integer nsamples, integer[:] fp_locs,
+                    floating[:, :] spikes):
     cdef:
         ip i, j
-
         ip n = fp_locs.shape[0]
-        size_t f_bytes = sizeof(f4)
 
-        f4* chunk = NULL
+        size_t f_bytes = sizeof(floating)
+
+        floating* chunk = NULL
 
         FILE* f = NULL
 
     with nogil, parallel():
-        chunk = <f4*> malloc(f_bytes * nsamples)
+        chunk = <floating*> malloc(f_bytes * nsamples)
 
         if not chunk:
             with gil:
@@ -61,7 +80,7 @@ cdef void _read_tev(char* filename, ip nsamples, i8[:] fp_locs,
             # go to the ith file pointer location
             fseek(f, fp_locs[i], SEEK_SET)
 
-            # read f4_bytes * nsamples bytes into chunk_data
+            # read floating_bytes * nsamples bytes into chunk_data
             fread(chunk, f_bytes, nsamples, f)
 
             # assign the chunk data to the spikes array
@@ -78,8 +97,8 @@ cdef void _read_tev(char* filename, ip nsamples, i8[:] fp_locs,
 
 @cython.wraparound(False)
 @cython.boundscheck(False)
-def read_tev(char* filename, ip nsamples, i8[:] fp_locs not None,
-             f4[:, :] spikes not None):
+def read_tev(char* filename, ip nsamples, integer[:] fp_locs not None,
+             floating[:, :] spikes not None):
     """Read a TDT tev file in. Slightly faster than the pure Python version.
 
     Parameters
@@ -93,7 +112,7 @@ def read_tev(char* filename, ip nsamples, i8[:] fp_locs not None,
     fp_locs : i8[:]
         The array of locations of each chunk in the TEV file.
 
-    spikes : f4[:, :]
+    spikes : floating[:, :]
         Output array
     """
     assert filename, 'filename (1st argument) cannot be empty'
