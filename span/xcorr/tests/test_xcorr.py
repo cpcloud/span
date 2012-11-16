@@ -12,8 +12,7 @@ from span.utils import nextpow2, get_fft_funcs
 
 class TestXCorr(unittest.TestCase):
     def setUp(self):
-        self.m = 100
-        self.n = 50
+        self.m, self.n = 100, 50
         self.matrix = randn(self.m, self.n)
         self.vector = self.matrix[:, randint(self.n)]
 
