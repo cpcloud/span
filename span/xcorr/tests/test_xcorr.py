@@ -90,7 +90,7 @@ class TestXCorr(unittest.TestCase):
             xc_np = np.zeros((2 * m - 1, n ** 2))
             rng = xrange(n)
 
-            for ci, i, j in zip(itertools.count(), rng, rng):
+            for ci, (i, j) in enumerate(zip(rng, rng)):
                 xi, xj = x[:, i], x[:, j]
                 xc_np[:, ci] = np.correlate(xi, xj, mode='full')
 
