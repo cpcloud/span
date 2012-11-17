@@ -34,7 +34,7 @@ class TestXCorr(unittest.TestCase):
 
         self.assertEqual(m, 2 * self.m - 1)
 
-    def test_all(self):
+    def test_(self):
         scale_types = None, 'none', 'unbiased', 'biased', 'normalize'
 
         for scale_type in scale_types:
@@ -75,28 +75,27 @@ class TestXCorr(unittest.TestCase):
                 assert_allclose(c.ix[0, jkl], 1.0)
                 self.assertEqual(v.ix[0], 1.0)
 
-        def test_vector_vs_numpy_correlate(self):
-            n = 10
-            x, y = map(randn, itertools.repeat(n))
-            xc_np = np.correlate(x, y, mode='full')
-            xc_span = xcorr(x, y, detrend=None, scale_type=None).values
+    def test_vector_vs_numpy_correlate(self):
+        n = 10
+        x, y = map(randn, (n, n))
+        xc_np = np.correlate(x, y, mode='full')
+        xc_span = xcorr(x, y, detrend=lambda x: x, scale_type=None).values
 
-            assert_allclose(xc_np, xc_span.values)
+        assert_allclose(xc_np, xc_span)
 
-        def test_matrix_vs_numpy_correlate(self):
-            m, n = 20, 10
-            x = randn(m, n)
+    def test_matrix_vs_numpy_correlate(self):
+        m, n = 20, 10
+        x = randn(m, n)
 
-            xc_np = np.zeros((2 * m - 1, n ** 2))
-            rng = xrange(n)
+        xc_np = np.zeros((2 * m - 1, n ** 2))
+        rng = xrange(n)
 
-            for ci, (i, j) in enumerate(zip(rng, rng)):
-                xi, xj = x[:, i], x[:, j]
-                xc_np[:, ci] = np.correlate(xi, xj, mode='full')
+        for ci, (i, j) in enumerate(zip(rng, rng)):
+            xi, xj = x[:, i], x[:, j]
+            xc_np[:, ci] = np.correlate(xi, xj, mode='full')
 
-            xc_span = xcorr(x, detrend=None, scale_type=None).values
-
-            assert_allclose(xc_np, xc_span)
+        xc_span = xcorr(x, detrend=lambda x: x, scale_type=None)
+        assert_allclose(xc_np, xc_span.values)
 
 
 def test_mult_mat_xcorr():
