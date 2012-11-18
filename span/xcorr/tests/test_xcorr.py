@@ -1,5 +1,4 @@
 import unittest
-import itertools
 
 import numpy as np
 from numpy.random import randn, randint
@@ -90,12 +89,18 @@ class TestXCorr(unittest.TestCase):
         xc_np = np.zeros((2 * m - 1, n ** 2))
         rng = xrange(n)
 
+        xc_span = xc_np.copy()
+
+        detrend = lambda x: x
+        scale_type = None
         for ci, (i, j) in enumerate(zip(rng, rng)):
             xi, xj = x[:, i], x[:, j]
             xc_np[:, ci] = np.correlate(xi, xj, mode='full')
+            xc_span[:, ci] = xcorr(xi, xj, detrend=detrend,
+                                   scale_type=scale_type)
 
-        xc_span = xcorr(x, detrend=lambda x: x, scale_type=None)
-        assert_allclose(xc_np, xc_span.values)
+        # xc_span = xcorr(x, detrend=lambda x: x, scale_type=None)
+        assert_allclose(xc_np, xc_span)
 
 
 def test_mult_mat_xcorr():
