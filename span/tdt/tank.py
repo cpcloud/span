@@ -38,6 +38,7 @@ import numpy as np
 from numpy import (float32 as f4, int32 as i4, uint32 as u4, uint16 as u2,
                    float64 as f8, int64 as i8)
 from pandas import Series, DataFrame, date_range, datetools
+import pandas as pd
 
 from span.tdt.spikeglobals import Indexer, EventTypes, DataTypes
 from span.tdt.spikedataframe import SpikeDataFrame
@@ -266,6 +267,21 @@ class TdtTankBase(TdtTankAbstractBase):
         self.name = os.path.basename(path)
         self.age = _match_int(self.age_re, self.name)
         self.site = _match_int(self.site_re, self.name)
+        i0 = self.stsq.timestamp.index[0]
+        ts = pd.datetime.fromtimestamp(self.stsq.timestamp[i0])
+        self.datetime = pd.Timestamp(ts)
+        self.time = self.datetime.time()
+        self.date = self.datetime.date()
+
+    def __repr__(self):
+        st = self.stsq.reset_index(drop=True)
+        objr = repr(self.__class__)
+        params = dict(age=self.age, name=self.name, site=self.site,
+                      id=hex(id(self)), obj=objr, fs=st.fs[0],
+                      datetime=self.datetime)
+        fmt = ('{obj}\nname:     {name}\ndatetime: {datetime}\nage:      '
+               'P{age}\nsite:     {site}\nfs:       {fs}')
+        return fmt.format(**params)
 
     @cached_property
     def spikes(self):
