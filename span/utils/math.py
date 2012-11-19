@@ -30,12 +30,11 @@ import functools as fntools
 import numpy as np
 from pandas import Series, DataFrame
 
-from span.utils import ndtuples
-
 
 try:
     # weird bug in latest scipy
     from scipy.stats.mstats import trimboth
+
     def trimmean(x, alpha, inclusive=(False, False), axis=None):
         """Compute the `alpha`-trimmed mean of an array `x`.
 
@@ -45,13 +44,13 @@ try:
             The array on which to operate.
 
         alpha : float or int
-            A number between 0 and 100, left inclusive indicating the percentage of
-            values to cut from `x`.
+            A number between 0 and 100, left inclusive indicating the
+            percentage of values to cut from `x`.
 
         inclusive : tuple of bools, optional
-            Whether to round (True, True) or truncate the values (False, False).
-            Defaults to truncation. Note that this is different from trimboth's
-            default.
+            Whether to round (True, True) or truncate the values
+            (False, False). Defaults to truncation. Note that this is different
+            from ``scipy.stats.mstats.trimboth``'s default.
 
         axis : int or None, optional
             The axis over which to operate. None flattens the array
@@ -64,7 +63,8 @@ try:
         assert 0 <= alpha < 100, 'alpha must be in the interval [0, 100)'
         assert len(inclusive) == 2, 'inclusive must have only 2 elements'
 
-        if isinstance(x, (numbers.Number)) or (hasattr(x, 'size') and x.size == 1):
+        if isinstance(x, (numbers.Number)) or (hasattr(x, 'size') and
+                                               x.size == 1):
             return float(x)
 
         assert axis is None or 0 <= axis < x.ndim, \
@@ -78,7 +78,7 @@ try:
 
         return Series(trimmed, index=index)
 
-except ImportError: # pragma: no cover
+except ImportError:  # pragma: no cover
     def trimmean(x, alpha, inclusive=(False, False), axis=None):
         raise NotImplementedError("Unable to import scipy.stats;" +
                                   " cannot define trimmean")
@@ -110,7 +110,6 @@ def sem(a, axis=0, ddof=1):
         s = a.std(axis=axis)
 
     return s / np.sqrt(n)
-
 
 
 def detrend_none(x):
@@ -145,22 +144,42 @@ def detrend_mean(x):
     return x - x.mean()
 
 
+# def detrend_linear(y):
+#     """Linearly detrend `y`.
+
+#     Parameters
+#     ----------
+#     y : array_like
+
+#     Returns
+#     -------
+#     d : array_like
+#     """
+#     x = np.arange(min(y.shape), dtype=float)
+
+#     if y.ndim == 2:
+#         x = np.tile(x, (y.shape[1], 1)).T
+
+#     c = np.cov(x, y, bias=1)
+#     b = c[0, 1] / c[0, 0]
+#     a = y.mean() - b * x.mean()
+#     return y - (b * x + a)
+
+
 def detrend_linear(y):
-    """Linearly detrend `y`.
+    n = len(y)
+    bp = np.array([0])
+    bp = np.unique(np.vstack((0, bp, n - 1)))
+    lb = len(bp) - 1
+    a = np.hstack((np.zeros((n, lb)), np.ones((n, 1))))
 
-    Parameters
-    ----------
-    y : array_like
+    for kb in xrange(lb):
+        bpkb = bp[kb]
+        m = n - bpkb
+        a[np.r_[:m] + bpkb, kb] = np.r_[1:m + 1] / float(m)
 
-    Returns
-    -------
-    d : array_like
-    """
-    x = np.arange(len(y), dtype=float)
-    c = np.cov(x, y, bias=1.0)
-    b = c[0, 1] / c[0, 0]
-    a = y.mean() - b * x.mean()
-    return y - (b * x + a)
+    x, _, _, _ = np.linalg.lstsq(a, y)
+    return y - np.dot(a, x)
 
 
 def cartesian(arrays, out=None, dtype=None):
