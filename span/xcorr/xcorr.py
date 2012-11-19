@@ -54,7 +54,7 @@ def _autocorr(x, nfft):
 
 
 def _crosscorr(x, y, nfft):
-    """Compute the cross correlation of `x` and `y` using a FFT.
+    """Compute the cross correlation of `x` and `y` using an FFT.
 
     Parameters
     ----------
@@ -101,7 +101,7 @@ def _matrixcorr(x, nfft):
     return ifft(c, nfft).T
 
 
-def _unbiased(c, lsize):
+def _unbiased(c, x, y, lsize):
     """Compute the unbiased estimate of `c`.
 
     This function returns `c` scaled by number of data points available at
@@ -126,7 +126,7 @@ def _unbiased(c, lsize):
     return type(c)(c.values / denom, index=c.index)
 
 
-def _biased(c, lsize):
+def _biased(c, x, y, lsize):
     """Compute the biased estimate of `c`.
 
     Parameters
@@ -146,7 +146,7 @@ def _biased(c, lsize):
     return c / lsize
 
 
-def _normalize(c, lsize):
+def _normalize(c, x, y, lsize):
     """Normalize `c` by the lag 0 cross correlation
 
     Parameters
@@ -161,7 +161,7 @@ def _normalize(c, lsize):
     Raises
     ------
     AssertionError
-        If `c` is not a 1D or 2D array
+        * If `c` is not a 1D or 2D array
 
     Returns
     -------
@@ -171,11 +171,13 @@ def _normalize(c, lsize):
     assert c.ndim in (1, 2), 'invalid size of cross correlation array'
 
     if c.ndim == 1:
-        cdiv = c.ix[0]
+        cx0 = np.sum(np.abs(x) ** 2)
+        cy0 = np.sum(np.abs(y) ** 2) if y is not None else cx0
+        cdiv = np.sqrt(cx0 * cy0)
     else:
         _, nc = c.shape
         ncsqrt = int(np.sqrt(nc))
-        jkl = np.diag(np.r_[:nc].reshape((ncsqrt, ncsqrt)))
+        jkl = np.diag(np.r_[:nc].reshape(ncsqrt, ncsqrt))
 
         with warnings.catch_warnings():
             warnings.simplefilter('ignore', category=FutureWarning)
@@ -186,8 +188,8 @@ def _normalize(c, lsize):
 
 
 _SCALE_FUNCTIONS = {
-    None: lambda c, lsize: c,
-    'none': lambda c, lsize: c,
+    None: lambda c, x, y, lsize: c,
+    'none': lambda c, x, y, lsize: c,
     'unbiased': _unbiased,
     'biased': _biased,
     'normalize': _normalize
@@ -249,6 +251,11 @@ def xcorr(x, y=None, maxlags=None, detrend=detrend_mean,
     assert isinstance(scale_type, basestring) or scale_type is None, \
         '"scale_type" must be a string or None'
 
+    if x.ndim == 2:
+        x = pd.DataFrame(x)
+    else:
+        x = pd.Series(x)
+
     x = detrend(x)
 
     if x.ndim == 2 and np.greater(x.shape, 1).all():
@@ -270,12 +277,12 @@ def xcorr(x, y=None, maxlags=None, detrend=detrend_mean,
 
     if maxlags is None:
         maxlags = lsize
-    else:
-        assert maxlags <= lsize, ('max lags must be less than or equal to %i'
-                                  % lsize)
+
+    assert maxlags <= lsize, ('max lags must be less than or equal to %i'
+                              % lsize)
 
     lags = pd.Int64Index(np.r_[1 - maxlags:maxlags])
     return_type = pd.DataFrame if x.ndim == 2 else pd.Series
 
     scale_function = _SCALE_FUNCTIONS[scale_type]
-    return scale_function(return_type(ctmp[lags], index=lags), lsize)
+    return scale_function(return_type(ctmp[lags], index=lags), x, y, lsize)
