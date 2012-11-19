@@ -1,12 +1,16 @@
 import unittest
+import itertools
 
 import numpy as np
 from numpy.random import randn, randint
 from numpy.testing import assert_allclose
 
+from pandas import DataFrame, Int64Index
+
 from span.xcorr import mult_mat_xcorr
 from span.xcorr.xcorr import xcorr
-from span.utils import nextpow2, get_fft_funcs
+from span.utils import (nextpow2, get_fft_funcs, detrend_none,
+                        detrend_mean, detrend_linear, cartesian)
 
 
 class TestXCorr(unittest.TestCase):
@@ -18,89 +22,51 @@ class TestXCorr(unittest.TestCase):
     def tearDown(self):
         del self.vector, self.matrix, self.m, self.n
 
-    def assert_matrix_shape(self, c):
-        self.assertEqual(c.ndim, 2)
-
-        m, n = c.shape
-
-        self.assertEqual(m, 2 * self.m - 1)
-        self.assertEqual(n, self.n ** 2)
-
-    def assert_vector_shape(self, v):
-        self.assertEqual(v.ndim, 1)
-
-        m = v.shape[0]
-
-        self.assertEqual(m, 2 * self.m - 1)
-
-    def test_(self):
-        scale_types = None, 'none', 'unbiased', 'biased', 'normalize'
-
-        for scale_type in scale_types:
-            c = xcorr(self.matrix, scale_type=scale_type)
-
-            self.assert_matrix_shape(c)
-
-            v = xcorr(self.vector, scale_type=scale_type)
-
-            vbig = randn(self.m)
-            vsmall = randn(self.m - 20)
-
-            vbs = xcorr(vbig, vsmall, scale_type=scale_type)
-            self.assert_vector_shape(vbs)
-
-            vbb = xcorr(vbig, vbig, scale_type=scale_type)
-            self.assert_vector_shape(vbb)
-
-            self.assertRaises(AssertionError, xcorr, self.matrix,
-                              scale_type=scale_type,
-                              maxlags=self.matrix.shape[0] +
-                              10)
-            self.assertRaises(AssertionError, xcorr, vbig, vsmall,
-                              scale_type=scale_type,
-                              maxlags=vbig.size + 10)
-            self.assertRaises(AssertionError, xcorr, self.vector,
-                              scale_type=scale_type,
-                              maxlags=self.vector.size + 10)
-            self.assertRaises(AssertionError, xcorr, vbig,
-                              scale_type=scale_type, maxlags=vbig.size + 10)
-
-            if scale_type == 'normalize':
-                _, nc = c.shape
-                ncsqrt = int(np.sqrt(nc))
-                jkl = np.diag(np.r_[:nc].reshape((ncsqrt, ncsqrt)))
-
-                # lag 0s must be 1.0 for normalized
-                assert_allclose(c.ix[0, jkl], 1.0)
-                self.assertEqual(v.ix[0], 1.0)
-
-    def test_vector_vs_numpy_correlate(self):
-        n = 10
-        x, y = map(randn, (n, n))
-        xc_np = np.correlate(x, y, mode='full')
-        xc_span = xcorr(x, y, detrend=lambda x: x, scale_type=None).values
-
-        assert_allclose(xc_np, xc_span)
-
     def test_matrix_vs_numpy_correlate(self):
         m, n = 20, 10
         x = randn(m, n)
 
-        xc_np = np.zeros((2 * m - 1, n ** 2))
         rng = xrange(n)
 
-        xc_span = xc_np.copy()
+        detrends = detrend_mean, detrend_none, detrend_linear
+        scale_types = 'normalize', 'none', 'unbiased', 'biased', None
+        maxlags = 10, None
 
-        detrend = lambda x: x
-        scale_type = None
-        for ci, (i, j) in enumerate(zip(rng, rng)):
-            xi, xj = x[:, i], x[:, j]
-            xc_np[:, ci] = np.correlate(xi, xj, mode='full')
-            xc_span[:, ci] = xcorr(xi, xj, detrend=detrend,
-                                   scale_type=scale_type)
+        args = itertools.product(maxlags, detrends, scale_types)
 
-        # xc_span = xcorr(x, detrend=lambda x: x, scale_type=None)
-        assert_allclose(xc_np, xc_span)
+        xc_np = np.zeros((2 * m - 1, n ** 2))
+        cart = cartesian((np.arange(n), np.arange(n)))
+
+        cols = map(tuple, cart)
+        for ml, dt, st in args:
+            xc_np.fill(0)
+            mml = ml if ml is not None else m
+
+            xc_span = DataFrame(xc_np.copy(), columns=cols,
+                                index=Int64Index(np.r_[1 - m:m]))
+
+            for ci, (i, j) in enumerate(itertools.product(rng, rng)):
+                xi, xj = dt(x[:, i]), dt(x[:, j])
+
+                xc_np[:, ci] = np.correlate(xi, xj, mode='full')
+
+                if st == 'normalize':
+                    cxx0 = (np.abs(xi) ** 2).sum()
+                    cyy0 = (np.abs(xj) ** 2).sum()
+                    xc_np[:, ci] /= np.sqrt(cxx0 * cyy0)
+
+                elif st == 'biased':
+                    xc_np[:, ci] /= m
+
+                elif st == 'unbiased':
+                    xc_np[:, ci] /= m - np.abs(np.r_[1 - m:m])
+
+                xc_span[i, j] = xcorr(xi, xj, detrend=dt, scale_type=st)
+
+            assert_allclose(xc_np, xc_span)
+
+            xc = xcorr(x, detrend=dt, scale_type=st, maxlags=ml)
+            assert_allclose(xc_span.ix[1 - mml:mml - 1], xc)
 
 
 def test_mult_mat_xcorr():
@@ -113,7 +79,7 @@ def test_mult_mat_xcorr():
     mx, nx = X.shape
 
     c = np.empty((mx ** 2, nx), dtype=X.dtype)
-    oc = np.empty((mx ** 2, nx), dtype=X.dtype)
+    oc = c.copy()
 
     mult_mat_xcorr(X, Xc, oc, n, nx)
 
