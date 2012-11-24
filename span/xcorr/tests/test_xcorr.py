@@ -4,6 +4,7 @@ import itertools
 import numpy as np
 from numpy.random import randn, randint
 from numpy.testing import assert_allclose
+from numpy import sum, abs
 
 from pandas import DataFrame, Int64Index
 
@@ -51,8 +52,8 @@ class TestXCorr(unittest.TestCase):
                 xc_np[:, ci] = np.correlate(xi, xj, mode='full')
 
                 if st == 'normalize':
-                    cxx0 = (np.abs(xi) ** 2).sum()
-                    cyy0 = (np.abs(xj) ** 2).sum()
+                    cxx0 = sum(abs(xi) ** 2)
+                    cyy0 = sum(abs(xj) ** 2)
                     xc_np[:, ci] /= np.sqrt(cxx0 * cyy0)
 
                 elif st == 'biased':
