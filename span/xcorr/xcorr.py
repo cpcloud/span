@@ -112,6 +112,9 @@ def _unbiased(c, x, y, lsize):
     c : array_like
         The cross correlation array
 
+    x : array_like
+    y : array_like
+
     lsize : int
         The size of the largest of the inputs to the cross correlation
         function.
@@ -134,6 +137,9 @@ def _biased(c, x, y, lsize):
     c : array_like
         The cross correlation array
 
+    x : array_like
+    y : array_like
+
     lsize : int
         The size of the largest of the inputs to the cross correlation
         function.
@@ -154,6 +160,9 @@ def _normalize(c, x, y, lsize):
     c : array_like
         The cross correlation array to normalize
 
+    x : array_like
+    y : array_like
+
     lsize : int
         The size of the largest of the inputs to the cross correlation
         function
@@ -171,9 +180,9 @@ def _normalize(c, x, y, lsize):
     assert c.ndim in (1, 2), 'invalid size of cross correlation array'
 
     if c.ndim == 1:
-        cx0 = np.sum(np.abs(x) ** 2)
-        cy0 = np.sum(np.abs(y) ** 2) if y is not None else cx0
-        cdiv = np.sqrt(cx0 * cy0)
+        cx00 = np.sum(np.abs(x) ** 2)
+        cy00 = np.sum(np.abs(y) ** 2) if y is not None else cx00
+        cdiv = np.sqrt(cx00 * cy00)
     else:
         _, nc = c.shape
         ncsqrt = int(np.sqrt(nc))
@@ -184,12 +193,17 @@ def _normalize(c, x, y, lsize):
             tmp = np.sqrt(c.ix[0, jkl])
 
         cdiv = np.outer(tmp, tmp).ravel()
+
     return c / cdiv
 
 
+def _none(c, x, y, lsize):
+    return c
+
+
 _SCALE_FUNCTIONS = {
-    None: lambda c, x, y, lsize: c,
-    'none': lambda c, x, y, lsize: c,
+    None: _none,
+    'none': _none,
     'unbiased': _unbiased,
     'biased': _biased,
     'normalize': _normalize
@@ -225,10 +239,10 @@ def xcorr(x, y=None, maxlags=None, detrend=detrend_mean,
         return an array
 
     scale_type : {None, 'none', 'unbiased', 'biased', 'normalize'}, optional
-        The type of scaling to perform on the data
-        The default of 'normalize' returns the cross correlation scaled by the
-        lag 0 cross correlation i.e., the cross correlation scaled by the
-        product of the standard deviations of the arrays at lag 0.
+        * The type of scaling to perform on the data
+        * The default of 'normalize' returns the cross correlation scaled by
+          the lag 0 cross correlation i.e., the cross correlation scaled by the
+          product of the standard deviations of the arrays at lag 0.
 
     Raises
     ------
@@ -282,6 +296,7 @@ def xcorr(x, y=None, maxlags=None, detrend=detrend_mean,
                               % lsize)
 
     lags = pd.Int64Index(np.r_[1 - maxlags:maxlags])
+
     return_type = pd.DataFrame if x.ndim == 2 else pd.Series
 
     scale_function = _SCALE_FUNCTIONS[scale_type]
