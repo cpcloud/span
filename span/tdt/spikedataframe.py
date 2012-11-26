@@ -42,7 +42,7 @@ from pandas import (Series, DataFrame, MultiIndex, date_range, datetools,
 import span
 from span.xcorr import xcorr
 from span.utils.decorate import cached_property
-from span.utils import sem, cast, fs2ms, bin_data, clear_refrac, ndtuples
+from span.utils import sem, cast, fs_per_ms, bin_data, clear_refrac, ndtuples
 
 try:
     from pylab import subplots
@@ -140,6 +140,13 @@ class SpikeGroupedDataFrame(DataFrame):
 class SpikeDataFrameBase(SpikeGroupedDataFrame):
     """Base class implementing basic spike data set properties and methods.
 
+    Parameters
+    ----------
+    data : array_like
+    meta : array_like
+    args : tuple
+    kwargs : dict
+
     Attributes
     ----------
     fs (float) : Sampling rate
@@ -149,6 +156,8 @@ class SpikeDataFrameBase(SpikeGroupedDataFrame):
     sort_code (int) : I have no idea what the sort code is
     fmt (dtype) : The dtype of the event
     tdt_type (int) : The integer corresponding to the type of event
+    meta (DataFrame) : Recording metadata
+    date (Timestamp) : The date of the recording
 
     See Also
     --------
@@ -170,12 +179,15 @@ class SpikeDataFrameBase(SpikeGroupedDataFrame):
     def downsample(self, factor, n=None, ftype='iir', axis=-1):
         """Downsample the data by an integer factor.
 
+        This is a wrapper around ``scipy.signal.decimate``.
+
         Parameters
         ----------
         factor : int
             Factor by which to downsample
 
         n : int, optional
+            Filter order
 
         ftype : str, optional
             Type of filter to use to downsample
@@ -233,8 +245,8 @@ class SpikeDataFrameBase(SpikeGroupedDataFrame):
         Raises
         ------
         AssertionError
-            If `threshes` is not a scalar or a vector of length == number of
-            channels
+            * If `threshes` is not a scalar or a vector of length equal to the
+              number of channels.
 
         Returns
         -------
@@ -258,11 +270,6 @@ class SpikeDataFrameBase(SpikeGroupedDataFrame):
 class SpikeDataFrame(SpikeDataFrameBase):
     """Class encapsulting a Pandas DataFrame with extensions for analyzing
     spike train data.
-
-    See Also
-    --------
-    pandas.DataFrame
-    SpikeDataFrameBase
     """
 
     def __init__(self, *args, **kwargs):
@@ -274,24 +281,25 @@ class SpikeDataFrame(SpikeDataFrameBase):
         return lambda *args, **kwargs: self_t(*args, meta=self.meta, **kwargs)
 
     def bin(self, cleared, binsize, reject_count=100, dropna=False):
-        """Bin spike data by `ms` millisecond bins.
+        """Bin spike data by `binsize` millisecond bins.
 
         Roughly, sum up the ones (and zeros) in the data using bins of size
         `binsize`.
 
-        See ``span.utils.utils.bin_data`` for the actual loop that
+        See :func:span.utils.utils.bin_data for the actual loop that
         executes this binning. This method is a wrapper around that function.
 
         Parameters
         ----------
         cleared : array_like
-            The refractory-period-cleared array of booleans to bin.
+            The "refractory-period-cleared" array of booleans to bin.
 
         binsize : numbers.Real
             The size of the bins to use, in milliseconds
 
         reject_count : numbers.Real, optional, default 100
-            NaN channels whose firing rates are less than this number / sec
+            Assign ``NaN`` to channels whose firing rates are less than this
+            number / second.
 
         dropna : bool, optional
             Whether to drop NaN'd values if any
@@ -340,7 +348,7 @@ class SpikeDataFrame(SpikeDataFrameBase):
         min_sp_per_s = reject_count / rec_len_s
 
         # spikes / s * ms / ms == spikes / s
-        sp_per_s = binned.mean() * (1e3 / binsize)
+        sp_per_s = binned.mean() * ms_per_s / binsize
 
         # nan out the counts that are not about reject_count / s
         # firing rate
@@ -357,6 +365,7 @@ class SpikeDataFrame(SpikeDataFrameBase):
         Parameters
         ----------
         threshed : array_like
+            Array of ones and zeros.
 
         ms : float, optional, default 2
             The length of the refractory period in milliseconds.
@@ -364,7 +373,7 @@ class SpikeDataFrame(SpikeDataFrameBase):
         Raises
         ------
         AssertionError
-            If `ms` is less than 0 or is not None
+            If `ms` is less than 0 or is not ``None``.
 
         Returns
         -------
@@ -380,7 +389,7 @@ class SpikeDataFrame(SpikeDataFrameBase):
             clr = threshed.values.copy()
 
             # get the number of samples in ms milliseconds
-            ms_fs = fs2ms(self.fs, ms)
+            ms_fs = fs_per_ms(self.fs, ms)
 
             # TODO: make sure samples by channels is shape of clr
             # WARNING: you must pass a np.uint8 type array (view or otherwise)
@@ -432,7 +441,7 @@ class SpikeDataFrame(SpikeDataFrameBase):
     def xcorr(self, binned, maxlags=None, detrend=span.utils.detrend_mean,
               scale_type='normalize', sortlevel='shank i', dropna=False,
               nan_auto=False, lag_name=r'$\ell$'):
-        """Compute the cross correlation of binned data.
+        r"""Compute the cross correlation of binned data.
 
         Parameters
         ----------
@@ -451,7 +460,7 @@ class SpikeDataFrame(SpikeDataFrameBase):
             Method of scaling. Defaults to ``'normalize'``.
 
         sortlevel : str, optional
-            How to sort the index of the returned cross-correlation(s).
+            How to sort the index of the returned cross-correlation.
             Defaults to "shank i" so the the xcorrs are ordered by their
             physical ordering.
 
@@ -465,17 +474,18 @@ class SpikeDataFrame(SpikeDataFrameBase):
             Defaults to ``False``.
 
         lag_name : str, optional
-            Name to give to the lag index for plotting. Defaults to ``$\ell$``.
+            Name to give to the lag index for plotting. Defaults to
+            ``r'$\ell$'``.
 
         Raises
         ------
         AssertionError
-           If detrend is not a callable object
-           If scale_type is not a string or is not None
+           * If detrend is not a callable object
+           * If scale_type is not a string or is not None
 
         ValueError
-           If sortlevel is not None and is not a string or a number in the
-               list of level names or level indices
+           * If sortlevel is not ``None`` and is not a string or a number in
+             the list of level names or level indices.
 
         Returns
         -------
@@ -491,7 +501,7 @@ class SpikeDataFrame(SpikeDataFrameBase):
             Binning function.
 
         SpikeDataFrame.clear_refrac
-            Clear the refractory period of a channel.
+            Clear the refractory period of a channel or array of channels.
         """
         assert callable(detrend), 'detrend must be a callable class or '\
             'function'
