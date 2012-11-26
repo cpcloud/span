@@ -252,7 +252,7 @@ def fractional(x):
     return frac
 
 
-def fs_per_ms(fs, millis):
+def samples_per_ms(fs, millis):
     """Compute the number of samples in `ms` for a sample rate of `fs`
 
     Parameters

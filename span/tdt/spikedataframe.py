@@ -42,7 +42,8 @@ from pandas import (Series, DataFrame, MultiIndex, date_range, datetools,
 import span
 from span.xcorr import xcorr
 from span.utils.decorate import cached_property
-from span.utils import sem, cast, fs_per_ms, bin_data, clear_refrac, ndtuples
+from span.utils import (sem, cast, samples_per_ms, bin_data, clear_refrac,
+                        ndtuples)
 
 try:
     from pylab import subplots
@@ -143,9 +144,16 @@ class SpikeDataFrameBase(SpikeGroupedDataFrame):
     Parameters
     ----------
     data : array_like
+        The raw spike data.
+
     meta : array_like
+        The DataFrame of TSQ header file metadata.
+
     args : tuple
+        Arguments to base class constructor.
+
     kwargs : dict
+        Arguments to base class constructor.
 
     Attributes
     ----------
@@ -270,6 +278,8 @@ class SpikeDataFrameBase(SpikeGroupedDataFrame):
 class SpikeDataFrame(SpikeDataFrameBase):
     """Class encapsulting a Pandas DataFrame with extensions for analyzing
     spike train data.
+
+    See the :class:`SpikeDataFrameBase` documentation for constructor details.
     """
 
     def __init__(self, *args, **kwargs):
@@ -389,7 +399,7 @@ class SpikeDataFrame(SpikeDataFrameBase):
             clr = threshed.values.copy()
 
             # get the number of samples in ms milliseconds
-            ms_fs = fs_per_ms(self.fs, ms)
+            ms_fs = samples_per_ms(self.fs, ms)
 
             # TODO: make sure samples by channels is shape of clr
             # WARNING: you must pass a np.uint8 type array (view or otherwise)
