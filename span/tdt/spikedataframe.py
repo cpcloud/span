@@ -47,7 +47,7 @@ from span.utils import sem, cast, fs2ms, bin_data, clear_refrac, ndtuples
 try:
     from pylab import subplots
 except RuntimeError:  # pragma: no cover
-    subplots = None
+    subplots = NotImplemented
 
 
 class _ChannelGetter(object):
@@ -163,6 +163,10 @@ class SpikeDataFrameBase(SpikeGroupedDataFrame):
         self.meta = meta
         self.date = Timestamp(self.meta.timestamp[0])
 
+    @property
+    def _constructor(self):
+        return SpikeDataFrameBase
+
     def downsample(self, factor, n=None, ftype='iir', axis=-1):
         """Downsample the data by an integer factor.
 
@@ -264,7 +268,7 @@ class SpikeDataFrame(SpikeDataFrameBase):
     def __init__(self, *args, **kwargs):
         super(SpikeDataFrame, self).__init__(*args, **kwargs)
 
-    @cached_property
+    @property
     def _constructor(self):
         self_t = type(self)
         return lambda *args, **kwargs: self_t(*args, meta=self.meta, **kwargs)
@@ -525,6 +529,7 @@ class SpikeDataFrame(SpikeDataFrameBase):
         return xc
 
 
+# TODO: hack to make it so nans are allowed when creating indices
 def _create_xcorr_inds(nchannels):
     """Create a ``MultiIndex`` for `nchannels` channels.
 
