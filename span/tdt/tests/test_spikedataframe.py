@@ -1,24 +1,25 @@
-from future_builtins import map
 
 import os
 import unittest
 import itertools
 
-from nose.tools import nottest
+# from nose.tools import nottest
 
 import numpy as np
-from numpy.random import randn
+from numpy.random import randn, rand, randint
 from numpy.testing.decorators import slow
 
 import pandas as pd
 from pandas import Series
-from pandas.util.testing import assert_frame_equal, assert_series_equal
+from pandas.util.testing import assert_frame_equal
 
 from span.tdt.tank import PandasTank
 from span.tdt.spikedataframe import (SpikeDataFrameBase, SpikeDataFrame,
                                      SpikeGroupedDataFrame)
-from span.utils import detrend_none, detrend_mean, detrend_linear, fromtimestamp
-from span.testing import assert_all_dtypes, randrange
+from span.utils import (detrend_none, detrend_mean, detrend_linear,
+                        fromtimestamp)
+from span.testing import (assert_all_dtypes, randrange, create_spike_df,
+                          assert_allclose, assert_array_equal)
 
 
 class TestSpikeGrouper(unittest.TestCase):
@@ -39,7 +40,7 @@ class TestSideGetter(unittest.TestCase):
 
 class TestSpikeGroupedDataFrame(unittest.TestCase):
     def setUp(self):
-        self.x = randn(10, 12)
+        self.x = randn(randint(10, 20), randint(10, 20))
 
     def tearDown(self):
         del self.x
@@ -66,13 +67,9 @@ class TestSpikeGroupedDataFrame(unittest.TestCase):
 class TestSpikeDataFrameBase(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
-        tankname = os.path.join(os.path.expanduser('~'), 'Data', 'xcorr_data',
-                                'Spont_Spikes_091210_p17rat_s4_657umV')
-        tn = os.path.join(tankname, os.path.basename(tankname))
-        cls.tank = PandasTank(tn)
-        tsq = cls.tank.stsq
-        cls.meta = tsq.reset_index(drop=True)
-        cls.meta.timestamp = fromtimestamp(cls.meta.timestamp)
+        cls.df = create_spike_df()
+        tsq = cls.df.meta
+        cls.meta = tsq
 
         nsamples, _ = tsq.shape[0], tsq.size.unique().max()
         size = nsamples * tsq.shape[1], tsq.channel.nunique()
@@ -80,55 +77,44 @@ class TestSpikeDataFrameBase(unittest.TestCase):
         cls.rows, cls.columns = size
         cls.raw = randrange(-5e-6, 5e-6, size=size)
 
-        cls.threshes = 2e-5, 3e-5
-        cls.mses = 2.0, 3.0
-        cls.binsizes = 0, 1, np.random.randint(10, 1001)
-
     @classmethod
     def tearDownClass(cls):
-        del cls.binsizes, cls.mses, cls.threshes, cls.meta, cls.raw
-        del cls.rows, cls.columns, cls.tank
+        del cls.raw, cls.columns, cls.rows, cls.meta, cls.df
 
     def setUp(self):
-        from span.tdt.spikeglobals import ChannelIndex as columns
-        self.index = self.create_date_range()
-        self.spikes = SpikeDataFrame(self.raw, self.meta, index=self.index,
-                                     columns=columns)
+        self.spikes = self.df.copy()
 
     def tearDown(self):
-        del self.spikes, self.index
-
-    def create_date_range(self):
-        us_per_sample = (round(1e6 / self.meta.fs.unique().max()) *
-                         pd.datetools.Micro())
-        ts = self.meta.timestamp[0]
-        index = pd.date_range(ts, periods=self.rows, freq=us_per_sample,
-                              name='time', tz='US/Eastern')
+        del self.spikes
 
     def test_init_noindex_nocolumns(self):
         spikes = SpikeDataFrame(self.raw, self.meta)
         self.assertRaises(AssertionError, SpikeDataFrame, self.raw, None)
         self.assertRaises(TypeError, SpikeDataFrame, self.raw)
+        assert_frame_equal(spikes, self.df)
 
     def test_init_noindex_columns(self):
         from span.tdt.spikeglobals import ChannelIndex as columns
         spikes = SpikeDataFrame(self.raw, self.meta, columns=columns)
         self.assertRaises(AssertionError, SpikeDataFrame, self.raw, None)
         self.assertRaises(TypeError, SpikeDataFrame, self.raw)
+        assert_frame_equal(spikes, self.df)
 
     def test_init_with_index_nocolumns(self):
         spikes = SpikeDataFrame(self.raw, self.meta, index=self.index)
+        assert_frame_equal(spikes, self.df)
 
     def test_init_with_index_with_columns(self):
         from span.tdt.spikeglobals import ChannelIndex as columns
         spikes = SpikeDataFrame(self.raw, self.meta, index=self.index,
                                 columns=columns)
+        assert_frame_equal(spikes, self.df)
 
     def test_fs(self):
         fs = self.spikes.fs
 
         self.assertEqual(fs, self.meta.fs.max())
-        self.assertIn(fs, self.meta.fs)
+        assert_array_equal(fs, self.meta.fs)
 
         if hasattr(fs, 'dtype'):
             self.assert_(np.issubdtype(fs.dtype, np.floating))
@@ -142,7 +128,16 @@ class TestSpikeDataFrameBase(unittest.TestCase):
         self.assertEqual(nchans, values.max() + 1)
 
 
-class TestSpikeDataFrame(TestSpikeDataFrameBase):
+class TestSpikeDataFrame(unittest.TestCase):
+    def setUp(self):
+        self.spikes = create_spike_df()
+        self.threshes = 2e-5, 3e-5
+        self.mses = 2.0, 3.0
+        self.binsizes = 0, 1, np.random.randint(10, 1001)
+
+    def tearDown(self):
+        del self.spikes
+
     def test_threshold_std_array(self):
         sp = self.spikes
         std = sp.std()
@@ -177,19 +172,16 @@ class TestSpikeDataFrame(TestSpikeDataFrameBase):
         sp = self.spikes
         thr = sp.threshold(np.random.randint(1, 4) * sp.std())
         clr = sp.clear_refrac(thr)
-        binsizes = 0, 1, 1000
+        binsizes = -1, 0, 1, 1000
         reject_counts = -1, 0, 100
         dropnas = True, False
         args = itertools.product(binsizes, reject_counts, dropnas)
 
         for binsize, reject_count, dropna in args:
-            if binsize:
-                binned = sp.bin(clr, binsize, reject_count, dropna)
+            if binsize > 0 and reject_count > 0:
+                if reject_count > 0:
+                    binned = sp.bin(clr, binsize, reject_count, dropna)
             else:
-                self.assertRaises(AssertionError, sp.bin, clr, binsize,
-                                  reject_count, dropna)
-
-            if reject_count < 0:
                 self.assertRaises(AssertionError, sp.bin, clr, binsize,
                                   reject_count, dropna)
 
@@ -233,6 +225,7 @@ class TestSpikeDataFrame(TestSpikeDataFrameBase):
         self.assertIsInstance(s_new, SpikeDataFrame)
         self.assertIsInstance(s, type(s_new))
 
+    # @nottest
     @slow
     def test_xcorr(self):
         thr = self.spikes.threshold(3 * self.spikes.std())
@@ -254,30 +247,12 @@ class TestSpikeDataFrame(TestSpikeDataFrameBase):
         for (maxlag, detrend, scale_type, level_s, level_i, dropna,
              nan_auto) in args:
             for level in (level_s, level_i):
-                xc = xcorr(binned, maxlag, detrend, scale_type, level, dropna,
-                           nan_auto)
+                xc = self.spikes.xcorr(binned, maxlag, detrend, scale_type,
+                                       level, dropna, nan_auto)
 
 
-@slow
 class TestLfpDataFrame(unittest.TestCase):
-    def setUp(self):
-        self.tankname = os.path.join(os.path.expanduser('~'), 'Data', 'xcorr_data',
-                                'Spont_Spikes_091210_p17rat_s4_657umV')
-        self.name = os.path.join(tankname, os.path.basename(tankname))
-        self.tank = PandasTank(self.name)
-        self.meta = self.tank.ltsq()
-        self.threshes = 2e-5,
-        self.mses = 2.0, 3.0
-        self.binsizes = 0, 1, 100
-
-    def tearDown(self):
-        del self.binsizes, self.mses, self.threshes, self.meta, self.tank
-        del self.name, self.tankname
-
-    def test_fs(self):
-        fs = self.lfps.fs
-
-
+    pass
 
 
 class TestCreateXCorrInds(unittest.TestCase):
