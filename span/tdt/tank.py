@@ -36,7 +36,7 @@ import re
 
 import numpy as np
 from numpy import (float32 as f4, int32 as i4, uint32 as u4, uint16 as u2,
-                   float64 as f8, int64 as i8)
+                   float64 as f8, int64 as i8, intp as ip)
 from pandas import Series, DataFrame, date_range, datetools
 import pandas as pd
 
@@ -140,9 +140,12 @@ class TdtTankAbstractBase(object):
         """
         # create the path name
         tsq_name = self.path + os.extsep + self.header_ext
+        tev_name = self.path + os.extsep + self.raw_ext
 
-        # read in the raw data as a numpy rec array and conver to DataFrame
+        # read in the raw data as a numpy rec array and convert to DataFrame
         b = DataFrame(np.fromfile(tsq_name, dtype=self.tsq_dtype))
+        b.fp_loc = b.fp_loc.astype(f8)
+        b.fp_loc[b.fp_loc >= os.path.getsize(tev_name)] = np.nan
 
         # zero based indexing
         b.channel -= 1
@@ -188,17 +191,22 @@ class TdtTankAbstractBase(object):
 
     def tsq(self, event_name):
         getter = self._read_tsq(event_name)
-        return getter()
+        d, row = getter()
+
+        if np.all(pd.notnull(d)):
+            d.fp_loc = d.fp_loc.astype(ip)
+
+        return d, row
 
     @cached_property
     def stsq(self):
         tsq, _ = self.tsq('Spik')
-        return tsq
+        return tsq.reset_index(drop=True)
 
     @cached_property
     def ltsq(self):
         tsq, _ = self.tsq('LFPs')
-        return tsq
+        return tsq.reset_index(drop=True)
 
     def tev(self, event_name):
         """Return the data from a particular event.
@@ -353,7 +361,6 @@ class PandasTank(TdtTankBase):
         meta.timestamp = fromtimestamp(meta.timestamp)
 
         # create the channel groups
-
         meta = meta.reset_index(drop=True)
         groups = DataFrame(meta.groupby('channel').groups).values
 
@@ -386,7 +393,7 @@ def _reshape_spikes(raw, group_indices, meta, fs, nchans, date):
 
     vals = raw[group_indices]
     shpsort = np.argsort(vals.shape)[::-1]
-    newshp = int(vals.size / nchans), nchans
+    newshp = int(vals.size // nchans), nchans
     valsr = vals.transpose(shpsort).reshape(newshp)
 
     us_per_sample = round(1e6 / fs) * datetools.Micro()
