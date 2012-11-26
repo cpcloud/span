@@ -90,10 +90,13 @@ def sem(a, axis=0, ddof=1):
     Parameters
     ----------
     a : array_like
+        The array whose standard error to compute.
+
     axis : int, optional
-    dtype : dtype, optional
-    out : array_like, optional
+        Axis along which to compute the standard error
+
     ddof : int, optional
+        Delta degrees of freedom.
 
     Returns
     -------
@@ -106,7 +109,7 @@ def sem(a, axis=0, ddof=1):
 
     try:
         s = a.std(axis=axis, ddof=ddof)
-    except:
+    except TypeError:
         s = a.std(axis=axis)
 
     return s / np.sqrt(n)
@@ -144,34 +147,25 @@ def detrend_mean(x):
     return x - x.mean()
 
 
-# def detrend_linear(y):
-#     """Linearly detrend `y`.
-
-#     Parameters
-#     ----------
-#     y : array_like
-
-#     Returns
-#     -------
-#     d : array_like
-#     """
-#     x = np.arange(min(y.shape), dtype=float)
-
-#     if y.ndim == 2:
-#         x = np.tile(x, (y.shape[1], 1)).T
-
-#     c = np.cov(x, y, bias=1)
-#     b = c[0, 1] / c[0, 0]
-#     a = y.mean() - b * x.mean()
-#     return y - (b * x + a)
-
-
 def detrend_linear(y):
+    """Linearly detrend `y`.
+
+    Parameters
+    ----------
+    y : array_like
+
+    Returns
+    -------
+    d : array_like
+    """
     n = len(y)
     bp = np.array([0])
     bp = np.unique(np.vstack((0, bp, n - 1)))
     lb = len(bp) - 1
-    a = np.hstack((np.zeros((n, lb)), np.ones((n, 1))))
+    zeros = np.zeros((n, lb))
+    ones = np.ones((n, 1))
+    zo = zeros, ones
+    a = np.hstack(zo)
 
     for kb in xrange(lb):
         bpkb = bp[kb]
@@ -187,14 +181,14 @@ def cartesian(arrays, out=None, dtype=None):
 
     The Cartesian product is defined as
 
-.. math::
-     A_{1} \times \cdots \times A_{n} =
-     \left\{\left(a_{1},\ldots,a_{n}\right) : a_{1} \in A_{1}\textrm{ and }
-     \cdots \textrm{ and }a_{n} \in A_{n}\right\}
+        .. math::
+            A_{1} \times \cdots \times A_{n} =
+            \left\{\left(a_{1},\ldots,a_{n}\right) : a_{1} \in A_{1}
+            \textrm{ and } \cdots \textrm{ and }a_{n} \in A_{n}\right\}
 
     Notes
     -----
-    This function works on arbitrary objects arrays and attempts to coerce the
+    This function works on arbitrary object arrays and attempts to coerce the
     entire array to a single non-object dtype if possible.
 
     Parameters
@@ -251,7 +245,7 @@ def fractional(x):
 
     Returns
     -------
-    ret : bool
+    frac : bool
         Whether the elements of x have a fractional part.
     """
     frac, _ = np.modf(np.asanyarray(x))
@@ -266,7 +260,7 @@ def fs2ms(fs, millis):
     fs : float
         Sampling rate
 
-    ms : float
+    millis : float
         The refractory period in milliseconds.
 
     Returns
@@ -285,12 +279,16 @@ def compose2(f, g):
     ----------
     f, g : callable
 
+    Raises
+    ------
+    AssertionError
+       * If `f` and `g` are not both callable
+
     Returns
     -------
     h : callable
     """
-    if not all(map(callable, (f, g))):
-        raise TypeError('f and g must both be callable')
+    assert all(map(callable, (f, g))), 'f and g must both be callable'
     return lambda *args, **kwargs: f(g(*args, **kwargs))
 
 
@@ -318,9 +316,15 @@ def composemap(*args):
     ----------
     args : tuple of callables
 
+    Raises
+    ------
+    AssertionError
+        * If not all arguments are callable
+
     Returns
     -------
     h : callable
     """
+    assert all(map(callable, args)), 'all arguments must be callable'
     maps = itools.repeat(map, len(args))
     return fntools.reduce(compose2, map(fntools.partial, maps, args))
