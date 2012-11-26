@@ -31,7 +31,6 @@ Examples
 
 import numbers
 import functools as fntools
-import operator
 
 import numpy as np
 import scipy
@@ -129,9 +128,9 @@ class SpikeGroupedDataFrame(DataFrame):
 
         .. math::
 
-           \operatorname{sem}\left(\mathbf{x}\right)=\frac{\sqrt{\frac{1}{n -
+           \operatorname{sem}\left(\mathbf{x}\right)=\sqrt{\frac{\frac{1}{n -
            \textrm{ddof}}\sum_{i=1}^{n}\left(x_{i} -
-           \bar{\mathbf{x}}\right)^{2}}}{\sqrt{n}}
+           \bar{\mathbf{x}}\right)^{2}{n}}}
 
         where :math:`n` is the number of elements along the axis `axis`.
         """
