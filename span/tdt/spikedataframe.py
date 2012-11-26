@@ -415,8 +415,9 @@ class SpikeDataFrame(SpikeDataFrameBase):
         Returns
         -------
         fr, sem : array_like, array_like
-            The average firing rate in spikes per binsize milliseconds and the
-            standard error of the mean of the spike counts for a given level.
+            The average firing rate in spikes per `binsize` milliseconds and
+            the standard error of the mean of the spike counts for a given
+            level.
         """
         group = binned.groupby(axis=axis, level=level)
         gm = group.mean()
@@ -430,7 +431,7 @@ class SpikeDataFrame(SpikeDataFrameBase):
 
     def xcorr(self, binned, maxlags=None, detrend=span.utils.detrend_mean,
               scale_type='normalize', sortlevel='shank i', dropna=False,
-              nan_auto=False):
+              nan_auto=False, lag_name=r'$\ell$'):
         """Compute the cross correlation of binned data.
 
         Parameters
@@ -443,10 +444,11 @@ class SpikeDataFrame(SpikeDataFrameBase):
             Defaults to None and computes the full cross correlation.
 
         detrend : callable, optional
-            Callable used to detrend. Defaults to detrend_mean
+            Callable used to detrend. Defaults to
+            :func:`span.utils.detrend_mean`.
 
         scale_type : str, optional
-            Method of scaling. Defaults to 'normalize'.
+            Method of scaling. Defaults to ``'normalize'``.
 
         sortlevel : str, optional
             How to sort the index of the returned cross-correlation(s).
@@ -454,13 +456,16 @@ class SpikeDataFrame(SpikeDataFrameBase):
             physical ordering.
 
         dropna : bool, optional
-            If True this will drop all channels whose cross correlation is NaN.
-            Cross-correlations will be NaN if any of the columns of `binned`
-            are NaN.
+            If ``True`` this will drop all channels whose cross correlation is
+            ``NaN``. Cross-correlations will be ``NaN`` if any of the columns
+            of `binned` are ``NaN``.
 
         nan_auto : bool, optional
-            If True then the autocorrelation values will be NaN. Defaults to
-            False
+            If ``True`` then the autocorrelation values will be ``NaN``.
+            Defaults to ``False``.
+
+        lag_name : str, optional
+            Name to give to the lag index for plotting. Defaults to ``$\ell$``.
 
         Raises
         ------
@@ -474,7 +479,7 @@ class SpikeDataFrame(SpikeDataFrameBase):
 
         Returns
         -------
-        xc : DataFrame
+        xc : DataFrame or Series
             The cross correlation of all the columns of the data.
 
         See Also
@@ -524,7 +529,7 @@ class SpikeDataFrame(SpikeDataFrameBase):
 
             xc = xc.sortlevel(level=sl, axis=1)
 
-        xc.index.name = r'$\ell$'
+        xc.index.name = lag_name
 
         return xc
 
