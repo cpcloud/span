@@ -28,6 +28,7 @@ import os
 import operator
 import itertools as itools
 import functools
+import numbers
 
 import numpy as np
 import pandas as pd
@@ -49,7 +50,7 @@ try:
             Axis whose legend will be hidden
         """
         if ax is None:
-            ax = gca()
+            ax = gca() # pragma: no cover
         ax.legend_ = None
 
 except RuntimeError as e:  # pragma: no cover
@@ -128,6 +129,9 @@ def ndtuples(*dims):
         `ndtuples` is a special case of the Cartesian product
     """
     assert dims, 'no arguments given'
+    assert all(map(lambda x: isinstance(x, (numbers.Integral)), dims)), \
+        'all arguments must be integers'
+    assert all(map(lambda x: x > 0, dims)), 'all arguments must be greater than 0'
 
     dims = list(dims)
     n = dims.pop()
@@ -140,7 +144,7 @@ def ndtuples(*dims):
         cur = np.hstack((front, cur))
         n *= d
 
-    return cur
+    return cur.squeeze()
 
 
 def nans(shape):
@@ -405,18 +409,18 @@ def try_convert_first(x):
 
 
 def mi2df(mi):
-    """Return a `pandas`_ `MultiIndex`_ as a `DataFrame`_.
+    """Return a `pandas <http://pandas.pydata.org>`_
+    `MultiIndex <http://pandas.pydata.org/pandas-docs/dev/indexing.html#hierarchical-indexing-multiindex>`_
+    as a `DataFrame <http://pandas.pydata.org/pandas-docs/dev/dsintro.html#dataframe>`_.
 
     Parameters
     ----------
-    mi : `MultiIndex`_
+    mi : `MultiIndex <http://pandas.pydata.org/pandas-docs/dev/indexing.html#hierarchical-indexing-multiindex>`_
 
     Returns
     -------
-    df : `DataFrame`_
+    df : `DataFrame <http://pandas.pydata.org/pandas-docs/dev/dsintro.html#dataframe>`_
     """
-
-    # map each
     m = tuple(map(lambda x: np.asanyarray(x, object), mi))
     df = DataFrame(np.asanyarray(m, object), columns=mi.names)
     return df.applymap(try_convert_first)
