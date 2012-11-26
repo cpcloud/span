@@ -248,11 +248,11 @@ def test_fractional():
     assert not fractional(randint(1, np.iinfo(int).max))
 
 
-class TestFs2Ms(unittest.TestCase):
-    def test_fs2ms(self):
+class TestSamplesPerMs(unittest.TestCase):
+    def test_samples_per_ms(self):
         args = np.arange(10)
         fs = 24414.0625
-        r = list(map(type, (fs2ms(fs, arg) for arg in args)))
+        r = list(map(type, (samples_per_ms(fs, arg) for arg in args)))
         self.assertListEqual(r, list(itertools.repeat(int, len(r))))
 
 
