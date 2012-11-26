@@ -7,6 +7,7 @@ from numpy.testing import assert_allclose, assert_array_equal
 
 from pandas import Series, DataFrame, Panel
 
+from span.utils import ndtuples
 from span.utils.math import *
 
 from span.utils.tests.test_utils import rand_int_tuple
@@ -259,13 +260,13 @@ class TestCompose2(unittest.TestCase):
     def test_compose2(self):
         # fail if not both callables
         f, g = 1, 2
-        self.assertRaises(TypeError, compose2, f, g)
+        self.assertRaises(AssertionError, compose2, f, g)
 
         f, g = 1, np.exp
-        self.assertRaises(TypeError, compose2, f, g)
+        self.assertRaises(AssertionError, compose2, f, g)
 
         f, g = np.log, 2
-        self.assertRaises(TypeError, compose2, f, g)
+        self.assertRaises(AssertionError, compose2, f, g)
 
         # don't fail if both callables
         f, g = np.log, np.exp
@@ -278,13 +279,13 @@ class TestCompose(unittest.TestCase):
     def test_compose(self):
         # fail if not both callables
         f, g, h, q = 1, 2, np.log, np.exp
-        self.assertRaises(TypeError, compose, f, g, h, q)
+        self.assertRaises(AssertionError, compose, f, g, h, q)
 
         f, g, h, q = 1, np.exp, 1.0, 'sd'
-        self.assertRaises(TypeError, compose, f, g, h, q)
+        self.assertRaises(AssertionError, compose, f, g, h, q)
 
         f, g, h, q = np.log, 2, object(), []
-        self.assertRaises(TypeError, compose, f, g, h, q)
+        self.assertRaises(AssertionError, compose, f, g, h, q)
 
         # don't fail if all callables
         f, g, h, q = np.log, np.exp, np.log, np.exp
