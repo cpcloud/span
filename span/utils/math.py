@@ -252,7 +252,7 @@ def fractional(x):
     return frac
 
 
-def fs2ms(fs, millis):
+def fs_per_ms(fs, millis):
     """Compute the number of samples in `ms` for a sample rate of `fs`
 
     Parameters
@@ -268,7 +268,7 @@ def fs2ms(fs, millis):
     win : int
         The refractory period in samples.
     """
-    conv = 1e3
+    conv = 1000.0
     return int(np.floor(millis / conv * fs))
 
 
