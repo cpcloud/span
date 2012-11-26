@@ -88,7 +88,7 @@ class TestDistanceMapWithCrossCorrelation(unittest.TestCase):
         thr = sp.threshold(4 * sp.std())
         clr = sp.clear_refrac(thr)
         binned = sp.bin(clr, binsize=10)
-        cls.xc = sp.xcorr(binned, maxlags=100)
+        cls.xc = sp.xcorr(binned, maxlags=10)
 
         rawmap = np.array([1, 3, 2, 6,
                            7, 4, 8, 5,
