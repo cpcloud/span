@@ -130,7 +130,7 @@ class SpikeGroupedDataFrame(DataFrame):
 
            \operatorname{sem}\left(\mathbf{x}\right)=\sqrt{\frac{\frac{1}{n -
            \textrm{ddof}}\sum_{i=1}^{n}\left(x_{i} -
-           \bar{\mathbf{x}}\right)^{2}{n}}}
+           \bar{\mathbf{x}}\right)^{2}}{n}}
 
         where :math:`n` is the number of elements along the axis `axis`.
         """
