@@ -6,7 +6,8 @@ import itertools
 import numpy as np
 from numpy.random import randint, rand, randn
 
-from pandas import Series, DataFrame, Panel
+from pandas import Series, DataFrame, Panel, MultiIndex
+from pandas.util.testing import rands
 
 try:
     from pylab import gca
@@ -25,7 +26,7 @@ else:
 from span.utils.utils import *
 from span.utils.math import nextpow2, compose
 
-from span.testing import skip
+# from span.testing import skip
 from span.testing import slow, assert_allclose, assert_array_equal
 
 
@@ -248,7 +249,7 @@ class TestNdtuples(unittest.TestCase):
         pass
 
     def test_ndtuples_0(self):
-        zdims = 0,  False, [], (), {}, np.array([])
+        zdims = 0, False, [], (), {}, np.array([])
 
         for zdim in zdims:
             self.assertRaises(AssertionError, ndtuples, zdim)
@@ -259,14 +260,14 @@ class TestNdtuples(unittest.TestCase):
         assert_array_equal(x, np.arange(n))
 
     def test_ndtuples_2(self):
-        m, n = randint(1, 5), randint(1, 4)
+        m, n = randint(2, 5), randint(2, 4)
         x = ndtuples(m, n)
         self.assertTupleEqual((m * n, 2), x.shape)
 
-    def test_ndtuples_n(self):
-        m, n = randint(1, 5), randint(1, 4)
-        x = ndtuples(m, n)
-        self.assertTupleEqual((m * n, 2), x.shape)
+    def test_ndtuples_3(self):
+        m, n, l = randint(2, 5), randint(2, 4), randint(3, 10)
+        x = ndtuples(m, n, l)
+        self.assertTupleEqual((m * n * l, 3), x.shape)
 
 
 class TestNonzeroExistingFile(unittest.TestCase):
@@ -317,4 +318,12 @@ class TestTryConvertFirst(unittest.TestCase):
 
 class TestMi2Df(unittest.TestCase):
     def test_mi2df(self):
-        assert False
+        dtypes = object, int, long, str, float
+        for dtype in dtypes:
+            s = np.array(list(rands(10)))
+            i = randint(10, size=(10,))
+            f = rand(10)
+            o = rand(10).astype(object)
+            x = s, i, f, o
+            mi = MultiIndex.from_arrays(x, names=list('ABCD'))
+            df = mi2df(mi)
