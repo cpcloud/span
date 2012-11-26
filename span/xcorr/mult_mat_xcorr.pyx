@@ -19,15 +19,15 @@
 
 
 from numpy cimport (complex64_t as c8, complex128_t as c16, npy_intp as ip,
-                    int64_t as i8)
+                    int64_t as i8, float32_t as f4, float64_t as f8)
 
 from cython.parallel cimport prange, parallel
 
 cimport cython
 
 ctypedef fused floating:
-    float
-    double
+    f4
+    f8
 
     c8
     c16
