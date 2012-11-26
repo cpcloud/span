@@ -1,5 +1,5 @@
 import unittest
-import itertools
+from itertools import product as cartprod
 
 import numpy as np
 from numpy.random import randn, randint
@@ -33,7 +33,7 @@ class TestXCorr(unittest.TestCase):
         scale_types = 'normalize', 'none', 'unbiased', 'biased', None
         maxlags = 10, None
 
-        args = itertools.product(maxlags, detrends, scale_types)
+        args = cartprod(maxlags, detrends, scale_types)
 
         xc_np = np.zeros((2 * m - 1, n ** 2))
         cart = cartesian((np.arange(n), np.arange(n)))
@@ -46,7 +46,7 @@ class TestXCorr(unittest.TestCase):
             xc_span = DataFrame(xc_np.copy(), columns=cols,
                                 index=Int64Index(np.r_[1 - m:m]))
 
-            for ci, (i, j) in enumerate(itertools.product(rng, rng)):
+            for ci, (i, j) in enumerate(cartprod(rng, rng)):
                 xi, xj = dt(x[:, i]), dt(x[:, j])
 
                 xc_np[:, ci] = np.correlate(xi, xj, mode='full')
@@ -89,6 +89,6 @@ def test_mult_mat_xcorr():
 
     assert_allclose(c, oc)
 
-    cc, occ = ifft(c, nfft).T, ifft(oc, nfft).T
+    cc, occ = map(lambda x: ifft(x, nfft).T, (c, oc))
 
     assert_allclose(cc, occ)
