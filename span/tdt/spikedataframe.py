@@ -153,7 +153,7 @@ class SpikeDataFrameBase(SpikeGroupedDataFrame):
 
     See Also
     --------
-    SpikeDataFrame
+    span.tdt.spikedataframe.SpikeDataFrame
     """
 
     def __init__(self, data, meta, *args, **kwargs):
@@ -237,7 +237,7 @@ class SpikeDataFrameBase(SpikeGroupedDataFrame):
         -------
         threshed : array_like
         """
-        threshes = np.asanyarray(threshes)
+        threshes = np.asanyarray(np.atleast_1d(threshes))
 
         assert threshes.size == 1 or threshes.size == self.nchans, \
             'number of threshold values must be 1 (same for all channels) or '\
@@ -245,13 +245,9 @@ class SpikeDataFrameBase(SpikeGroupedDataFrame):
 
         is_neg = np.all(threshes < 0)
 
-        if threshes.size == self.nchans:
-            threshes = Series(threshes, index=self.columns)
-            cmpf = self.lt if is_neg else self.gt
-            f = fntools.partial(cmpf, axis=1)
-        else:
-            cmpf = operator.lt if is_neg else operator.gt
-            f = fntools.partial(cmpf, self)
+        threshes = Series(threshes, index=self.columns)
+        cmpf = self.lt if is_neg else self.gt
+        f = fntools.partial(cmpf, axis=1)
 
         return f(threshes)
 
