@@ -1,7 +1,5 @@
 import os
 import unittest
-import string
-import datetime
 
 import pandas as pd
 
@@ -44,23 +42,26 @@ class TestPandasTank(unittest.TestCase):
         assert hasattr(self.tank, 'site')
         self.assertIsInstance(self.tank.site, (type(None), int))
 
+    def setUp(self):
+        self.names = 'Spik', 'LFPs'
+
+    def tearDown(self):
+        del self.names
+
     def test_read_tev(self):
-        names = 'Spik', 'LFPs'
-        for name in names:
+        for name in self.names:
             tev = self.tank._read_tev(name)()
             self.assertIsNotNone(tev)
             self.assertIsInstance(tev, SpikeDataFrame)
 
     def test_read_tsq(self):
-        names = 'Spik', 'LFPs'
-        for name in names:
+        for name in self.names:
             tsq, _ = self.tank._read_tsq(name)()
             self.assertIsNotNone(tsq)
             self.assertIsInstance(tsq, pd.DataFrame)
 
     def test_tsq(self):
-        names = 'Spik', 'LFPs'
-        for name in names:
+        for name in self.names:
             self.assertIsNotNone(self.tank.tsq(name))
 
     def test_stsq(self):
@@ -70,8 +71,7 @@ class TestPandasTank(unittest.TestCase):
         self.assertIsNotNone(self.tank.ltsq)
 
     def test_tev(self):
-        names = 'Spik', 'LFPs'
-        for name in names:
+        for name in self.names:
             self.assertIsNotNone(self.tank.tev(name))
 
     def test_spikes(self):
