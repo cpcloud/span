@@ -3,7 +3,8 @@ import itertools as it
 
 import numpy as np
 
-from span.tdt import distance_map, ElectrodeMap, PandasTank
+from span.tdt import distance_map, ElectrodeMap
+from span.testing import create_spike_df
 
 
 class TestDistanceMap(unittest.TestCase):
@@ -32,14 +33,15 @@ class TestDistanceMap(unittest.TestCase):
                 if nsh == 1:
                     btwn = 0
 
-                dm = distance_map(nsh, nelec, btwn, wthn, metr, p)
-                self.assertEqual(dm.size, (nsh * nelec) ** 2)
+                if nsh > 1 and nelec > 1:
+                    dm = distance_map(nsh, nelec, btwn, wthn, metr, p)
+                    self.assertEqual(dm.size, (nsh * nelec) ** 2)
 
 
 class TestElectrodeMap(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
-        cls.b = np.arange(0, 100, 25)
+        cls.b = np.arange(0, 101, 25)
         cls.w = cls.b.copy()
         cls.orders = None, 'lm', 'ml'
         cls.base_indices = 0, 1
@@ -55,8 +57,16 @@ class TestElectrodeMap(unittest.TestCase):
 
         for bb, ww, n, order, bi in arg_sets:
             a = np.random.randint(1, n + 1, size=n)
-            em = ElectrodeMap(a, order, bi)
-            dm = em.distance_map(1, ww, bb)
+
+            if order is not None and a.ndim == 2:
+                em = ElectrodeMap(a, order, bi)
+
+                if ww and bb:
+                    dm = em.distance_map(1, ww, bb)
+                    self.assertIsNotNone(dm)
+                else:
+                    self.assertRaises(AssertionError, em.distance_map, 1, ww,
+                                      bb)
 
     def test_2d_map(self):
         assert False
@@ -74,21 +84,21 @@ class TestElectrodeMap(unittest.TestCase):
 class TestDistanceMapWithCrossCorrelation(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
-        tn = ("/home/phillip/Data/xcorr_data/Spont_Spikes_091210_p17rat_s4_"
-              "657umV/Spont_Spikes_091210_p17rat_s4_657umV")
-        tank = PandasTank(tn)
-        sp = tank.spikes
+        sp = create_spike_df()
         thr = sp.threshold(4 * sp.std())
         clr = sp.clear_refrac(thr)
-        binned = sp.bin(clr, binsize=1000)
+        binned = sp.bin(clr, binsize=10)
         cls.xc = sp.xcorr(binned, maxlags=100)
 
-        rawmap = np.array([1,3,2,6,7,4,8,5,13,10,12,9,14,16,11,15]).reshape(4, 4)
+        rawmap = np.array([1, 3, 2, 6,
+                           7, 4, 8, 5,
+                           13, 10, 12, 9,
+                           14, 16, 11, 15]).reshape(4, 4)
         cls.elecmap = ElectrodeMap(rawmap, order='lm')
         cls.dm = cls.elecmap.distance_map(50, 125)
-
 
     def test_set_index(self):
         xcc = self.xc.T.set_index(self.dm, append=True).T
         lag0_tmp = xcc.ix[0].dropna().sortlevel(level=6)
         lag0 = lag0_tmp.reset_index(level=range(6), drop=True)
+        self.assertIsNotNone(lag0)
