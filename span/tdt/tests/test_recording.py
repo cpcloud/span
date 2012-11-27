@@ -4,9 +4,10 @@ import itertools as it
 import numpy as np
 
 from span.tdt import distance_map, ElectrodeMap
-from span.testing import create_spike_df
+from span.testing import create_spike_df, slow
 
 
+@slow
 class TestDistanceMap(unittest.TestCase):
     def test_distance_map(self):
         nshanks = np.r_[:9]
@@ -51,6 +52,24 @@ class TestElectrodeMap(unittest.TestCase):
     def tearDownClass(cls):
         del cls.nelecs, cls.base_indices, cls.orders, cls.w, cls.b
 
+    def test_one_based(self):
+        b, w, nelecs = self.b, np.zeros_like(self.b), self.nelecs
+        arg_sets = it.product(b, w, nelecs, self.orders, self.base_indices)
+
+        for bb, ww, n, order, bi in arg_sets:
+            a = np.random.randint(1, n + 1, size=n)
+
+            if order is not None and a.ndim == 2:
+                em = ElectrodeMap(a, order, bi)
+
+                if ww and bb:
+                    dm = em.distance_map(1, ww, bb)
+                    self.assertIsNotNone(dm)
+                else:
+                    self.assertRaises(AssertionError, em.distance_map, 1, ww,
+                                      bb)
+                ob = em.one_based()
+
     def test_1d_map(self):
         b, w, nelecs = self.b, np.zeros_like(self.b), self.nelecs
         arg_sets = it.product(b, w, nelecs, self.orders, self.base_indices)
@@ -75,9 +94,6 @@ class TestElectrodeMap(unittest.TestCase):
         assert False
 
     def test_distance_map_2d(self):
-        assert False
-
-    def test_show(self):
         assert False
 
 
