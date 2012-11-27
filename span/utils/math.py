@@ -223,7 +223,7 @@ def cartesian(arrays, out=None, dtype=None):
 
 
 def nextpow2(n):
-    """Return the next power of 2 of a number.
+    """Return the next power of 2 of an array.
 
     Parameters
     ----------
@@ -233,7 +233,7 @@ def nextpow2(n):
     -------
     ret : array_like
     """
-    return np.ceil(np.log2(np.abs(np.asanyarray(n))))
+    return np.ceil(np.log2(np.abs(np.asanyarray(n)))).astype(np.int64)
 
 
 def fractional(x):

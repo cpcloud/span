@@ -126,7 +126,13 @@ def _unbiased(c, x, y, lsize):
     """
     d = lsize - np.abs(c.index).values
     denom = np.tile(d[:, np.newaxis], (1, c.shape[1])) if c.ndim == 2 else d
-    return type(c)(c.values / denom, index=c.index)
+    rt = type(c)
+    vals = c.values / denom
+
+    try:
+        return rt(vals, index=c.index)
+    except (TypeError, AttributeError):
+        return rt(vals)
 
 
 def _biased(c, x, y, lsize):
@@ -190,7 +196,13 @@ def _normalize(c, x, y, lsize):
 
         with warnings.catch_warnings():
             warnings.simplefilter('ignore', category=FutureWarning)
-            tmp = np.sqrt(c.ix[0, jkl])
+
+            try:
+                vals = c.ix[0, jkl]
+            except AttributeError:
+                vals = c[0, jkl]
+
+            tmp = np.sqrt(vals)
 
         cdiv = np.outer(tmp, tmp).ravel()
 
@@ -255,7 +267,7 @@ def xcorr(x, y=None, maxlags=None, detrend=detrend_mean,
 
     Returns
     -------
-    c : Series or DataFrame
+    c : Series or DataFrame or array_like
         Autocorrelation of `x` if `y` is ``None``, cross-correlation of `x` if
         `x` is a matrix and `y` is ``None``, or the cross-correlation of `x`
         and `y` if both `x` and `y` are vectors.
@@ -287,7 +299,7 @@ def xcorr(x, y=None, maxlags=None, detrend=detrend_mean,
         inputs = x, y
         corrfunc = _crosscorr
 
-    ctmp = corrfunc(*inputs, nfft=int(2 ** nextpow2(2 * lsize - 1)))
+    ctmp = corrfunc(*inputs, nfft=2 ** nextpow2(2 * lsize - 1))
 
     if maxlags is None:
         maxlags = lsize
@@ -297,7 +309,12 @@ def xcorr(x, y=None, maxlags=None, detrend=detrend_mean,
 
     lags = pd.Int64Index(np.r_[1 - maxlags:maxlags])
 
-    return_type = pd.DataFrame if x.ndim == 2 else pd.Series
+    if isinstance(x, pd.Series):
+        return_type = lambda x, index: pd.Series(x, index=index)
+    elif isinstance(x, pd.DataFrame):
+        return_type = lambda x, index: pd.DataFrame(x, index=index)
+    elif isinstance(x, np.ndarray):
+        return_type = lambda x, index: np.asanyarray(x)
 
     scale_function = _SCALE_FUNCTIONS[scale_type]
     return scale_function(return_type(ctmp[lags], index=lags), x, y, lsize)
