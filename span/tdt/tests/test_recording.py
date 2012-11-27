@@ -1,5 +1,5 @@
 import unittest
-import itertools as it
+import itertools as itools
 
 import numpy as np
 
@@ -19,7 +19,7 @@ class TestDistanceMap(unittest.TestCase):
         metrics = 'wminkowski',
         ps = 1, 2, np.inf
 
-        arg_sets = it.product(nshanks, elecs, within, between, metrics, ps)
+        arg_sets = itools.product(nshanks, elecs, within, between, metrics, ps)
 
         for arg_set in arg_sets:
             nsh, nelec, wthn, btwn, metr, p = arg_set
@@ -40,60 +40,89 @@ class TestDistanceMap(unittest.TestCase):
 
 
 class TestElectrodeMap(unittest.TestCase):
-    @classmethod
-    def setUpClass(cls):
-        cls.b = np.arange(0, 101, 25)
-        cls.w = cls.b.copy()
-        cls.orders = None, 'lm', 'ml'
-        cls.base_indices = 0, 1
-        cls.nelecs = np.arange(64) + 1
+    def setUp(self):
+        self.between_shank = np.arange(25, 101, 25)
+        self.within_shank = self.between_shank.copy()
+        self.base_indices = 0, 1
+        self.nelecs = np.arange(64) + 1
 
-    @classmethod
-    def tearDownClass(cls):
-        del cls.nelecs, cls.base_indices, cls.orders, cls.w, cls.b
+    def tearDown(self):
+        del self.nelecs, self.base_indices, self.within_shank
+        del self.between_shank
 
-    def test_one_based(self):
-        b, w, nelecs = self.b, np.zeros_like(self.b), self.nelecs
-        arg_sets = it.product(b, w, nelecs, self.orders, self.base_indices)
-
-        for bb, ww, n, order, bi in arg_sets:
-            a = np.random.randint(1, n + 1, size=n)
-
-            if order is not None and a.ndim == 2:
-                em = ElectrodeMap(a, order, bi)
-
-                if ww and bb:
-                    dm = em.distance_map(1, ww, bb)
-                    self.assertIsNotNone(dm)
-                else:
-                    self.assertRaises(AssertionError, em.distance_map, 1, ww,
-                                      bb)
-                ob = em.one_based()
+    def test_constructor(self):
+        self.assertRaises(AssertionError, ElectrodeMap, [1, 2], 'ml')
+        em = ElectrodeMap([[1, 2], [3, 4], [5, 6]], 'ml')
 
     def test_1d_map(self):
-        b, w, nelecs = self.b, np.zeros_like(self.b), self.nelecs
-        arg_sets = it.product(b, w, nelecs, self.orders, self.base_indices)
-
-        for bb, ww, n, order, bi in arg_sets:
-            a = np.random.randint(1, n + 1, size=n)
-
-            if order is not None and a.ndim == 2:
-                em = ElectrodeMap(a, order, bi)
-
-                if ww and bb:
-                    dm = em.distance_map(1, ww, bb)
-                    self.assertIsNotNone(dm)
-                else:
-                    self.assertRaises(AssertionError, em.distance_map, 1, ww,
-                                      bb)
+        args = itools.product(self.nelecs, (None,), self.base_indices)
+        for nelec, order, base_index in args:
+            elecs = np.random.randint(nelec, size=nelec)
+            em = ElectrodeMap(elecs, order, base_index)
 
     def test_2d_map(self):
-        assert False
+        orders = None, 'ml', 'lm'
+        args = itools.product(self.nelecs, orders, self.base_indices)
+
+        for nelec, order, base_index in args:
+            nshanks = np.random.randint(2, 10)
+            elecs = np.random.randint(nelec, size=(nelec, nshanks))
+
+            if nshanks % 2 == 0:
+                em = ElectrodeMap(elecs, order, base_index)
+            else:
+                self.assertRaises(AssertionError, ElectrodeMap, elecs, order,
+                                  base_index)
 
     def test_distance_map_1d(self):
         assert False
 
     def test_distance_map_2d(self):
+        assert False
+
+    def test_nshanks(self):
+        def _1d():
+            args = itools.product(self.nelecs, (None,), self.base_indices)
+            for nelec, order, base_index in args:
+                elecs = np.random.randint(nelec, size=nelec)
+                em = ElectrodeMap(elecs, order, base_index)
+                nc = em.nchans
+
+        def _2d():
+            orders = None, 'ml', 'lm'
+            args = itools.product(self.nelecs, orders, self.base_indices)
+
+            for nelec, order, base_index in args:
+                nshanks = np.random.randint(2, 10)
+                elecs = np.random.randint(nelec, size=(nelec, nshanks))
+                em = ElectrodeMap(elecs, order, base_index)
+                ns = em.nshanks
+
+        _1d()
+        _2d()
+
+    def test_nchans(self):
+        def _1d():
+            args = itools.product(self.nelecs, (None,), self.base_indices)
+            for nelec, order, base_index in args:
+                elecs = np.random.randint(nelec, size=nelec)
+                em = ElectrodeMap(elecs, order, base_index)
+                nc = em.nchans
+
+        def _2d():
+            orders = None, 'ml', 'lm'
+            args = itools.product(self.nelecs, orders, self.base_indices)
+
+            for nelec, order, base_index in args:
+                nshanks = np.random.randint(2, 10)
+                elecs = np.random.randint(nelec, size=(nelec, nshanks))
+                em = ElectrodeMap(elecs, order, base_index)
+                ns = em.nchans
+
+        _1d()
+        _2d()
+
+    def test_one_based(self):
         assert False
 
 

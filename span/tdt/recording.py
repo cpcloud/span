@@ -28,8 +28,9 @@ import numbers
 
 from operator import attrgetter
 
-from numpy import asanyarray, sign, repeat, arange, ones, atleast_1d
-from pandas import Series, DataFrame,  MultiIndex
+import numpy as np
+
+from pandas import Series, DataFrame, MultiIndex
 
 from span.utils import ndtuples
 from scipy.spatial.distance import squareform, pdist
@@ -76,7 +77,7 @@ def distance_map(nshanks, electrodes_per_shank, within_shank, between_shank,
         '"p" must be a positive real number'
 
     locs = ndtuples(electrodes_per_shank, nshanks)
-    w = asanyarray((between_shank, within_shank), dtype=float)
+    w = np.asanyarray((between_shank, within_shank), dtype=float)
 
     return squareform(pdist(locs, metric=metric, p=p, w=w))
 
@@ -106,10 +107,11 @@ class ElectrodeMap(DataFrame):
         Number of channels.
     """
     def __init__(self, map_, order=None, base_index=0):
-        map_ = atleast_1d(asanyarray(map_).squeeze())
+        vals = np.asanyarray(map_).squeeze()
+        map_ = np.atleast_1d(vals)
         mm = map_.min()
 
-        v = sign(base_index - mm)
+        v = np.sign(base_index - mm)
 
         if v:
             while mm != base_index:
@@ -118,19 +120,21 @@ class ElectrodeMap(DataFrame):
 
         try:
             m, n = map_.shape
-            s = repeat(arange(n), m)
+            s = np.repeat(np.arange(n), m)
         except ValueError:
             m, = map_.shape
-            s = ones(m, dtype=int)
+            s = np.ones(m, dtype=int)
 
         data = {'channel': map_.ravel(), 'shank': s}
 
         if order is not None:
+            assert np.unique(s).size % 2 == 0, \
+                'must have an even number of shanks if order is not None'
             assert map_.ndim == 2, 'map_ must be 2D if there is a shank order'
             tup = list(order)
             tup[0] += 'at'
             tup[1] += 'ed'
-            data['side'] = repeat(tup, map_.size / len(order))
+            data['side'] = np.repeat(tup, map_.size / len(order))
 
         df = DataFrame(data).sort('channel').reset_index(drop=True)
         df.index = df.pop('channel')
@@ -166,10 +170,10 @@ class ElectrodeMap(DataFrame):
         Raises
         ------
         AssertionError
-            - If `within` is not an instance of ``numbers.Real``
-            - If `between` is not an instance of ``numbers.Real``
-            - If `p` is not an instance of ``numbers.Real``
-            - If metric is not a string or a callable
+            * If `within` is not an instance of ``numbers.Real``
+            * If `between` is not an instance of ``numbers.Real``
+            * If `p` is not an instance of ``numbers.Real`` and greater than 0
+            * If `metric` is not a string or a callable
 
         Returns
         -------
