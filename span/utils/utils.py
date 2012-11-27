@@ -153,11 +153,7 @@ def nans(shape):
     Parameters
     ----------
     shape : tuple
-        The shape tuple of the array of nans to create.
-
-    dtype : numpy.dtype, optional
-        The dtype of the new nan array. Defaults to float because only
-        float nan arrays are support by NumPy.
+        The shape tuple of the array of NaNs to create.
 
     Returns
     -------
