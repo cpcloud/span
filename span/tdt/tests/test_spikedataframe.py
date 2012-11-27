@@ -185,7 +185,7 @@ class TestSpikeDataFrame(unittest.TestCase):
         sp = self.spikes
         thr = sp.threshold(3 * sp.std())
         clr = sp.clear_refrac(thr)
-        binned = sp.bin(clr, binsize=1000)
+        binned = sp.bin(clr, binsize=100)
         axes = 0, 1
         sems = True, False
         args = itertools.product(sp.columns.names,
@@ -201,9 +201,13 @@ class TestSpikeDataFrame(unittest.TestCase):
                         self.assertEqual(mfr.shape, sm.shape)
                     else:
                         mfr = sp.fr(binned, t, axis, sem)
-
                 else:
-                    self.assertRaises(ValueError, sp.fr, binned, t, axis, sem)
+                    if t:
+                        self.assertRaises(ValueError, sp.fr, binned, t, axis,
+                                          sem)
+                    else:
+                        mfr = sp.fr(binned, t, axis, sem)
+
 
     @slow
     def test_clear_refrac(self):
