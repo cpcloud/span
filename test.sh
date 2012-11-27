@@ -1,6 +1,6 @@
 #!/bin/bash
 
-nosetests -w . --with-coverage \
+nosetests -w span --with-coverage \
     --cover-tests \
     --cover-erase \
     --cover-package=span \
