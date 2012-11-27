@@ -223,10 +223,6 @@ class ElectrodeMap(DataFrame):
         return s.reorder_levels(reordering)
 
     @property
-    def flat(self):
-        return
-
-    @property
     def one_based(self):
         """Return an electrode configuration with 1 based indexing."""
         values = self.values.copy().T
