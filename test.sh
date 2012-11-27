@@ -1,6 +1,6 @@
 #!/bin/bash
 
-nosetests -w --with-coverage \
+nosetests -w . --with-coverage \
     --cover-tests \
     --cover-erase \
     --cover-package=span \
@@ -8,5 +8,4 @@ nosetests -w --with-coverage \
     --cover-branches \
     --ignore=make_feature_file.py \
     --ignore='.*flymake.*' \
-    --detailed-errors \
-    $*
+    --detailed-errors
