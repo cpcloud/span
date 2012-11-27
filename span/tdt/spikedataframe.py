@@ -268,7 +268,8 @@ class SpikeDataFrameBase(SpikeGroupedDataFrame):
 
         is_neg = np.all(threshes < 0)
 
-        threshes = Series(threshes, index=self.columns)
+        threshes = Series(threshes.item() if threshes.size == 1 else threshes,
+                          index=self.columns)
         cmpf = self.lt if is_neg else self.gt
         f = fntools.partial(cmpf, axis=1)
 
