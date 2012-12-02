@@ -69,6 +69,36 @@ class TestXCorr(unittest.TestCase):
             xc = xcorr(x, detrend=dt, scale_type=st, maxlags=ml)
             assert_allclose(xc_span.ix[1 - mml:mml - 1], xc)
 
+    def test_numpy_matrix_input(self):
+        x = randn(10, 15)
+        detrends = detrend_mean, detrend_none, detrend_linear
+        scale_types = 'normalize', 'none', 'unbiased', 'biased', None
+        maxlags = 10, None
+
+        args = cartprod(maxlags, detrends, scale_types)
+
+        for ml, dt, st in args:
+            xcnn = xcorr(x, detrend=dt, scale_type=st, maxlags=ml)
+            self.assertIsInstance(xcnn, np.ndarray)
+
+    def test_numpy_vector_input(self):
+        x = randn(10)
+        detrends = detrend_mean, detrend_none, detrend_linear
+        scale_types = 'normalize', 'none', 'unbiased', 'biased', None
+        maxlags = 10, None
+
+        args = cartprod(maxlags, detrends, scale_types)
+
+        for ml, dt, st in args:
+            y = randn(10)
+            xcnn = xcorr(x, detrend=dt, scale_type=st, maxlags=ml)
+            xcnn2 = xcorr(x, y, detrend=dt, scale_type=st, maxlags=ml)
+            xcnn3 = xcorr(x, y=None, detrend=dt, scale_type=st, maxlags=ml)
+
+            self.assertIsInstance(xcnn, np.ndarray)
+            self.assertIsInstance(xcnn2, np.ndarray)
+            self.assertIsInstance(xcnn3, np.ndarray)
+
 
 def test_mult_mat_xcorr():
     x = randn(randint(50, 71), randint(2, 21))
