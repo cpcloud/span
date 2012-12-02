@@ -7,7 +7,6 @@ import numpy as np
 from numpy.random import randint, rand, randn
 
 from pandas import Series, DataFrame, Panel, MultiIndex
-from pandas.util.testing import rands
 
 try:
     from pylab import gca
@@ -27,7 +26,7 @@ from span.utils.utils import *
 from span.utils.math import nextpow2, compose
 
 # from span.testing import skip
-from span.testing import slow, assert_allclose, assert_array_equal
+from span.testing import slow, assert_allclose, assert_array_equal, rands
 
 
 def rand_array_delegate(func, n, ndims):
