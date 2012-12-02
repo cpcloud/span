@@ -33,7 +33,7 @@ import numbers
 import numpy as np
 import pandas as pd
 
-from pandas import DataFrame, datetime
+from pandas import DataFrame, datetime, MultiIndex
 
 
 fromtimestamp = np.vectorize(datetime.fromtimestamp)
@@ -385,25 +385,6 @@ def isvector(x):
     return functools.reduce(operator.mul, x.shape) == max(x.shape)
 
 
-def try_convert_first(x):
-    """Convert an object array's columns to the correct type.
-
-    If any exceptions are thrown, return the input.
-
-    Parameters
-    ----------
-    x : array_like
-
-    Returns
-    -------
-    cast_x : array_like
-    """
-    try:
-        return cast(x, type(x[0]))
-    except Exception:
-        return x
-
-
 def mi2df(mi):
     """Return a `pandas <http://pandas.pydata.org>`_
     `MultiIndex <http://pandas.pydata.org/pandas-docs/dev/indexing.html#hierarchical-indexing-multiindex>`_
@@ -417,9 +398,21 @@ def mi2df(mi):
     -------
     df : `DataFrame <http://pandas.pydata.org/pandas-docs/dev/dsintro.html#dataframe>`_
     """
-    m = tuple(map(lambda x: np.asanyarray(x, object), mi))
-    df = DataFrame(np.asanyarray(m, object), columns=mi.names)
-    return df.applymap(try_convert_first)
+    assert isinstance(mi, MultiIndex), \
+        'conversion not implemented for simple indices'
+
+    def _type_converter(x):
+        if not isinstance(x, basestring):
+            return type(x)
+
+        return 'S%i' % len(x)
+
+    v = mi.values  # raw object array
+    n = mi.names
+    t = list(map(_type_converter, v[0]))  # strings are empty without this call
+    dt = np.dtype(list(zip(n, t)))
+    r = v.astype(dt)  # recarray
+    return DataFrame(r)  # df handles recarrays very nicely
 
 
 def nonzero_existing_file(f):
