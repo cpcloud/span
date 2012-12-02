@@ -75,7 +75,6 @@ def thunkify(f):
                 # no matter what happens tell the event that we're done running
                 wait_event.set()
 
-
         def thunk():
             """The actual thunk.
             Raises
@@ -107,9 +106,9 @@ def thunkify(f):
 def cached_property(f):
     """Returns a cached property that is calculated by function `f`
 
-    This function allows one to create a computed property that is cached, i.e.,
-    created once and then stored. This is useful if you have to perform a
-    long running computation that you only need to do once.
+    This function allows one to create a computed property that is cached,
+    i.e., created once and then stored. This is useful if you have to perform
+    a long running computation that you only need to do once.
 
     Parameters
     ----------
@@ -122,6 +121,7 @@ def cached_property(f):
     Returns
     -------
     getter : callable
+
     """
     assert callable(f), 'f must be callable'
 
@@ -136,4 +136,5 @@ def cached_property(f):
         except KeyError:
             x = self.__property_cache[f] = f(self)
         return x
+
     return getter
