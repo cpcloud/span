@@ -29,6 +29,7 @@ from span.utils import (detrend_mean, get_fft_funcs, isvector, nextpow2,
                         pad_larger)
 
 from span.xcorr._mult_mat_xcorr import mult_mat_xcorr
+from nose.tools import set_trace
 
 
 def _autocorr(x, nfft):
@@ -131,19 +132,9 @@ def _unbiased(c, x, y, lags, lsize):
 
     d = lsize - np.abs(index).values
     denom = np.tile(d[:, np.newaxis], (1, c.shape[1])) if c.ndim == 2 else d
-    rt = type(c)
+    denom[denom == 0] = 1
 
-    try:
-        vals = c.values
-    except AttributeError:
-        vals = c
-
-    vals /= denom
-
-    try:
-        return rt(vals, index=index)
-    except TypeError:
-        return vals.view(type=rt)
+    return c / denom
 
 
 def _biased(c, x, y, lags, lsize):
@@ -211,7 +202,7 @@ def _normalize(c, x, y, lags, lsize):
             try:
                 vals = c.ix[0, jkl]
             except AttributeError:
-                vals = c[0, jkl]
+                vals = c[lags.max(), jkl]
 
             tmp = np.sqrt(vals)
 
