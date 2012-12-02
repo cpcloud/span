@@ -36,7 +36,7 @@ import re
 
 import numpy as np
 from numpy import (float32 as f4, int32 as i4, uint32 as u4, uint16 as u2,
-                   float64 as f8, int64 as i8, intp as ip)
+                   float64 as f8, int64 as i8)
 from pandas import Series, DataFrame, date_range, datetools
 import pandas as pd
 
@@ -140,12 +140,9 @@ class TdtTankAbstractBase(object):
         """
         # create the path name
         tsq_name = self.path + os.extsep + self.header_ext
-        tev_name = self.path + os.extsep + self.raw_ext
 
         # read in the raw data as a numpy rec array and convert to DataFrame
         b = DataFrame(np.fromfile(tsq_name, dtype=self.tsq_dtype))
-        b.fp_loc = b.fp_loc.astype(f8)
-        b.fp_loc[b.fp_loc >= os.path.getsize(tev_name)] = np.nan
 
         # zero based indexing
         b.channel -= 1
@@ -192,10 +189,6 @@ class TdtTankAbstractBase(object):
     def tsq(self, event_name):
         getter = self._read_tsq(event_name)
         d, row = getter()
-
-        if np.all(pd.notnull(d)):
-            d.fp_loc = d.fp_loc.astype(ip)
-
         return d, row
 
     @cached_property
