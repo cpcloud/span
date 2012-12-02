@@ -269,16 +269,21 @@ class TdtTankBase(TdtTankAbstractBase):
         self.age = _match_int(self.age_re, self.name)
         self.site = _match_int(self.site_re, self.name)
         i0 = self.stsq.timestamp.index[0]
-        ts = pd.datetime.fromtimestamp(self.stsq.timestamp[i0])
-        self.datetime = pd.Timestamp(ts)
+        iend = self.stsq.timestamp.index[-1]
+        tstart = pd.datetime.fromtimestamp(self.stsq.timestamp[i0])
+        self.datetime = pd.Timestamp(tstart)
         self.time = self.datetime.time()
         self.date = self.datetime.date()
+        self.fs = self.stsq.reset_index(drop=True).fs[0]
+        self.start = self.datetime
+        tend = pd.datetime.fromtimestamp(self.stsq.timestamp[iend])
+        self.end = pd.Timestamp(tend)
+        self.duration = np.timedelta64(self.end - self.start)
 
     def __repr__(self):
-        st = self.stsq.reset_index(drop=True)
         objr = repr(self.__class__)
         params = dict(age=self.age, name=self.name, site=self.site,
-                      id=hex(id(self)), obj=objr, fs=st.fs[0],
+                      id=hex(id(self)), obj=objr, fs=self.fs,
                       datetime=self.datetime)
         fmt = ('{obj}\nname:     {name}\ndatetime: {datetime}\nage:      '
                'P{age}\nsite:     {site}\nfs:       {fs}')
