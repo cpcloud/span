@@ -100,14 +100,12 @@ def _match_int(pattern, string, get_exc=False, excs=(AttributeError,
     """
     try:
         r = int(_get_first_match(pattern, string))
+        e = None
     except excs as e:
         r = None
 
     if get_exc:
-        try:
-            r = r, e
-        except NameError:
-            r = r, None
+        r = r, e
 
     return r
 
