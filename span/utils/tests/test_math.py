@@ -64,7 +64,7 @@ class TestTrimmean(unittest.TestCase):
                 self.assertIsInstance(m, float)
 
     def test_3d_array(self):
-        x = randn(5, 6, 4)
+        x = randn(4, 3, 2)
         axes = self.axes + (1, 2)
         arg_sets = itertools.product(self.alphas, self.includes, axes)
         for arg_set in arg_sets:
@@ -125,13 +125,13 @@ class TestSem(unittest.TestCase):
 
 
     def test_2d(self):
-        x = randn(10, 11)
+        x = randn(8, 7)
 
         for axis, ddof in self.args:
             s = sem(x, axis, ddof)
 
     def test_3d(self):
-        x = randn(5, 4, 3)
+        x = randn(4, 3, 2)
         axes = self.axes + (2,)
         args = itertools.product(axes, self.ddof)
 
@@ -183,7 +183,7 @@ class TestDetrend(unittest.TestCase):
     def test_detrend_mean(self):
         x = np.random.randn(10, 9)
         dtx = detrend_mean(x)
-        expect = x - x.mean()
+        expect = x - x.mean(0)
         self.assertEqual(expect.dtype, dtx.dtype)
         assert_array_equal(dtx, expect)
         assert_allclose(dtx.mean(), 0.0, atol=np.finfo(dtx.dtype).eps)
