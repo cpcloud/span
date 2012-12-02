@@ -16,11 +16,16 @@ def test_cached_property():
         def c(self):
             return self.a + self.b
 
+        @cached_property
+        def d(self):
+            return self.c
+
     a, b = rand(), rand()
     cpc = CachedPropertyClass(a, b)
     c = cpc.c
     assert hasattr(cpc, '__property_cache')
     assert c == a + b
+    assert cpc.d == c
 
 
 class TestThunkify(unittest.TestCase):
@@ -33,7 +38,7 @@ class TestThunkify(unittest.TestCase):
         def call_thunky(x):
             double_thunk = thunky(x)
             time.sleep(0.3)
-            
+
             if x == 100:
                 res = double_thunk()
             else:
