@@ -6,7 +6,7 @@ import itertools
 import numpy as np
 from numpy.random import randint, rand, randn
 
-from pandas import Series, DataFrame, Panel, MultiIndex
+from pandas import Series, DataFrame, Panel, MultiIndex, Index
 
 try:
     from pylab import gca
@@ -101,17 +101,27 @@ class TestPadLarger(unittest.TestCase):
 
     def test_pad_larger2(self):
         x, y, lsize = pad_larger2(self.xbig, self.ysmall)
-        assert lsize == max(x.shape + y.shape)
+        self.assertEqual(lsize, max(x.shape + y.shape))
 
         x, y, lsize = pad_larger2(self.xsmall, self.ybig)
-        assert lsize == max(x.shape + y.shape)
+        self.assertEqual(lsize, max(x.shape + y.shape))
 
     def test_pad_larger(self):
         x, y, lsize = pad_larger(self.xbig, self.ysmall)
-        assert lsize == max(x.shape + y.shape)
+        self.assertEqual(lsize, max(x.shape + y.shape))
 
-        x, y, lsize = pad_larger2(self.xsmall, self.ybig)
-        assert lsize == max(x.shape + y.shape)
+        x, y, lsize = pad_larger(self.xsmall, self.ybig)
+        self.assertEqual(lsize, max(x.shape + y.shape))
+
+        x, y, z, w, lsize = pad_larger(self.xsmall, self.xbig, self.ysmall,
+                                       self.ybig)
+        self.assertEqual(lsize, max(x.shape + y.shape + z.shape + w.shape))
+
+        arrays = randn(10), randn(12), randn(20), randn(2)
+        out = pad_larger(*arrays)
+        lsize = out.pop(-1)
+        shapes = map(operator.attrgetter('shape'), out)
+        self.assertEqual(max(reduce(operator.add, shapes)), lsize)
 
 
 class TestIsComplex(unittest.TestCase):
@@ -310,13 +320,13 @@ class TestMi2Df(unittest.TestCase):
         dtypes = object, int, long, str, float
 
         for dtype in dtypes:
-            s = np.array(list(rands(10)))
+            s = np.array(list(rands(10, (1,))[0]))
             i = randint(10, size=(10,))
             f = rand(10)
             o = rand(10).astype(object)
             bo = np.array(list(itools.repeat(_BlobJect(), 10)))
             x = s, i, f, o, bo
-            names = rands(len(x))
+            names = rands(len(x), len(x))
             mi = MultiIndex.from_arrays(x, names=names)
             df = mi2df(mi)
             self.assertIsInstance(df, DataFrame)
