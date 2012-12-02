@@ -300,11 +300,14 @@ def pad_larger(*arrays):
     sizes = np.fromiter(map(operator.attrgetter('size'), arrays), int)
     lsize = sizes.max()
 
-    ret = ()
+    ret = []
+
     for array, size in zip(arrays, sizes):
         size_diff = lsize - size
-        ret += np.pad(array, (0, size_diff), 'constant', constant_values=(0,)),
-    ret += lsize,
+        ret.append(np.pad(array, (0, size_diff), 'constant',
+                          constant_values=(0,)))
+    ret.append(lsize)
+
     return ret
 
 
