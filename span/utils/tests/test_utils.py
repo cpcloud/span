@@ -302,28 +302,24 @@ class TestNonzeroExistingFile(unittest.TestCase):
         self.assertRaises(AssertionError, assert_nonzero_existing_file, name)
 
 
-class TestTryConvertFirst(unittest.TestCase):
-    def test_try_convert_first(self):
-        types = list(set(np.typeDict.values()))
-
-        for t in types:
-            xfrom = np.zeros(2, dtype=object)
-            try:
-                xfrom[0] = t()
-            except TypeError:
-                pass
-            else:
-                xto = try_convert_first(xfrom)
-
-
 class TestMi2Df(unittest.TestCase):
     def test_mi2df(self):
+
+        class _BlobJect(object):
+            pass
+
         dtypes = object, int, long, str, float
+
         for dtype in dtypes:
             s = np.array(list(rands(10)))
             i = randint(10, size=(10,))
             f = rand(10)
             o = rand(10).astype(object)
-            x = s, i, f, o
-            mi = MultiIndex.from_arrays(x, names=list('ABCD'))
+            bo = np.array(list(itools.repeat(_BlobJect(), 10)))
+            x = s, i, f, o, bo
+            names = rands(len(x))
+            mi = MultiIndex.from_arrays(x, names=names)
             df = mi2df(mi)
+            self.assertIsInstance(df, DataFrame)
+            self.assertListEqual(names.tolist(), df.columns.tolist())
+            self.assertRaises(AssertionError, mi2df, Index([1, 2, 3]))
