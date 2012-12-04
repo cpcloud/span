@@ -180,10 +180,6 @@ class SpikeDataFrameBase(SpikeGroupedDataFrame):
         self.meta = meta
         self.date = Timestamp(self.meta.timestamp[0])
 
-    @property
-    def _constructor(self):
-        return SpikeDataFrameBase
-
     def downsample(self, factor, n=None, ftype='iir', axis=-1):
         """Downsample the data by an integer factor.
 
@@ -213,7 +209,7 @@ class SpikeDataFrameBase(SpikeGroupedDataFrame):
         scipy.signal.decimate
         """
         dec_s = scipy.signal.decimate(self.values.T, factor, n, ftype, axis)
-        return self._constructor(dec_s.T, self.meta, columns=self.columns)
+        return self._constructor(dec_s.T, columns=self.columns)
 
     @cached_property
     def fs(self):
@@ -238,6 +234,14 @@ class SpikeDataFrameBase(SpikeGroupedDataFrame):
     @property
     def nchans(self):
         return min(self.shape)
+
+    @property
+    def nshanks(self):
+        return self.meta.shank.nunique()
+
+    @property
+    def nsides(self):
+        return self.meta.side.nunique()
 
     @property
     def nsamples(self):
