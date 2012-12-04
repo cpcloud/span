@@ -12,25 +12,56 @@ from pandas import Series
 from pandas.util.testing import assert_frame_equal
 
 
-from span.tdt.spikedataframe import (SpikeDataFrame, SpikeGroupedDataFrame)
+from span.tdt.spikedataframe import (SpikeDataFrame, SpikeGroupedDataFrame,
+                                     SpikeGrouper)
 from span.utils import detrend_none, detrend_mean, detrend_linear
 from span.testing import assert_all_dtypes, create_spike_df, assert_array_equal
 
 
-class TestSpikeGrouper(unittest.TestCase):
-    pass
+class Test_SpikeGrouper(unittest.TestCase):
+    def test_spike_grouper(self):
+        name = 'TestSpikeGrouperClass'
+        parents = pd.DataFrame,
+        d = {}
+
+        tc = SpikeGrouper(name, parents, d)
+        self.assertEqual(tc.__name__, name)
+        self.assertIsInstance(tc(), pd.DataFrame)
+        self.assert_(hasattr(tc(), 'channel'))
+        self.assert_(hasattr(tc(), 'shank'))
+        self.assert_(hasattr(tc(), 'side'))
 
 
-class TestChannelGetter(unittest.TestCase):
-    pass
+class BaseTestGetter(unittest.TestCase):
+    def setUp(self):
+        self.sp = create_spike_df()
+
+    def tearDown(self):
+        del self.sp
 
 
-class TestShankGetter(unittest.TestCase):
-    pass
+class Test_ChannelGetter(BaseTestGetter):
+    def test_channel_getter(self):
+        self.assert_(hasattr(self.sp, 'channel'))
+
+        for i in xrange(self.sp.nchans):
+            ch = self.sp.channel[i]
 
 
-class TestSideGetter(unittest.TestCase):
-    pass
+class Test_ShankGetter(BaseTestGetter):
+    def test_shank_getter(self):
+        self.assert_(hasattr(self.sp, 'shank'))
+
+        for i in xrange(self.sp.nshanks):
+            ch = self.sp.shank[i]
+
+
+class Test_SideGetter(BaseTestGetter):
+    def test_side_getter(self):
+        self.assert_(hasattr(self.sp, 'side'))
+
+        for i in xrange(self.sp.nsides):
+            ch = self.sp.side[i]
 
 
 class TestSpikeGroupedDataFrame(unittest.TestCase):
@@ -81,6 +112,11 @@ class TestSpikeDataFrameBase(unittest.TestCase):
     def tearDown(self):
         del self.raw, self.spikes
 
+    def test_constructor(self):
+        x = self.spikes._constructor(self.spikes.values)
+        self.assertIsInstance(x, SpikeDataFrame)
+        self.assertIsNotNone(x.meta)
+
     def test_init_noindex_nocolumns(self):
         spikes = SpikeDataFrame(self.raw, self.meta)
         self.assertRaises(AssertionError, SpikeDataFrame, self.raw, None)
@@ -122,12 +158,35 @@ class TestSpikeDataFrameBase(unittest.TestCase):
         values = cols.levels[cols.names.index('channel')].values
         self.assertEqual(nchans, values.max() + 1)
 
+    def test_downsample(self):
+        factors = xrange(2, 21)
+        for factor in factors:
+            x = self.spikes.downsample(factor)
+
+    def test_chunk_size(self):
+        cs = self.spikes.chunk_size
+
+    def test_sort_code(self):
+        sc = self.spikes.sort_code
+
+    def test_fmt(self):
+        fmt = self.spikes.fmt
+
+    def test_tdt_type(self):
+        tt = self.spikes.tdt_type
+
+    def test_nshanks(self):
+        nsh = self.spikes.nshanks
+
+    def test_nsides(self):
+        nsd = self.spikes.nsides
+
 
 class TestSpikeDataFrame(unittest.TestCase):
     def setUp(self):
         self.spikes = create_spike_df()
         self.threshes = 2e-5, 3e-5
-        self.mses = 2.0, 3.0
+        self.mses = None, 2.0, 3.0
         self.binsizes = 0, 1, np.random.randint(10, 1001)
 
     def tearDown(self):
@@ -162,25 +221,23 @@ class TestSpikeDataFrame(unittest.TestCase):
         assert_all_dtypes(thr, np.bool_)
         self.assertTupleEqual(thr.shape, sp.shape)
 
-    @slow
     def test_bin(self):
         sp = self.spikes
         thr = sp.threshold(np.random.randint(1, 4) * sp.std())
         clr = sp.clear_refrac(thr)
-        binsizes = -1, 0, 1, 1000
+        binsizes = -1, 0, 1, 10
         reject_counts = -1, 0, 100
         dropnas = True, False
         args = itertools.product(binsizes, reject_counts, dropnas)
 
         for binsize, reject_count, dropna in args:
             if binsize > 0 and reject_count >= 0:
-                if reject_count > 0:
-                    binned = sp.bin(clr, binsize, reject_count, dropna)
+                binned = sp.bin(clr, binsize, reject_count, dropna)
+                self.assertIsInstance(binned, SpikeGroupedDataFrame)
             else:
                 self.assertRaises(AssertionError, sp.bin, clr, binsize,
                                   reject_count, dropna)
 
-    @slow
     def test_fr(self):
         sp = self.spikes
         thr = sp.threshold(3 * sp.std())
@@ -208,8 +265,6 @@ class TestSpikeDataFrame(unittest.TestCase):
                     else:
                         mfr = sp.fr(binned, t, axis, sem)
 
-
-    @slow
     def test_clear_refrac(self):
         thr = self.spikes.threshold(3 * self.spikes.std())
 
@@ -236,9 +291,9 @@ class TestSpikeDataFrame(unittest.TestCase):
 
         maxlags = None, 1, 10
         detrends = detrend_mean, detrend_none, detrend_linear
-        scale_types = None, 'none', 'normalize', 'unbiased', 'biased'
+        scale_types = None, 'normalize', 'unbiased', 'biased'
         sortlevels = ('channel i', 'channel j', 'shank i', 'shank j',
-                       'side i', 'side j')
+                      'side i', 'side j')
         sortlevels += tuple(xrange(len(sortlevels)))
         dropnas = True, False
         nan_autos = True, False
@@ -247,8 +302,14 @@ class TestSpikeDataFrame(unittest.TestCase):
                                  dropnas, nan_autos)
 
         for maxlag, detrend, scale_type, dropna, level, nan_auto in args:
-            xc = self.spikes.xcorr(binned, maxlag, detrend, scale_type,
+            if maxlag > max(binned.shape):
+                self.assertRaises(AssertionError, self.spikes.xcorr, binned,
+                                  maxlag, detrend, scale_type, level, dropna,
+                                  nan_auto)
+            else:
+                xc = self.spikes.xcorr(binned, maxlag, detrend, scale_type,
                                        level, dropna, nan_auto)
+                self.assertIsInstance(xc, pd.DataFrame)
 
 
 class TestLfpDataFrame(unittest.TestCase):
