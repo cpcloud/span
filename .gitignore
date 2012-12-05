@@ -7,3 +7,4 @@ build/
 dist/
 /dist/*
 /span/utils/test/test_server.py
+*.cfg
