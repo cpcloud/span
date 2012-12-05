@@ -67,7 +67,7 @@ def distance_map(nshanks, electrodes_per_shank, within_shank, between_shank,
     dists : DataFrame
         DataFrame of pairwise distances between electrodes.
     """
-    assert nshanks >= 1, 'must have at least one shank'
+    assert nshanks >= 1, 'must have at least one shank, gave %i' % nshanks
     assert isinstance(nshanks, numbers.Integral), 'nshanks must be an integer'
     assert electrodes_per_shank >= 1, \
         'must have at least one electrode per shank'
