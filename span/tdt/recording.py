@@ -26,13 +26,15 @@ from future_builtins import map, zip
 
 import numbers
 import ConfigParser
+import re
+import string
 
 from operator import attrgetter
 
-from numpy import asanyarray, sign, repeat, arange, ones, atleast_1d
+import numpy as np
 from pandas import Series, DataFrame, MultiIndex
 
-from span.utils import ndtuples
+from span.utils import ndtuples, compose
 from scipy.spatial.distance import squareform, pdist
 
 
@@ -109,7 +111,7 @@ class ElectrodeMap(object):
     def __init__(self, map_):
         super(ElectrodeMap, self).__init__()
 
-        map_ = atleast_1d(asanyarray(map_).squeeze())
+        map_ = np.atleast_1d(np.asanyarray(map_).squeeze())
 
         try:
             m, n = map_.shape
@@ -210,7 +212,7 @@ class ElectrodeMap(object):
         return repr(self.map)
 
 
-def parse_electrode_config(filename):
+def parse_electrode_config(filename, sep=','):
     cfg = ConfigParser.SafeConfigParser()
 
     with open(filename, 'rt') as f:
@@ -223,10 +225,28 @@ def parse_electrode_config(filename):
 
     keys, values = zip(*d.items())
 
-    keys = asanyarray(list(map(int, keys)))
+    list_to_array = compose(np.asanyarray, list)
+    mapf = compose(list_to_array, map)
+
+    keys = mapf(int, keys)
     keys -= keys.min()
 
-    str_list_to_int_array = lambda x: asanyarray(list(map(int, x.split(', '))))
-    values = asanyarray(list(map(str_list_to_int_array, values)))
+    pat = re.compile(r'\s{2,}')
+    punct_sans_pairs = ''.join(set(string.punctuation) - set('()[]{}'))
+
+    if sep in string.whitespace:
+        def str_list_to_int_array(x):
+            s = pat.sub(' ', x)
+            s = re.sub(string.punctuation, '', s)
+            return mapf(int, s.strip().split(sep))
+    elif sep in punct_sans_pairs:
+        def str_list_to_int_array(x):
+            return mapf(int, pat.sub('', x).split(sep))
+    else:
+        raise ValueError('%s is not a valid separator' % sep)
+
+    values = mapf(str_list_to_int_array, values)
+    values -= values.min()
     df = DataFrame(values.T, columns=keys).sort_index(axis=1)
+
     return df.values.T
