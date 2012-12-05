@@ -86,7 +86,7 @@ class SpikeGroupedDataFrame(DataFrame):
 
     @property
     def _constructor(self):
-        return SpikeGroupedDataFrame
+        return type(self)
 
     def sem(self, axis=0, ddof=1):
         r"""Return the standard error of the mean of array along `axis`.
