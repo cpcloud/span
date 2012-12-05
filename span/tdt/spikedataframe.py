@@ -57,25 +57,11 @@ class _ChannelGetter(object):
         self.obj = obj
 
     def __getitem__(self, i):
+        assert isinstance(i, numbers.Integral), ('only integer indices are '
+                                                 'allowed for channel getting,'
+                                                 ' you gave a '
+                                                 '%s' % type(i))
         return self.obj.ix[:, i]
-
-
-class _ShankGetter(object):
-    def __init__(self, df):
-        super(_ShankGetter, self).__init__()
-        self.df = df
-
-    def __getitem__(self, i):
-        return self.df.select(lambda x: x[1] == i, axis=1)
-
-
-class _SideGetter(object):
-    def __init__(self, df):
-        super(_SideGetter, self).__init__()
-        self.df = df
-
-    def __getitem__(self, i):
-        return self.df.select(lambda x: x[-1] == i, axis=1)
 
 
 class SpikeGrouper(type):
@@ -87,9 +73,6 @@ class SpikeGrouper(type):
     """
     def __new__(cls, name, parents, dct):
         dct['channel'] = property(fget=_ChannelGetter)
-        dct['shank'] = property(fget=_ShankGetter)
-        dct['side'] = property(fget=_SideGetter)
-
         return type.__new__(cls, name, parents, dct)
 
 

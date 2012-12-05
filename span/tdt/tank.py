@@ -280,11 +280,12 @@ class TdtTankBase(TdtTankAbstractBase):
 
     def __repr__(self):
         objr = repr(self.__class__)
-        params = dict(age=self.age, name=self.name, site=self.site,
-                      id=hex(id(self)), obj=objr, fs=self.fs,
-                      datetime=self.datetime)
+        params = dict(age=self.age, name=self.name, site=self.site, obj=objr,
+                      fs=self.fs, datetime=self.datetime,
+                      duration=self.duration / np.timedelta64(1, 'm'))
         fmt = ('{obj}\nname:     {name}\ndatetime: {datetime}\nage:      '
-               'P{age}\nsite:     {site}\nfs:       {fs}')
+               'P{age}\nsite:     {site}\nfs:       {fs}\n'
+               'duration: {duration:.2f} min')
         return fmt.format(**params)
 
     @cached_property
