@@ -230,12 +230,14 @@ class TestCartesian(unittest.TestCase):
 
 
 def test_nextpow2():
-    int_max = 100
-    n = randint(int_max)
+    int_max = 101
+    n = randint(1, int_max)
     np2 = nextpow2(n)
     tp2 = 2 ** np2
     assert tp2 >= n, '{0} < {1}'.format(tp2, n)
     assert_allclose(np2, np.log2(tp2))
+
+    assert nextpow2(0) == -np.inf
 
 
 def test_fractional():
