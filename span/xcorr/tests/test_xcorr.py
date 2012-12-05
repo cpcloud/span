@@ -1,6 +1,5 @@
 import unittest
 from itertools import product as cartprod
-from nose.tools import set_trace
 
 import numpy as np
 from numpy.random import randn, randint
@@ -10,8 +9,7 @@ from numpy import sum, abs
 from pandas import DataFrame, Int64Index, Series
 
 from span.xcorr import mult_mat_xcorr
-from span.xcorr.xcorr import (xcorr, _normalize as normalize,
-                              _unbiased as unbiased, _biased as biased)
+from span.xcorr.xcorr import xcorr
 from span.utils import (nextpow2, get_fft_funcs, detrend_none,
                         detrend_mean, detrend_linear, cartesian)
 
