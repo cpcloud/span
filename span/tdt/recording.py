@@ -25,11 +25,11 @@
 from future_builtins import map, zip
 
 import numbers
+import ConfigParser
 
 from operator import attrgetter
 
-import numpy as np
-
+from numpy import asanyarray, sign, repeat, arange, ones, atleast_1d
 from pandas import Series, DataFrame, MultiIndex
 
 from span.utils import ndtuples
@@ -82,7 +82,7 @@ def distance_map(nshanks, electrodes_per_shank, within_shank, between_shank,
     return squareform(pdist(locs, metric=metric, p=p, w=w))
 
 
-class ElectrodeMap(DataFrame):
+class ElectrodeMap(object):
     """Encapsulate the geometry of the electrode map used in a recording.
 
     Parameters
@@ -106,17 +106,10 @@ class ElectrodeMap(DataFrame):
     nchans : int
         Number of channels.
     """
-    def __init__(self, map_, order=None, base_index=0):
-        vals = np.asanyarray(map_).squeeze()
-        map_ = np.atleast_1d(vals)
-        mm = map_.min()
+    def __init__(self, map_):
+        super(ElectrodeMap, self).__init__()
 
-        v = np.sign(base_index - mm)
-
-        if v:
-            while mm != base_index:
-                map_ += v
-                mm = map_.min()
+        map_ = atleast_1d(asanyarray(map_).squeeze())
 
         try:
             m, n = map_.shape
@@ -126,28 +119,17 @@ class ElectrodeMap(DataFrame):
             s = np.ones(m, dtype=int)
 
         data = {'channel': map_.ravel(), 'shank': s}
-
-        if order is not None:
-            assert np.unique(s).size % 2 == 0, \
-                'must have an even number of shanks if order is not None'
-            assert map_.ndim == 2, 'map_ must be 2D if there is a shank order'
-            tup = list(order)
-            tup[0] += 'at'
-            tup[1] += 'ed'
-            data['side'] = np.repeat(tup, map_.size / len(order))
-
-        df = DataFrame(data).sort('channel').reset_index(drop=True)
-        df.index = df.pop('channel')
-
-        super(ElectrodeMap, self).__init__(df.sort())
+        df = DataFrame(data).sort('shank').reset_index(drop=True)
+        index = df.pop('channel')
+        self.map = Series(df.values.squeeze(), index=index, name='shank')
 
     @property
     def nshanks(self):
-        return self.shank.nunique()
+        return self.map.nunique()
 
     @property
     def nchans(self):
-        return self.index.unique().size
+        return self.map.index.nunique()
 
     def distance_map(self, within, between, metric='wminkowski', p=2.0):
         """Create a distance map from the current electrode configuration.
@@ -190,17 +172,15 @@ class ElectrodeMap(DataFrame):
         assert isinstance(p, numbers.Real) and p > 0, \
             'p must be a real number greater than 0'
 
-        dm = distance_map(self.nshanks, self.shank.nunique(), within, between,
+        dm = distance_map(self.nshanks, self.nshanks, within, between,
                           metric=metric, p=p)
-        s = self.sort()
-        cols = s.index, s.shank
-
-        if hasattr(self, 'side'):
-            cols += s.side,
+        s = self.map.copy()
+        s.sort()
+        cols = s.index, s
 
         values_getter = attrgetter('values')
         cols = tuple(map(values_getter, cols))
-        names = 'channel', 'shank', 'side'
+        names = 'channel', 'shank'
 
         def _label_maker(i, names):
             new_names = tuple(map(lambda x: x + ' %s' % i, names))
@@ -226,20 +206,27 @@ class ElectrodeMap(DataFrame):
 
         return s.reorder_levels(reordering)
 
-    @property
-    def one_based(self):
-        """Return an electrode configuration with 1 based indexing."""
-        values = self.values.copy().T
-        index = Series(self.index.values + 1, name='channel')
+    def __repr__(self):
+        return repr(self.map)
 
-        is_ordered = values.ndim == 2 and values.shape[0] == 2
 
-        names = 'shank',
+def parse_electrode_config(filename):
+    cfg = ConfigParser.SafeConfigParser()
 
-        if is_ordered:
-            values[0] += 1
-            names += 'side',
-        else:
-            values += 1
+    with open(filename, 'rt') as f:
+        cfg.readfp(f)
 
-        return DataFrame(dict(zip(names, values)), index=index)
+    assert cfg.has_section('shanks'), \
+        'configuration file has no "shanks" section'
+
+    d = dict(cfg.items('shanks'))
+
+    keys, values = zip(*d.items())
+
+    keys = asanyarray(list(map(int, keys)))
+    keys -= keys.min()
+
+    str_list_to_int_array = lambda x: asanyarray(list(map(int, x.split(', '))))
+    values = asanyarray(list(map(str_list_to_int_array, values)))
+    df = DataFrame(values.T, columns=keys).sort_index(axis=1)
+    return df.values.T

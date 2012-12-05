@@ -1,9 +1,11 @@
 import unittest
-import itertools as itools
+import itertools as it
+import ConfigParser
+import os
 
 import numpy as np
 
-from span.tdt import distance_map, ElectrodeMap
+from span.tdt import distance_map, ElectrodeMap, parse_electrode_config
 from span.testing import create_spike_df, slow
 
 
@@ -147,3 +149,58 @@ class TestDistanceMapWithCrossCorrelation(unittest.TestCase):
         lag0_tmp = xcc.ix[0].dropna().sortlevel(level=6)
         lag0 = lag0_tmp.reset_index(level=range(6), drop=True)
         self.assertIsNotNone(lag0)
+
+
+class TestParseElectrodeConfig(unittest.TestCase):
+    def setUp(self):
+        # generate some random config files
+        pass
+
+    def tearDown(self):
+        # delete the random config files
+        pass
+
+    def test_parse_electrode_config(self):
+        nshanks = 4
+        electrodes_per_shank = 4
+        nelectrodes = 16
+        order = 'lm'
+        eid = '4DCE'
+
+        c = ConfigParser.SafeConfigParser()
+        sections = 'meta', 'shanks'
+
+        meta = {'nshanks': str(nshanks),
+                'electrodes_per_shank': str(electrodes_per_shank),
+                'nelectrodes': str(nelectrodes),
+                'order': order,
+                'id': eid}
+        shanks = (np.arange(nelectrodes) + 1).reshape(electrodes_per_shank,
+                                                      nshanks)
+
+        print shanks
+
+        shanks_dict = {}
+
+        for i, shank in enumerate(shanks):
+            shanks_dict[str(i)] = ', '.join(map(str, shank.tolist()))
+
+        for section, data in zip(sections, (meta, shanks_dict)):
+            c.add_section(section)
+
+            for k, v in data.items():
+                c.set(section, k, v)
+
+        filename = '.tmp.cfg'
+
+        with open(filename, 'wt') as f:
+            c.write(f)
+
+        ecfg = parse_electrode_config(filename)
+
+        print
+        print ecfg.shanks
+
+        assert False
+
+        os.remove(filename)
