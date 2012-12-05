@@ -10,16 +10,25 @@ from pandas import Series, DataFrame, Panel, MultiIndex, Index
 
 try:
     from pylab import gca
-except RuntimeError:
+
     class TestRemoveLegend(unittest.TestCase):
-        def test_remove_legend(self):
-            pass
-else:
-    class TestRemoveLegend(unittest.TestCase):
-        def test_remove_legend(self):
+        def test_remove_legend_arg(self):
             ax = gca()
             remove_legend(ax)
-            assert ax.legend_ is None
+            self.assertIsNone(ax.legend_)
+
+        def test_remove_legend_noarg(self):
+            remove_legend()
+            ax = gca()
+            self.assertIsNone(ax.legend_)
+
+except RuntimeError:  # pragma: no cover
+    class TestRemoveLegend(unittest.TestCase):
+        def test_remove_legend_arg(self):
+            assert False
+
+        def test_remove_legend_noarg(self):
+            assert False
 
 
 from span.utils.utils import *
