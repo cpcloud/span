@@ -34,6 +34,7 @@ from pandas import Series, DataFrame
 try:
     # weird bug in latest scipy
     from scipy.stats.mstats import trimboth
+    from scipy.stats import nanmean
 
     def trimmean(x, alpha, inclusive=(False, False), axis=None):
         """Compute the `alpha`-trimmed mean of an array `x`.
@@ -131,7 +132,7 @@ def detrend_none(x):
     return x
 
 
-def detrend_mean(x):
+def detrend_mean(x, axis=0):
     """Subtract the mean of `x` from itself.
 
     Parameters
@@ -144,7 +145,7 @@ def detrend_mean(x):
     c : array_like
         The mean centered `x`.
     """
-    return x - x.mean()
+    return x - np.ma.masked_where(np.isnan(x), x).mean(axis=axis)
 
 
 def detrend_linear(y):

@@ -1,5 +1,6 @@
 import functools
 import nose
+import copy
 
 import numpy as np
 from numpy import int64, float64
@@ -10,11 +11,16 @@ from nose.tools import nottest
 from nose import SkipTest
 
 from pandas import Series, DataFrame, Int64Index
+from pandas.util.testing import *
+_rands = copy.deepcopy(rands)
+del rands
+
 from numpy.random import uniform as randrange, randint
 
 import span
 from span.tdt.spikeglobals import Indexer
 from span.tdt.tank import _reshape_spikes
+# from span.utils import cartesian
 
 def assert_all_dtypes(df, dtype, msg='dtypes not all the same'):
     assert all(dt == dtype for dt in df.dtypes), msg
@@ -81,3 +87,14 @@ def create_spike_df(size=None, typ='stream', name=span.utils.name2num('Spik'),
     df = _reshape_spikes(spikes, groups, tsq, tsq.fs.unique().item(),
                          tsq.channel.dropna().nunique(), tsq.timestamp[0])
     return df()
+
+
+def rands(size, shape):
+    r = []
+
+    n = np.prod(shape)
+
+    for i in xrange(n):
+        r.append(_rands(size))
+
+    return np.asarray(r).reshape(shape)

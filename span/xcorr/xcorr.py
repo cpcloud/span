@@ -29,6 +29,7 @@ from span.utils import (detrend_mean, get_fft_funcs, isvector, nextpow2,
                         pad_larger)
 
 from span.xcorr._mult_mat_xcorr import mult_mat_xcorr
+from nose.tools import set_trace
 
 
 def _autocorr(x, nfft):
@@ -101,7 +102,7 @@ def _matrixcorr(x, nfft):
     return ifft(c, nfft).T
 
 
-def _unbiased(c, x, y, lsize):
+def _unbiased(c, x, y, lags, lsize):
     """Compute the unbiased estimate of `c`.
 
     This function returns `c` scaled by number of data points available at
@@ -124,18 +125,19 @@ def _unbiased(c, x, y, lsize):
     c : array_like
         The unbiased estimate of the cross correlation.
     """
-    d = lsize - np.abs(c.index).values
-    denom = np.tile(d[:, np.newaxis], (1, c.shape[1])) if c.ndim == 2 else d
-    rt = type(c)
-    vals = c.values / denom
-
     try:
-        return rt(vals, index=c.index)
-    except (TypeError, AttributeError):
-        return rt(vals)
+        index = c.index
+    except AttributeError:
+        index = lags
+
+    d = lsize - np.abs(index).values
+    denom = np.tile(d[:, np.newaxis], (1, c.shape[1])) if c.ndim == 2 else d
+    denom[denom == 0] = 1
+
+    return c / denom
 
 
-def _biased(c, x, y, lsize):
+def _biased(c, x, y, lags, lsize):
     """Compute the biased estimate of `c`.
 
     Parameters
@@ -158,7 +160,7 @@ def _biased(c, x, y, lsize):
     return c / lsize
 
 
-def _normalize(c, x, y, lsize):
+def _normalize(c, x, y, lags, lsize):
     """Normalize `c` by the lag 0 cross correlation
 
     Parameters
@@ -200,7 +202,7 @@ def _normalize(c, x, y, lsize):
             try:
                 vals = c.ix[0, jkl]
             except AttributeError:
-                vals = c[0, jkl]
+                vals = c[lags.max(), jkl]
 
             tmp = np.sqrt(vals)
 
@@ -209,7 +211,7 @@ def _normalize(c, x, y, lsize):
     return c / cdiv
 
 
-def _none(c, x, y, lsize):
+def _none(c, x, y, lags, lsize):
     return c
 
 
@@ -277,11 +279,6 @@ def xcorr(x, y=None, maxlags=None, detrend=detrend_mean,
     assert isinstance(scale_type, basestring) or scale_type is None, \
         '"scale_type" must be a string or None'
 
-    if x.ndim == 2:
-        x = pd.DataFrame(x)
-    else:
-        x = pd.Series(x)
-
     x = detrend(x)
 
     if x.ndim == 2 and np.greater(x.shape, 1).all():
@@ -316,5 +313,5 @@ def xcorr(x, y=None, maxlags=None, detrend=detrend_mean,
     elif isinstance(x, np.ndarray):
         return_type = lambda x, index: np.asanyarray(x)
 
-    scale_function = _SCALE_FUNCTIONS[scale_type]
-    return scale_function(return_type(ctmp[lags], index=lags), x, y, lsize)
+    sc_func = _SCALE_FUNCTIONS[scale_type]
+    return sc_func(return_type(ctmp[lags], index=lags), x, y, lags, lsize)

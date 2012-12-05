@@ -6,7 +6,7 @@ from numpy.random import randn, randint
 from numpy.testing import assert_allclose
 from numpy import sum, abs
 
-from pandas import DataFrame, Int64Index
+from pandas import DataFrame, Int64Index, Series
 
 from span.xcorr import mult_mat_xcorr
 from span.xcorr.xcorr import xcorr
@@ -31,7 +31,7 @@ class TestXCorr(unittest.TestCase):
 
         detrends = detrend_mean, detrend_none, detrend_linear
         scale_types = 'normalize', 'none', 'unbiased', 'biased', None
-        maxlags = 10, None
+        maxlags = 10, None, 1000
 
         args = cartprod(maxlags, detrends, scale_types)
 
@@ -41,6 +41,7 @@ class TestXCorr(unittest.TestCase):
         cols = map(tuple, cart)
         for ml, dt, st in args:
             xc_np.fill(0)
+
             mml = ml if ml is not None else m
 
             xc_span = DataFrame(xc_np.copy(), columns=cols,
@@ -64,10 +65,97 @@ class TestXCorr(unittest.TestCase):
 
                 xc_span[i, j] = xcorr(xi, xj, detrend=dt, scale_type=st)
 
-            assert_allclose(xc_np, xc_span)
+            if ml > m:
+                self.assertRaises(AssertionError, xcorr, x, detrend=dt,
+                                  scale_type=st, maxlags=ml)
+            else:
+                xcc = xcorr(x, detrend=dt, scale_type=st, maxlags=ml)
+                assert_allclose(xc_np, xc_span)
+                dd = DataFrame(xc_np, index=np.r_[1 - m:m])
 
-            xc = xcorr(x, detrend=dt, scale_type=st, maxlags=ml)
-            assert_allclose(xc_span.ix[1 - mml:mml - 1], xc)
+                # funky pandas df indexing must subtract one because endpoints
+                # are inclusive
+                assert_allclose(dd.ix[1 - mml:mml - 1].values, xcc)
+
+                self.assertIsInstance(xcc, np.ndarray)
+
+            if ml > m:
+                self.assertRaises(AssertionError, xcorr, DataFrame(x),
+                                  detrend=dt, scale_type=st, maxlags=ml)
+            else:
+                xccdf = xcorr(DataFrame(x), detrend=dt, scale_type=st,
+                              maxlags=ml)
+                assert_allclose(xccdf, xcc)
+                self.assertIsInstance(xccdf, DataFrame)
+
+            if ml > m:
+                self.assertRaises(AssertionError, xcorr, Series(x[:, 0]),
+                                  detrend=dt, scale_type=st, maxlags=ml)
+                self.assertRaises(AssertionError, xcorr, x[:, 0],
+                                  detrend=dt, scale_type=st, maxlags=ml)
+            else:
+                xc_s = xcorr(Series(x[:, 0]), detrend=dt, scale_type=st,
+                             maxlags=ml)
+                xc_s2 = xcorr(Series(x[:, 0]), y=None, detrend=dt,
+                              scale_type=st, maxlags=ml)
+
+                assert_allclose(xc_s, xc_s2)
+
+            if ml > m:
+                self.assertRaises(AssertionError, xcorr, Series(x[:, 0]),
+                                  Series(x[:, 1]), detrend=dt, scale_type=st,
+                                  maxlags=ml)
+                self.assertRaises(AssertionError, xcorr, x[:, 0], x[:, 1],
+                                  detrend=dt, scale_type=st, maxlags=ml)
+            else:
+                xc_s2 = xcorr(Series(x[:, 0]), Series(x[:, 1]), detrend=dt,
+                              scale_type=st, maxlags=ml)
+                xc_s2_np = xcorr(x[:, 0], x[:, 1], detrend=dt, scale_type=st,
+                                 maxlags=ml)
+                assert_allclose(xc_s2, xc_s2_np)
+
+    def test_numpy_matrix_input(self):
+        x = randn(10, 15)
+        detrends = detrend_mean, detrend_none, detrend_linear
+        scale_types = 'normalize', 'none', 'unbiased', 'biased', None
+        maxlags = 10, None, 1000000
+
+        args = cartprod(maxlags, detrends, scale_types)
+
+        for ml, dt, st in args:
+            if ml > x.shape[0]:
+                self.assertRaises(AssertionError, xcorr, x, detrend=dt,
+                                  scale_type=st, maxlags=ml)
+            else:
+                xcnn = xcorr(x, detrend=dt, scale_type=st, maxlags=ml)
+                self.assertIsInstance(xcnn, np.ndarray)
+
+    def test_numpy_vector_input(self):
+        x = randn(10)
+        detrends = detrend_mean, detrend_none, detrend_linear
+        scale_types = 'normalize', 'none', 'unbiased', 'biased', None
+        maxlags = 10, None, 1000
+
+        args = cartprod(maxlags, detrends, scale_types)
+
+        for ml, dt, st in args:
+            y = randn(randint(10, 15))
+
+            if ml > max(x.shape + y.shape):
+                self.assertRaises(AssertionError, xcorr, x, detrend=dt,
+                                  scale_type=st, maxlags=ml)
+                self.assertRaises(AssertionError, xcorr, x, y, detrend=dt,
+                                  scale_type=st, maxlags=ml)
+                self.assertRaises(AssertionError, xcorr, x, y=None, detrend=dt,
+                                  scale_type=st, maxlags=ml)
+            else:
+                xcnn = xcorr(x, detrend=dt, scale_type=st, maxlags=ml)
+                xcnn2 = xcorr(x, y, detrend=dt, scale_type=st, maxlags=ml)
+                xcnn3 = xcorr(x, y=None, detrend=dt, scale_type=st, maxlags=ml)
+
+                self.assertIsInstance(xcnn, np.ndarray)
+                self.assertIsInstance(xcnn2, np.ndarray)
+                self.assertIsInstance(xcnn3, np.ndarray)
 
 
 def test_mult_mat_xcorr():

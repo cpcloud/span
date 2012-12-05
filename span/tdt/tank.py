@@ -36,7 +36,7 @@ import re
 
 import numpy as np
 from numpy import (float32 as f4, int32 as i4, uint32 as u4, uint16 as u2,
-                   float64 as f8, int64 as i8, intp as ip)
+                   float64 as f8, int64 as i8)
 from pandas import Series, DataFrame, date_range, datetools
 import pandas as pd
 
@@ -100,14 +100,12 @@ def _match_int(pattern, string, get_exc=False, excs=(AttributeError,
     """
     try:
         r = int(_get_first_match(pattern, string))
+        e = None
     except excs as e:
         r = None
 
     if get_exc:
-        try:
-            r = r, e
-        except NameError:
-            r = r, None
+        r = r, e
 
     return r
 
@@ -140,12 +138,9 @@ class TdtTankAbstractBase(object):
         """
         # create the path name
         tsq_name = self.path + os.extsep + self.header_ext
-        tev_name = self.path + os.extsep + self.raw_ext
 
         # read in the raw data as a numpy rec array and convert to DataFrame
         b = DataFrame(np.fromfile(tsq_name, dtype=self.tsq_dtype))
-        b.fp_loc = b.fp_loc.astype(f8)
-        b.fp_loc[b.fp_loc >= os.path.getsize(tev_name)] = np.nan
 
         # zero based indexing
         b.channel -= 1
@@ -192,10 +187,6 @@ class TdtTankAbstractBase(object):
     def tsq(self, event_name):
         getter = self._read_tsq(event_name)
         d, row = getter()
-
-        if np.all(pd.notnull(d)):
-            d.fp_loc = d.fp_loc.astype(ip)
-
         return d, row
 
     @cached_property
@@ -276,16 +267,21 @@ class TdtTankBase(TdtTankAbstractBase):
         self.age = _match_int(self.age_re, self.name)
         self.site = _match_int(self.site_re, self.name)
         i0 = self.stsq.timestamp.index[0]
-        ts = pd.datetime.fromtimestamp(self.stsq.timestamp[i0])
-        self.datetime = pd.Timestamp(ts)
+        iend = self.stsq.timestamp.index[-1]
+        tstart = pd.datetime.fromtimestamp(self.stsq.timestamp[i0])
+        self.datetime = pd.Timestamp(tstart)
         self.time = self.datetime.time()
         self.date = self.datetime.date()
+        self.fs = self.stsq.reset_index(drop=True).fs[0]
+        self.start = self.datetime
+        tend = pd.datetime.fromtimestamp(self.stsq.timestamp[iend])
+        self.end = pd.Timestamp(tend)
+        self.duration = np.timedelta64(self.end - self.start)
 
     def __repr__(self):
-        st = self.stsq.reset_index(drop=True)
         objr = repr(self.__class__)
         params = dict(age=self.age, name=self.name, site=self.site,
-                      id=hex(id(self)), obj=objr, fs=st.fs[0],
+                      id=hex(id(self)), obj=objr, fs=self.fs,
                       datetime=self.datetime)
         fmt = ('{obj}\nname:     {name}\ndatetime: {datetime}\nage:      '
                'P{age}\nsite:     {site}\nfs:       {fs}')

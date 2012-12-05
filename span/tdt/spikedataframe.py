@@ -180,10 +180,6 @@ class SpikeDataFrameBase(SpikeGroupedDataFrame):
         self.meta = meta
         self.date = Timestamp(self.meta.timestamp[0])
 
-    @property
-    def _constructor(self):
-        return SpikeDataFrameBase
-
     def downsample(self, factor, n=None, ftype='iir', axis=-1):
         """Downsample the data by an integer factor.
 
@@ -213,7 +209,7 @@ class SpikeDataFrameBase(SpikeGroupedDataFrame):
         scipy.signal.decimate
         """
         dec_s = scipy.signal.decimate(self.values.T, factor, n, ftype, axis)
-        return self._constructor(dec_s.T, self.meta, columns=self.columns)
+        return self._constructor(dec_s.T, columns=self.columns)
 
     @cached_property
     def fs(self):
@@ -238,6 +234,14 @@ class SpikeDataFrameBase(SpikeGroupedDataFrame):
     @property
     def nchans(self):
         return min(self.shape)
+
+    @property
+    def nshanks(self):
+        return self.meta.shank.nunique()
+
+    @property
+    def nsides(self):
+        return self.meta.side.nunique()
 
     @property
     def nsamples(self):
@@ -267,10 +271,11 @@ class SpikeDataFrameBase(SpikeGroupedDataFrame):
             '{0}, different threshold for each channel'.format(self.nchans)
 
         is_neg = np.all(threshes < 0)
-
-        threshes = Series(threshes.item() if threshes.size == 1 else threshes,
-                          index=self.columns)
         cmpf = self.lt if is_neg else self.gt
+
+        thr = threshes.item() if threshes.size == 1 else threshes
+        threshes = Series(thr, index=self.columns)
+
         f = fntools.partial(cmpf, axis=1)
 
         return f(threshes)
@@ -288,8 +293,8 @@ class SpikeDataFrame(SpikeDataFrameBase):
 
     @property
     def _constructor(self):
-        self_t = type(self)
-        return lambda *args, **kwargs: self_t(*args, meta=self.meta, **kwargs)
+        return lambda *args, **kwargs: SpikeDataFrame(*args, meta=self.meta,
+                                                 **kwargs)
 
     def bin(self, cleared, binsize, reject_count=100, dropna=False):
         """Bin spike data by `binsize` millisecond bins.
@@ -310,7 +315,7 @@ class SpikeDataFrame(SpikeDataFrameBase):
 
         reject_count : numbers.Real, optional, default 100
             Assign ``NaN`` to channels whose firing rates are less than this
-            number / second.
+            number over the whole recording.
 
         dropna : bool, optional
             Whether to drop NaN'd values if any
@@ -318,8 +323,8 @@ class SpikeDataFrame(SpikeDataFrameBase):
         Raises
         ------
         AssertionError
-            If `binsize` is not a positive number or if `reject_count` is not a
-            nonnegative number
+            * If `binsize` is not a positive number or if `reject_count` is
+              not a nonnegative number
 
         Returns
         -------
@@ -336,19 +341,17 @@ class SpikeDataFrame(SpikeDataFrameBase):
 
         ms_per_s = 1e3
         bin_samples = cast(np.floor(binsize * self.fs / ms_per_s), np.uint64)
-        bins = np.arange(start=0, stop=self.nsamples - 1, step=bin_samples,
-                         dtype=np.uint64)
+        bins = np.arange(0, self.nsamples - 1, bin_samples, np.uint64)
 
         shape = bins.shape[0] - 1, cleared.shape[1]
         btmp = np.empty(shape, np.uint64)
 
         bin_data(cleared.values.view(np.uint8), bins, btmp)
 
-        # make a datetime index of seconds
+        # make a datetime index of milliseconds
         freq = binsize * datetools.Milli()
-        index = date_range(start=self.date, periods=btmp.shape[0], freq=freq,
-                           name='time', tz='US/Eastern')
-
+        index = date_range(start=self.date, periods=btmp.shape[0],
+                           freq=freq, name='time', tz='US/Eastern') + freq
         binned = DataFrame(btmp, index=index, columns=cleared.columns,
                            dtype=np.float64)
 
@@ -361,8 +364,8 @@ class SpikeDataFrame(SpikeDataFrameBase):
         # spikes / s * ms / ms == spikes / s
         sp_per_s = binned.mean() * ms_per_s / binsize
 
-        # nan out the counts that are not about reject_count / s
-        # firing rate
+        # get rid of channels who have less then "reject_count" spikes over
+        # the whole recording
         binned.ix[:, sp_per_s < min_sp_per_s] = np.nan
 
         if dropna:

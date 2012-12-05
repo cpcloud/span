@@ -6,28 +6,36 @@ import itertools
 import numpy as np
 from numpy.random import randint, rand, randn
 
-from pandas import Series, DataFrame, Panel, MultiIndex
-from pandas.util.testing import rands
+from pandas import Series, DataFrame, Panel, MultiIndex, Index
 
 try:
     from pylab import gca
-except RuntimeError:
+
     class TestRemoveLegend(unittest.TestCase):
-        def test_remove_legend(self):
-            pass
-else:
-    class TestRemoveLegend(unittest.TestCase):
-        def test_remove_legend(self):
+        def test_remove_legend_arg(self):
             ax = gca()
             remove_legend(ax)
-            assert ax.legend_ is None
+            self.assertIsNone(ax.legend_)
+
+        def test_remove_legend_noarg(self):
+            remove_legend()
+            ax = gca()
+            self.assertIsNone(ax.legend_)
+
+except RuntimeError:  # pragma: no cover
+    class TestRemoveLegend(unittest.TestCase):
+        def test_remove_legend_arg(self):
+            assert False
+
+        def test_remove_legend_noarg(self):
+            assert False
 
 
 from span.utils.utils import *
 from span.utils.math import nextpow2, compose
 
 # from span.testing import skip
-from span.testing import slow, assert_allclose, assert_array_equal
+from span.testing import slow, assert_allclose, assert_array_equal, rands
 
 
 def rand_array_delegate(func, n, ndims):
@@ -102,17 +110,27 @@ class TestPadLarger(unittest.TestCase):
 
     def test_pad_larger2(self):
         x, y, lsize = pad_larger2(self.xbig, self.ysmall)
-        assert lsize == max(x.shape + y.shape)
+        self.assertEqual(lsize, max(x.shape + y.shape))
 
         x, y, lsize = pad_larger2(self.xsmall, self.ybig)
-        assert lsize == max(x.shape + y.shape)
+        self.assertEqual(lsize, max(x.shape + y.shape))
 
     def test_pad_larger(self):
         x, y, lsize = pad_larger(self.xbig, self.ysmall)
-        assert lsize == max(x.shape + y.shape)
+        self.assertEqual(lsize, max(x.shape + y.shape))
 
-        x, y, lsize = pad_larger2(self.xsmall, self.ybig)
-        assert lsize == max(x.shape + y.shape)
+        x, y, lsize = pad_larger(self.xsmall, self.ybig)
+        self.assertEqual(lsize, max(x.shape + y.shape))
+
+        x, y, z, w, lsize = pad_larger(self.xsmall, self.xbig, self.ysmall,
+                                       self.ybig)
+        self.assertEqual(lsize, max(x.shape + y.shape + z.shape + w.shape))
+
+        arrays = randn(10), randn(12), randn(20), randn(2)
+        out = pad_larger(*arrays)
+        lsize = out.pop(-1)
+        shapes = map(operator.attrgetter('shape'), out)
+        self.assertEqual(max(reduce(operator.add, shapes)), lsize)
 
 
 class TestIsComplex(unittest.TestCase):
@@ -302,28 +320,24 @@ class TestNonzeroExistingFile(unittest.TestCase):
         self.assertRaises(AssertionError, assert_nonzero_existing_file, name)
 
 
-class TestTryConvertFirst(unittest.TestCase):
-    def test_try_convert_first(self):
-        types = list(set(np.typeDict.values()))
-
-        for t in types:
-            xfrom = np.zeros(2, dtype=object)
-            try:
-                xfrom[0] = t()
-            except TypeError:
-                pass
-            else:
-                xto = try_convert_first(xfrom)
-
-
 class TestMi2Df(unittest.TestCase):
     def test_mi2df(self):
+
+        class _BlobJect(object):
+            pass
+
         dtypes = object, int, long, str, float
+
         for dtype in dtypes:
-            s = np.array(list(rands(10)))
+            s = np.array(list(rands(10, (1,))[0]))
             i = randint(10, size=(10,))
             f = rand(10)
             o = rand(10).astype(object)
-            x = s, i, f, o
-            mi = MultiIndex.from_arrays(x, names=list('ABCD'))
+            bo = np.array(list(itools.repeat(_BlobJect(), 10)))
+            x = s, i, f, o, bo
+            names = rands(len(x), len(x))
+            mi = MultiIndex.from_arrays(x, names=names)
             df = mi2df(mi)
+            self.assertIsInstance(df, DataFrame)
+            self.assertListEqual(names.tolist(), df.columns.tolist())
+            self.assertRaises(AssertionError, mi2df, Index([1, 2, 3]))
