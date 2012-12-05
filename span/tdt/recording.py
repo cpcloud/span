@@ -49,15 +49,15 @@ def distance_map(nshanks, electrodes_per_shank, within_shank, between_shank,
         The distance measure to use to compute the distance between electrodes.
 
     p : number, optional
-        See ``scipy.spatial.distance`` for more details.
+        See :py:mod:`scipy.spatial.distance` for more details.
 
     Raises
     ------
     AssertionError
-        If `nshanks` < 1 or `nshanks` is not an instance of numbers.Integral or
-        if neither of those same conditions holds for `electrodes_per_shank` or
-        if `metric` is not a string or callable or if `p` is not an instance of
-        ``numbers.Real`` and <= 0
+        * If `nshanks` < 1 or `nshanks` is not an integer
+        * If neither of those same conditions holds for `electrodes_per_shank`
+        * If `metric` is not a string or callable or
+        * If `p` is not an instance of ``numbers.Real`` and ``<= 0``
 
     Returns
     -------
