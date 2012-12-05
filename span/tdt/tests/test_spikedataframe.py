@@ -8,7 +8,7 @@ from numpy.random import randn, rand, randint
 from numpy.testing.decorators import slow
 
 import pandas as pd
-from pandas import Series
+from pandas import Series, TimeSeries
 from pandas.util.testing import assert_frame_equal
 
 
@@ -28,8 +28,6 @@ class Test_SpikeGrouper(unittest.TestCase):
         self.assertEqual(tc.__name__, name)
         self.assertIsInstance(tc(), pd.DataFrame)
         self.assert_(hasattr(tc(), 'channel'))
-        self.assert_(hasattr(tc(), 'shank'))
-        self.assert_(hasattr(tc(), 'side'))
 
 
 class BaseTestGetter(unittest.TestCase):
@@ -46,22 +44,7 @@ class Test_ChannelGetter(BaseTestGetter):
 
         for i in xrange(self.sp.nchans):
             ch = self.sp.channel[i]
-
-
-class Test_ShankGetter(BaseTestGetter):
-    def test_shank_getter(self):
-        self.assert_(hasattr(self.sp, 'shank'))
-
-        for i in xrange(self.sp.nshanks):
-            ch = self.sp.shank[i]
-
-
-class Test_SideGetter(BaseTestGetter):
-    def test_side_getter(self):
-        self.assert_(hasattr(self.sp, 'side'))
-
-        for i in xrange(self.sp.nsides):
-            ch = self.sp.side[i]
+            self.assertIsInstance(ch, TimeSeries)
 
 
 class TestSpikeGroupedDataFrame(unittest.TestCase):
