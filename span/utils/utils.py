@@ -53,10 +53,9 @@ try:
             ax = gca() # pragma: no cover
         ax.legend_ = None
 
-except RuntimeError as e:  # pragma: no cover
+except RuntimeError:  # pragma: no cover
     def remove_legend(ax=None):
-        raise NotImplementedError("matplotlib not available on this "
-                                  "system: {0}".format(e))
+        raise NotImplementedError('matplotlib not available on this system')
 
 
 def cast(a, dtype, copy=False):
