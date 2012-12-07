@@ -276,8 +276,8 @@ class SpikeDataFrame(SpikeDataFrameBase):
 
     @property
     def _constructor(self):
-        return lambda *args, **kwargs: SpikeDataFrame(*args, meta=self.meta,
-                                                 **kwargs)
+        self_t = type(self)
+        return lambda *args, **kwargs: self_t(*args, meta=self.meta, **kwargs)
 
     def bin(self, cleared, binsize, reject_count=100, dropna=False):
         """Bin spike data by `binsize` millisecond bins.
@@ -334,7 +334,8 @@ class SpikeDataFrame(SpikeDataFrameBase):
         # make a datetime index of milliseconds
         freq = binsize * datetools.Milli()
         index = date_range(start=self.date, periods=btmp.shape[0],
-                           freq=freq, name='time', tz='US/Eastern') + freq
+                           freq=freq, name=r'$t\left(i\right)$',
+                           tz='US/Eastern') + freq
         binned = DataFrame(btmp, index=index, columns=cleared.columns,
                            dtype=np.float64)
 
@@ -431,7 +432,7 @@ class SpikeDataFrame(SpikeDataFrameBase):
         r = gm.mean()
 
         if return_sem:
-            r = r, gm.apply(sem)
+            r = r, gm.apply(sem, axis=axis)
 
         return r
 
