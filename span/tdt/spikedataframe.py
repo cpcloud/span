@@ -439,7 +439,7 @@ class SpikeDataFrame(SpikeDataFrameBase):
     def xcorr(self, binned, maxlags=None, detrend=span.utils.detrend_mean,
               scale_type='normalize', sortlevel='shank i', dropna=False,
               nan_auto=False, lag_name=r'$\ell$'):
-        r"""Compute the cross correlation of binned data.
+        """Compute the cross correlation of binned data.
 
         Parameters
         ----------
