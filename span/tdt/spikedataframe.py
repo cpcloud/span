@@ -371,7 +371,8 @@ class SpikeDataFrame(SpikeDataFrameBase):
         Raises
         ------
         AssertionError
-            If `ms` is less than 0 or is not ``None``.
+            * If `ms` is not an instance of the ADT ``numbers.Integral``.
+            * If `ms` is less than 0 or is not ``None``.
 
         Returns
         -------
@@ -379,10 +380,11 @@ class SpikeDataFrame(SpikeDataFrameBase):
             The thresholded and refractory-period-cleared array of booleans
             indicating the sample point at which a spike was above threshold.
         """
-        assert ms > 0 or ms is None, \
-            'refractory period must be a positive integer or None'
+        assert isinstance(ms, numbers.Integral), '"ms" must be an integer'
+        assert ms >= 0 or ms is None, \
+            'refractory period must be a nonnegative integer or None'
 
-        if ms > 0:
+        if ms:
             # copy so we don't write over the values
             clr = threshed.values.copy()
 
