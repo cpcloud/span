@@ -15,23 +15,15 @@ from span.utils import (nextpow2, get_fft_funcs, detrend_none,
 
 
 class TestXCorr(unittest.TestCase):
-    def setUp(self):
-        self.m, self.n = 100, 50
-        self.matrix = randn(self.m, self.n)
-        self.vector = self.matrix[:, randint(self.n)]
-
-    def tearDown(self):
-        del self.vector, self.matrix, self.m, self.n
-
     def test_matrix_vs_numpy_correlate(self):
-        m, n = 20, 10
+        m, n = 5, 3
         x = randn(m, n)
 
         rng = xrange(n)
 
         detrends = detrend_mean, detrend_none, detrend_linear
-        scale_types = 'normalize', 'none', 'unbiased', 'biased', None
-        maxlags = 10, None, 1000
+        scale_types = 'normalize', None, 'unbiased', 'biased'
+        maxlags = None, 2, 20
 
         args = cartprod(maxlags, detrends, scale_types)
 
@@ -117,8 +109,8 @@ class TestXCorr(unittest.TestCase):
     def test_numpy_matrix_input(self):
         x = randn(10, 15)
         detrends = detrend_mean, detrend_none, detrend_linear
-        scale_types = 'normalize', 'none', 'unbiased', 'biased', None
-        maxlags = 10, None, 1000000
+        scale_types = 'normalize', None, 'unbiased', 'biased'
+        maxlags = 8, None, 100
 
         args = cartprod(maxlags, detrends, scale_types)
 
@@ -131,15 +123,15 @@ class TestXCorr(unittest.TestCase):
                 self.assertIsInstance(xcnn, np.ndarray)
 
     def test_numpy_vector_input(self):
-        x = randn(10)
+        x = randn(3)
         detrends = detrend_mean, detrend_none, detrend_linear
         scale_types = 'normalize', 'none', 'unbiased', 'biased', None
-        maxlags = 10, None, 1000
+        maxlags = 2, None, 100
 
         args = cartprod(maxlags, detrends, scale_types)
 
         for ml, dt, st in args:
-            y = randn(randint(10, 15))
+            y = randn(randint(2, 3))
 
             if ml > max(x.shape + y.shape):
                 self.assertRaises(AssertionError, xcorr, x, detrend=dt,
@@ -159,7 +151,7 @@ class TestXCorr(unittest.TestCase):
 
 
 def test_mult_mat_xcorr():
-    x = randn(randint(50, 71), randint(2, 21))
+    x = randn(randint(2, 4), randint(4, 5))
     m, n = x.shape
     ifft, fft = get_fft_funcs(x)
     nfft = int(2 ** nextpow2(m))
