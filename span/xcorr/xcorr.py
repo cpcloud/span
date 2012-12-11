@@ -126,9 +126,20 @@ def _unbiased(c, x, y, lags, lsize):
     c : array_like
         The unbiased estimate of the cross correlation.
     """
-    d = lsize - np.abs(lags)
-    d[d == 0] = 1
-    denom = np.tile(d[:, np.newaxis], (1, c.shape[1])) if c.ndim == 2 else d
+    try:
+        values = lags.values
+    except AttributeError:
+        values = lags
+
+    d = lsize - np.abs(values)
+    d[np.logical_not(d)] = 1
+
+    if c.ndim == 2:
+        newshape = 1, c.shape[1]
+        denom = np.tile(d[:, np.newaxis], newshape)
+    else:
+        denom = d
+
     return c / denom
 
 
@@ -187,8 +198,8 @@ def _normalize(c, x, y, lags, lsize):
     assert c.ndim in (1, 2), 'invalid size of cross correlation array'
 
     if c.ndim == 1:
-        cx00 = np.sum(x ** 2)
-        cy00 = np.sum(y ** 2) if y is not None else cx00
+        cx00 = np.sum(np.abs(x) ** 2)
+        cy00 = np.sum(np.abs(y) ** 2) if y is not None else cx00
         cdiv = np.sqrt(cx00 * cy00)
     else:
         _, nc = c.shape
