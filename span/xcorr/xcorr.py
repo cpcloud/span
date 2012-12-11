@@ -23,13 +23,12 @@
 import warnings
 
 import numpy as np
-import pandas as pd
+from pandas import Series, DataFrame, Int64Index
 
 from span.utils import (detrend_mean, get_fft_funcs, isvector, nextpow2,
                         pad_larger)
 
 from span.xcorr._mult_mat_xcorr import mult_mat_xcorr
-from nose.tools import set_trace
 
 
 def _autocorr(x, nfft):
@@ -116,6 +115,8 @@ def _unbiased(c, x, y, lags, lsize):
     x : array_like
     y : array_like
 
+    lags : array_like
+
     lsize : int
         The size of the largest of the inputs to the cross correlation
         function.
@@ -125,15 +126,9 @@ def _unbiased(c, x, y, lags, lsize):
     c : array_like
         The unbiased estimate of the cross correlation.
     """
-    try:
-        index = c.index
-    except AttributeError:
-        index = lags
-
-    d = lsize - np.abs(index).values
+    d = lsize - np.abs(lags)
+    d[d == 0] = 1
     denom = np.tile(d[:, np.newaxis], (1, c.shape[1])) if c.ndim == 2 else d
-    denom[denom == 0] = 1
-
     return c / denom
 
 
@@ -147,6 +142,8 @@ def _biased(c, x, y, lags, lsize):
 
     x : array_like
     y : array_like
+
+    lags : array_like
 
     lsize : int
         The size of the largest of the inputs to the cross correlation
@@ -171,6 +168,8 @@ def _normalize(c, x, y, lags, lsize):
     x : array_like
     y : array_like
 
+    lags : array_like
+
     lsize : int
         The size of the largest of the inputs to the cross correlation
         function
@@ -188,8 +187,8 @@ def _normalize(c, x, y, lags, lsize):
     assert c.ndim in (1, 2), 'invalid size of cross correlation array'
 
     if c.ndim == 1:
-        cx00 = np.sum(np.abs(x) ** 2)
-        cy00 = np.sum(np.abs(y) ** 2) if y is not None else cx00
+        cx00 = np.sum(x ** 2)
+        cy00 = np.sum(y ** 2) if y is not None else cx00
         cdiv = np.sqrt(cx00 * cy00)
     else:
         _, nc = c.shape
@@ -204,8 +203,7 @@ def _normalize(c, x, y, lags, lsize):
             except AttributeError:
                 vals = c[lags.max(), jkl]
 
-            tmp = np.sqrt(vals)
-
+        tmp = np.sqrt(vals)
         cdiv = np.outer(tmp, tmp).ravel()
 
     return c / cdiv
@@ -222,6 +220,8 @@ _SCALE_FUNCTIONS = {
     'biased': _biased,
     'normalize': _normalize
 }
+
+_SCALE_KEYS = tuple(_SCALE_FUNCTIONS.keys())
 
 
 def xcorr(x, y=None, maxlags=None, detrend=detrend_mean,
@@ -262,10 +262,13 @@ def xcorr(x, y=None, maxlags=None, detrend=detrend_mean,
     ------
     AssertionError
         * If `y` is not None and `x` is a matrix
-        * If `x` is not a vector when y is None or y is x or all(x == y)
+        * If `x` is not a vector when `y` is None or `y` is `x` or
+          ``all(x == y)``.
         * If `detrend` is not callable
         * If `scale_type` is not a string or ``None``
-        * If `maxlags` is > `lsize`, see source for details.
+        * If `scale_type` is not in ``(None, 'none', 'unbiased', 'biased',
+          'normalize')``
+        * If `maxlags` ``>`` `lsize`, see source for details.
 
     Returns
     -------
@@ -278,6 +281,8 @@ def xcorr(x, y=None, maxlags=None, detrend=detrend_mean,
     assert callable(detrend), 'detrend must be a callable object'
     assert isinstance(scale_type, basestring) or scale_type is None, \
         '"scale_type" must be a string or None'
+    assert scale_type in _SCALE_KEYS, ('"scale_type" must be one of '
+                                       '{0}'.format(_SCALE_KEYS))
 
     x = detrend(x)
 
@@ -304,12 +309,12 @@ def xcorr(x, y=None, maxlags=None, detrend=detrend_mean,
     assert maxlags <= lsize, ('max lags must be less than or equal to %i'
                               % lsize)
 
-    lags = pd.Int64Index(np.r_[1 - maxlags:maxlags])
+    lags = Int64Index(np.r_[1 - maxlags:maxlags])
 
-    if isinstance(x, pd.Series):
-        return_type = lambda x, index: pd.Series(x, index=index)
-    elif isinstance(x, pd.DataFrame):
-        return_type = lambda x, index: pd.DataFrame(x, index=index)
+    if isinstance(x, Series):
+        return_type = lambda x, index: Series(x, index=index)
+    elif isinstance(x, DataFrame):
+        return_type = lambda x, index: DataFrame(x, index=index)
     elif isinstance(x, np.ndarray):
         return_type = lambda x, index: np.asanyarray(x)
 
