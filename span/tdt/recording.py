@@ -93,10 +93,6 @@ class ElectrodeMap(DataFrame):
         If there is a topography to the are that was recorded from, indicate
         here by "lm". Defaults to None.
 
-    base_index : int, optional
-        The number to start the channel indexing from. Defaults to 0 for ease
-        of use in Python.
-
     Attributes
     ----------
     nshanks : int
@@ -105,16 +101,8 @@ class ElectrodeMap(DataFrame):
     nchans : int
         Number of channels.
     """
-    def __init__(self, map_, order=None, base_index=0):
+    def __init__(self, map_):
         map_ = atleast_1d(asanyarray(map_).squeeze())
-        mm = map_.min()
-
-        v = sign(base_index - mm)
-
-        if v:
-            while mm != base_index:
-                map_ += v
-                mm = map_.min()
 
         try:
             m, n = map_.shape
@@ -125,14 +113,8 @@ class ElectrodeMap(DataFrame):
 
         data = {'channel': map_.ravel(), 'shank': s}
 
-        if order is not None:
-            assert map_.ndim == 2, 'map_ must be 2D if there is a shank order'
-            tup = list(order)
-            tup[0] += 'at'
-            tup[1] += 'ed'
-            data['side'] = repeat(tup, map_.size / len(order))
-
-        df = DataFrame(data).sort('channel').reset_index(drop=True)
+        print 'channel', len(data['channel']), 'shank', len(data['shank'])
+        df = DataFrame(data).sort('shank').reset_index(drop=True)
         df.index = df.pop('channel')
 
         super(ElectrodeMap, self).__init__(df.sort())
@@ -166,10 +148,10 @@ class ElectrodeMap(DataFrame):
         Raises
         ------
         AssertionError
-            - If `within` is not an instance of ``numbers.Real``
-            - If `between` is not an instance of ``numbers.Real``
-            - If `p` is not an instance of ``numbers.Real``
-            - If metric is not a string or a callable
+            * If `within` is not an instance of ``numbers.Real``
+            * If `between` is not an instance of ``numbers.Real``
+            * If `p` is not an instance of ``numbers.Real``
+            * If metric is not an instance of ``basestring`` or a callable
 
         Returns
         -------
@@ -191,12 +173,9 @@ class ElectrodeMap(DataFrame):
         s = self.sort()
         cols = s.index, s.shank
 
-        if hasattr(self, 'side'):
-            cols += s.side,
-
         values_getter = attrgetter('values')
         cols = tuple(map(values_getter, cols))
-        names = 'channel', 'shank', 'side'
+        names = 'channel', 'shank'
 
         def _label_maker(i, names):
             new_names = tuple(map(lambda x: x + ' %s' % i, names))
@@ -221,21 +200,3 @@ class ElectrodeMap(DataFrame):
         s.name = r'$d\left(i, j\right)$'
 
         return s.reorder_levels(reordering)
-
-    @property
-    def one_based(self):
-        """Return an electrode configuration with 1 based indexing."""
-        values = self.values.copy().T
-        index = Series(self.index.values + 1, name='channel')
-
-        is_ordered = values.ndim == 2 and values.shape[0] == 2
-
-        names = 'shank',
-
-        if is_ordered:
-            values[0] += 1
-            names += 'side',
-        else:
-            values += 1
-
-        return DataFrame(dict(zip(names, values)), index=index)
