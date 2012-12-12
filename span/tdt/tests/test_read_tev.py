@@ -6,8 +6,10 @@ from glob import glob
 import numpy as np
 
 from span.tdt import read_tev, PandasTank
+from span.testing import slow
 
 
+@slow
 class TestReadTev(unittest.TestCase):
     def setUp(self):
         home = os.path.expanduser('~')
