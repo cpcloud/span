@@ -24,8 +24,10 @@ from future_builtins import map
 
 import numbers
 import operator
+import re
 import itertools as itools
 import functools as fntools
+
 
 import numpy as np
 from pandas import Series, DataFrame
@@ -234,7 +236,8 @@ def nextpow2(n):
     -------
     ret : array_like
     """
-    return np.ceil(np.log2(np.abs(np.asanyarray(n)))).astype(np.int64)
+    f = compose(np.ceil, np.log2, np.abs, np.asanyarray)
+    return f(n).astype(np.int_)
 
 
 def fractional(x):
@@ -306,7 +309,10 @@ def compose(*args):
         Composition of callables in `args`.
     """
     f = fntools.partial(fntools.reduce, compose2)(args)
-    f.__name__ = '({0})'.format(' . '.join(map(lambda x: x.__name__, args)))
+    name_getter = operator.attrgetter('__name__')
+    sbre = re.compile(r'[()]*')
+    dotted_names = ' . '.join(map(name_getter, args))
+    f.__name__ = '({0})'.format(sbre.sub('', dotted_names))
     return f
 
 
