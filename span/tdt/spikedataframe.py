@@ -30,6 +30,7 @@ Examples
 """
 
 import numbers
+import types
 import functools as fntools
 
 import numpy as np
@@ -223,10 +224,6 @@ class SpikeDataFrameBase(SpikeGroupedDataFrame):
         return self.meta.shank.nunique()
 
     @property
-    def nsides(self):
-        return self.meta.side.nunique()
-
-    @property
     def nsamples(self):
         return max(self.shape)
 
@@ -380,7 +377,8 @@ class SpikeDataFrame(SpikeDataFrameBase):
             The thresholded and refractory-period-cleared array of booleans
             indicating the sample point at which a spike was above threshold.
         """
-        assert isinstance(ms, numbers.Integral), '"ms" must be an integer'
+        assert isinstance(ms, (numbers.Integral, types.NoneType)), \
+            '"ms" must be an integer or None'
         assert ms >= 0 or ms is None, \
             'refractory period must be a nonnegative integer or None'
 
@@ -434,7 +432,7 @@ class SpikeDataFrame(SpikeDataFrameBase):
         r = gm.mean()
 
         if return_sem:
-            r = r, gm.apply(sem, axis=axis)
+            r = r, gm.apply(sem)
 
         return r
 
