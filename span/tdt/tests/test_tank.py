@@ -1,14 +1,16 @@
 import os
-import re
-
+import types
+import numbers
 import unittest
+import datetime
 
+import numpy as np
 import pandas as pd
 
 from span.tdt.tank import TdtTankBase, PandasTank
 from span.tdt import SpikeDataFrame
-
 from span.tdt.tank import _get_first_match, _match_int
+from span.testing import slow
 
 
 class TestGetFirstMatch(unittest.TestCase):
@@ -72,13 +74,17 @@ class TestPandasTank(unittest.TestCase):
     def tearDownClass(cls):
         del cls.tank
 
-    def test_age(self):
-        assert hasattr(self.tank, 'age')
-        self.assertIsInstance(self.tank.age, (type(None), int))
+    def test_properties(self):
+        names = ('fs', 'name', 'age', 'site', 'date', 'time', 'datetime',
+                 'duration')
+        typs = (numbers.Real, basestring, numbers.Integral,
+                numbers.Integral, datetime.date, datetime.time,
+                pd.tslib.Timestamp, np.timedelta64)
 
-    def test_site(self):
-        assert hasattr(self.tank, 'site')
-        self.assertIsInstance(self.tank.site, (type(None), int))
+        for name, typ in zip(names, typs):
+            self.assert_(hasattr(self.tank, name))
+            self.assertIsInstance(getattr(self.tank, name),
+                                  (types.NoneType, typ))
 
     def setUp(self):
         self.names = 'Spik', 'LFPs'
@@ -88,7 +94,9 @@ class TestPandasTank(unittest.TestCase):
 
     def test_repr(self):
         r = repr(self.tank)
+        self.assert_(r)
 
+    @slow
     def test_read_tev(self):
         for name in self.names:
             tev = self.tank._read_tev(name)()
@@ -111,12 +119,15 @@ class TestPandasTank(unittest.TestCase):
     def test_ltsq(self):
         self.assertIsNotNone(self.tank.ltsq)
 
+    @slow
     def test_tev(self):
         for name in self.names:
             self.assertIsNotNone(self.tank.tev(name))
 
+    @slow
     def test_spikes(self):
         self.assertIsNotNone(self.tank.spikes)
 
+    @slow
     def test_lfps(self):
         self.assertIsNotNone(self.tank.lfps)
