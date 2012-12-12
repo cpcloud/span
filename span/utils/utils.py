@@ -214,35 +214,6 @@ def name2num(name, base=256):
     return (base ** np.r_[:len(name)]).dot(tuple(map(ord, name)))
 
 
-# TODO: this is very slow
-def num2name(num, base=256, slen=4):
-    """Inverse of `name2num`.
-
-    Parameters
-    ----------
-    num : int
-        The number to convert to a valid string.
-
-    base : int, optional
-        The base to use for conversion.
-
-    slen : int, optional
-        The allowable length of the word.
-
-    Returns
-    -------
-    ret : str
-        The string associated with `num`.
-    """
-    import string
-    letters = string.ascii_letters
-    x = pd.Series(dict(zip(letters, map(ord, letters))))
-    base_vec = base ** np.r_[:slen]
-    xad = x[ndtuples(*itools.repeat(len(letters), slen))] * base_vec
-    w = xad[xad.sum(1) == num].squeeze() / base_vec
-    return ''.join(map(chr, w))
-
-
 def pad_larger2(x, y):
     """Pad the larger of two arrays and the return the arrays and the size of
     the larger array.
