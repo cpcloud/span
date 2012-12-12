@@ -126,12 +126,7 @@ def _unbiased(c, x, y, lags, lsize):
     c : array_like
         The unbiased estimate of the cross correlation.
     """
-    try:
-        values = lags.values
-    except AttributeError:
-        values = lags
-
-    d = lsize - np.abs(values)
+    d = lsize - np.abs(lags)
     d[np.logical_not(d)] = 1
 
     if c.ndim == 2:
@@ -320,7 +315,7 @@ def xcorr(x, y=None, maxlags=None, detrend=detrend_mean,
     assert maxlags <= lsize, ('max lags must be less than or equal to %i'
                               % lsize)
 
-    lags = Int64Index(np.r_[1 - maxlags:maxlags])
+    lags = np.r_[1 - maxlags:maxlags]
 
     if isinstance(x, Series):
         return_type = lambda x, index: Series(x, index=index)
