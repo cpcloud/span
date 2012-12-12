@@ -5,30 +5,33 @@ from numpy.random import rand
 from numpy.testing import assert_allclose
 
 from span.utils.decorate import cached_property, thunkify
+from span.testing import slow
 
 
-def test_cached_property():
-    class CachedPropertyClass(object):
-        def __init__(self, a, b):
-            self.a, self.b = a, b
+class TestCachedProperty(unittest.TestCase):
+    def test_cached_property(self):
+        class CachedPropertyClass(object):
+            def __init__(self, a, b):
+                self.a, self.b = a, b
 
-        @cached_property
-        def c(self):
-            return self.a + self.b
+            @cached_property
+            def c(self):
+                return self.a + self.b
 
-        @cached_property
-        def d(self):
-            return self.c
+            @cached_property
+            def d(self):
+                return self.c
 
-    a, b = rand(), rand()
-    cpc = CachedPropertyClass(a, b)
-    c = cpc.c
-    assert hasattr(cpc, '__property_cache')
-    assert c == a + b
-    assert cpc.d == c
+        a, b = rand(), rand()
+        cpc = CachedPropertyClass(a, b)
+        c = cpc.c
+        self.assert_(hasattr(cpc, '__property_cache'))
+        self.assertEqual(c, a + b)
+        self.assertEqual(cpc.d, c)
 
 
 class TestThunkify(unittest.TestCase):
+    @slow
     def test_thunkify(self):
         @thunkify
         def thunky(i):
@@ -37,7 +40,7 @@ class TestThunkify(unittest.TestCase):
 
         def call_thunky(x):
             double_thunk = thunky(x)
-            time.sleep(0.3)
+            time.sleep(0.4)
 
             if x == 100:
                 res = double_thunk()
@@ -53,10 +56,16 @@ class TestThunkify(unittest.TestCase):
         call_thunky(100)
         t2 = time.time() - t0
 
-        assert_allclose(t1, t2, rtol=1e-2)
+        assert_allclose(t1, t2, atol=1e-3)
 
+    def test_thunkify_raise(self):
         @thunkify
-        def thrower():
+        def type_error_thrower():
             return None ** 2
 
-        self.assertRaises(TypeError, thrower())
+        @thunkify
+        def exception_thrower():
+            raise Exception('thunkify exception')
+
+        self.assertRaises(TypeError, type_error_thrower())
+        self.assertRaises(Exception, exception_thrower())

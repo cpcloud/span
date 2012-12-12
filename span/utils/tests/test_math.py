@@ -1,5 +1,5 @@
 import unittest
-import itertools
+import itertools as itools
 
 import numpy as np
 from numpy.random import randn, randint, rand
@@ -8,7 +8,9 @@ from numpy.testing import assert_allclose, assert_array_equal
 from pandas import Series, DataFrame, Panel
 
 from span.utils import ndtuples
-from span.utils.math import *
+from span.utils.math import (trimmean, sem, detrend_none, detrend_mean,
+                             detrend_linear, cartesian, nextpow2, fractional,
+                             samples_per_ms, compose, composemap, compose2)
 
 from span.utils.tests.test_utils import rand_int_tuple
 
@@ -16,14 +18,14 @@ from span.utils.tests.test_utils import rand_int_tuple
 class TestTrimmean(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
-        cls.alphas = np.r_[:100]
-        cls.includes = tuple(itertools.product((True, False), (True, False)))
+        cls.alphas = np.r_[:100:20].tolist() + [99]
+        cls.includes = tuple(itools.product((True, False), (True, False)))
         cls.axes = None, 0
 
     def test_number(self):
         x = float(randn())
         axes = self.axes
-        arg_sets = itertools.product(self.alphas, self.includes, axes)
+        arg_sets = itools.product(self.alphas, self.includes, axes)
         for arg_set in arg_sets:
             alpha, include, axis = arg_set
             m = trimmean(x, alpha, include, axis)
@@ -33,9 +35,9 @@ class TestTrimmean(unittest.TestCase):
     def test_0d_array(self):
         x = np.asanyarray(randn())
         axes = self.axes
-        arg_sets = itertools.product(self.alphas, self.includes, axes)
-        for arg_set in arg_sets:
-            alpha, include, axis = arg_set
+        arg_sets = itools.product(self.alphas, self.includes, axes)
+
+        for alpha, include, axis in arg_sets:
             m = trimmean(x, alpha, include, axis)
             self.assertIsInstance(m, float)
             self.assertEqual(x, m)
@@ -43,7 +45,7 @@ class TestTrimmean(unittest.TestCase):
     def test_1d_array(self):
         x = randn(5)
         axes = self.axes
-        arg_sets = itertools.product(self.alphas, self.includes, axes)
+        arg_sets = itools.product(self.alphas, self.includes, axes)
         for arg_set in arg_sets:
             alpha, include, axis = arg_set
             m = trimmean(x, alpha, include, axis)
@@ -52,9 +54,9 @@ class TestTrimmean(unittest.TestCase):
                 self.assertEqual(m.dtype, float)
 
     def test_2d_array(self):
-        x = randn(10, 4)
+        x = randn(5, 4)
         axes = self.axes + (1,)
-        arg_sets = itertools.product(self.alphas, self.includes, axes)
+        arg_sets = itools.product(self.alphas, self.includes, axes)
         for arg_set in arg_sets:
             alpha, include, axis = arg_set
             m = trimmean(x, alpha, include, axis)
@@ -66,7 +68,7 @@ class TestTrimmean(unittest.TestCase):
     def test_3d_array(self):
         x = randn(4, 3, 2)
         axes = self.axes + (1, 2)
-        arg_sets = itertools.product(self.alphas, self.includes, axes)
+        arg_sets = itools.product(self.alphas, self.includes, axes)
         for arg_set in arg_sets:
             alpha, include, axis = arg_set
             if axis is not None:
@@ -76,9 +78,9 @@ class TestTrimmean(unittest.TestCase):
                 self.assertIsInstance(m, float)
 
     def test_series(self):
-        x = Series(randn(5))
+        x = Series(randn(2))
         axes = self.axes
-        arg_sets = itertools.product(self.alphas, self.includes, axes)
+        arg_sets = itools.product(self.alphas, self.includes, axes)
         for arg_set in arg_sets:
             alpha, include, axis = arg_set
             print alpha, include, axis
@@ -86,9 +88,9 @@ class TestTrimmean(unittest.TestCase):
                 self.assertRaises(TypeError, trimmean, x, alpha, include, axis)
 
     def test_dataframe(self):
-        x = DataFrame(randn(10, 2))
+        x = DataFrame(randn(3, 2))
         axes = self.axes + (1,)
-        arg_sets = itertools.product(self.alphas, self.includes, axes)
+        arg_sets = itools.product(self.alphas, self.includes, axes)
         for arg_set in arg_sets:
             alpha, include, axis = arg_set
             m = trimmean(x, alpha, include, axis)
@@ -102,7 +104,7 @@ class TestSem(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         cls.axes, cls.ddof = (0, 1), (0, 1)
-        cls.args = tuple(itertools.product(cls.axes, cls.ddof))
+        cls.args = tuple(itools.product(cls.axes, cls.ddof))
 
     @classmethod
     def tearDownClass(cls):
@@ -115,7 +117,7 @@ class TestSem(unittest.TestCase):
             self.assertEqual(s, 0.0)
 
     def test_1d(self):
-        x = randn(10)
+        x = randn(2)
 
         for axis, ddof in self.args:
             if axis == 1:
@@ -123,9 +125,8 @@ class TestSem(unittest.TestCase):
             else:
                 s = sem(x, axis, ddof)
 
-
     def test_2d(self):
-        x = randn(8, 7)
+        x = randn(3, 2)
 
         for axis, ddof in self.args:
             s = sem(x, axis, ddof)
@@ -133,7 +134,7 @@ class TestSem(unittest.TestCase):
     def test_3d(self):
         x = randn(4, 3, 2)
         axes = self.axes + (2,)
-        args = itertools.product(axes, self.ddof)
+        args = itools.product(axes, self.ddof)
 
         for axis, ddof in args:
             s = sem(x, axis, ddof)
@@ -150,16 +151,16 @@ class TestSem(unittest.TestCase):
                 self.assertIsInstance(s, (float, np.float64))
 
     def test_dataframe(self):
-        x = DataFrame(randn(5, 7))
+        x = DataFrame(randn(2, 3))
 
         for axis, ddof in self.args:
             s = sem(x, axis, ddof)
             self.assertIsInstance(s, Series)
 
     def test_panel(self):
-        x = Panel(randn(5, 4, 3))
+        x = Panel(randn(4, 3, 2))
         axes = self.axes + (2,)
-        args = itertools.product(axes, self.ddof)
+        args = itools.product(axes, self.ddof)
 
         for axis, ddof in args:
             s = sem(x, axis, ddof)
@@ -176,12 +177,12 @@ def test_ndtuples():
 
 class TestDetrend(unittest.TestCase):
     def test_detrend_none(self):
-        x = np.random.randn(10, 11)
+        x = np.random.randn(2, 3)
         dtx = detrend_none(x)
         assert_array_equal(x, dtx)
 
     def test_detrend_mean(self):
-        x = np.random.randn(10, 9)
+        x = np.random.randn(3, 2)
         dtx = detrend_mean(x)
         expect = x - x.mean(0)
         self.assertEqual(expect.dtype, dtx.dtype)
@@ -189,7 +190,7 @@ class TestDetrend(unittest.TestCase):
         assert_allclose(dtx.mean(), 0.0, atol=np.finfo(dtx.dtype).eps)
 
     def test_detrend_mean_dataframe(self):
-        x = DataFrame(np.random.randn(10, 13))
+        x = DataFrame(np.random.randn(3, 4))
         dtx = detrend_mean(x)
         m = dtx.mean()
         eps = np.finfo(float).eps
@@ -208,13 +209,13 @@ class TestDetrend(unittest.TestCase):
         assert_allclose(dtx.std(), 1.0, rtol=rtol, atol=eps)
 
     def test_detrend_linear_series(self):
-        n = 100
+        n = 5
         x = Series(np.random.randn(n))
         dtx = detrend_linear(x)
         m = dtx.mean()
         s = dtx.std()
         ord_mag = int(np.floor(np.log10(n)))
-        rtol = 10.0 ** (1 - ord_mag) + (ord_mag - 1)
+        rtol = 10 ** (1 - ord_mag) + (ord_mag - 1)
         eps = np.finfo(float).eps
         assert_allclose(m, 0.0, rtol=rtol, atol=eps)
         assert_allclose(s, 1.0, rtol=rtol, atol=eps)
@@ -222,32 +223,34 @@ class TestDetrend(unittest.TestCase):
 
 class TestCartesian(unittest.TestCase):
     def test_cartesian(self):
-        ncols = randint(2, 6)
-        sizes = [randint(5, 10) for _ in xrange(ncols)]
+        ncols = randint(2, 3)
+        sizes = [randint(2, 4) for _ in xrange(ncols)]
         prod_arrays = map(randn, sizes)
         c = cartesian(prod_arrays)
         self.assertEqual(c.size, np.prod(sizes) * ncols)
 
 
-def test_nextpow2():
-    int_max = 101
-    n = randint(1, int_max)
-    np2 = nextpow2(n)
-    tp2 = 2 ** np2
-    assert tp2 >= n, '{0} < {1}'.format(tp2, n)
-    assert_allclose(np2, np.log2(tp2))
+class TestNextPow2(unittest.TestCase):
+    def test_nextpow2(self):
+        int_max = 101
+        n = randint(1, int_max)
+        np2 = nextpow2(n)
+        tp2 = 2 ** np2
+        self.assertGreaterEqual(tp2, n)
+        assert_allclose(np2, np.log2(tp2))
 
-    assert nextpow2(0) == -np.inf
+        self.assertEqual(nextpow2(0), np.iinfo(nextpow2(0).dtype).min)
 
 
-def test_fractional():
-    m, n = 100, 1
-    x = randn(n)
-    xi = randint(m)
-    assert fractional(x)
-    assert fractional(rand())
-    assert not fractional(xi)
-    assert not fractional(randint(1, np.iinfo(int).max))
+class TestFractional(unittest.TestCase):
+    def test_fractional(self):
+        m, n = 100, 1
+        x = randn(n)
+        xi = randint(m)
+        self.assert_(fractional(x))
+        self.assert_(fractional(rand()))
+        self.assertFalse(fractional(xi))
+        self.assertFalse(fractional(randint(1, np.iinfo(int).max)))
 
 
 class TestSamplesPerMs(unittest.TestCase):
@@ -255,7 +258,7 @@ class TestSamplesPerMs(unittest.TestCase):
         args = np.arange(10)
         fs = 24414.0625
         r = list(map(type, (samples_per_ms(fs, arg) for arg in args)))
-        self.assertListEqual(r, list(itertools.repeat(int, len(r))))
+        self.assertListEqual(r, list(itools.repeat(int, len(r))))
 
 
 class TestCompose2(unittest.TestCase):

@@ -1,7 +1,9 @@
 import unittest
 import string
 import random
-import itertools
+import itertools as itools
+import operator
+import os
 
 import numpy as np
 from numpy.random import randint, rand, randn
@@ -31,10 +33,11 @@ except RuntimeError:  # pragma: no cover
             assert False
 
 
-from span.utils.utils import *
-from span.utils.math import nextpow2, compose
-
-# from span.testing import skip
+from span.utils import (nextpow2, compose, nans, nans_like, name2num,
+                        pad_larger, pad_larger2, isvector, iscomplex,
+                        hascomplex, get_fft_funcs, cast, ndtuples,
+                        nonzero_existing_file, assert_nonzero_existing_file,
+                        mi2df, remove_legend)
 from span.testing import slow, assert_allclose, assert_array_equal, rands
 
 
@@ -76,26 +79,16 @@ class TestNansLike(unittest.TestCase):
         self.assert_(np.isnan(nas.values).all())
 
     def test_other(self):
-        arrays = randn(10), randn(10, 4), randn(10, 8, 3)
+        arrays = randn(2), randn(10, 4), randn(10, 8, 3)
         for array in arrays:
             nas = nans_like(array)
             self.assert_(np.isnan(nas).all())
 
 
-@slow
-class TestNum2Name(unittest.TestCase):
-    def test_num2name(self):
-        expected_names = 'Spik', 'LFPs'
-        name2num2name = compose(num2name, name2num)
-        for expected_name in expected_names:
-            name = name2num2name(expected_name)
-            self.assertEqual(name, expected_name)
-
-
 class TestPadLarger(unittest.TestCase):
     def setUp(self):
-        nbig = 20
-        nsmall = 10
+        nbig = 10
+        nsmall = 2
         ndims = 1
         self.xbig = randn_array(n=nbig, ndims=ndims)
         self.ysmall = randn_array(n=nsmall, ndims=ndims)
@@ -126,7 +119,7 @@ class TestPadLarger(unittest.TestCase):
                                        self.ybig)
         self.assertEqual(lsize, max(x.shape + y.shape + z.shape + w.shape))
 
-        arrays = randn(10), randn(12), randn(20), randn(2)
+        arrays = randn(4), randn(5), randn(7), randn(2)
         out = pad_larger(*arrays)
         lsize = out.pop(-1)
         shapes = map(operator.attrgetter('shape'), out)
@@ -135,7 +128,7 @@ class TestPadLarger(unittest.TestCase):
 
 class TestIsComplex(unittest.TestCase):
     def setUp(self):
-        n = 20
+        n = 4
         self.x = randn(n, randint(1, n)) * 1j
 
     def tearDown(self):
@@ -162,7 +155,7 @@ class TestIsComplex(unittest.TestCase):
 
 class TestHasComplex(unittest.TestCase):
     def setUp(self):
-        self.n = 20
+        self.n = 4
         self.x = randn(self.n, randint(1, self.n)) * 1j
 
     def tearDown(self):
@@ -225,7 +218,7 @@ class TestCast(unittest.TestCase):
     def test_cast(self):
         dtypes = np.cast.keys()
         copies = True, False
-        arg_sets = itertools.product(dtypes, copies)
+        arg_sets = itools.product(dtypes, copies)
         for arg_set in arg_sets:
             dtype, copy = arg_set
             a = rand(10)
@@ -240,32 +233,26 @@ class TestCast(unittest.TestCase):
 
 class TestIsVector(unittest.TestCase):
     def test_not_vector(self):
-        x = np.random.rand(10)
+        x = np.random.rand(2)
         self.assertRaises(AttributeError, isvector, list(x))
         self.assertRaises(AttributeError, isvector, tuple(x))
 
-        x = np.random.rand(10, 2)
+        x = np.random.rand(3, 2)
         self.assertFalse(isvector(x))
 
     def test_isvector(self):
-        x = np.random.rand(10)
+        x = np.random.rand(2)
         self.assert_(isvector(x))
 
-        x = np.random.rand(10, 1)
+        x = np.random.rand(2, 1)
         self.assert_(isvector(x))
 
-        dims = (10,) + tuple(itertools.repeat(1, 31))
+        dims = (2,) + tuple(itools.repeat(1, 31))
         x = np.random.rand(*dims)
         self.assert_(isvector(x))
 
 
 class TestNdtuples(unittest.TestCase):
-    def setUp(self):
-        pass
-
-    def tearDown(self):
-        pass
-
     def test_ndtuples_0(self):
         zdims = 0, False, [], (), {}, np.array([])
 
@@ -273,7 +260,7 @@ class TestNdtuples(unittest.TestCase):
             self.assertRaises(AssertionError, ndtuples, zdim)
 
     def test_ndtuples_1(self):
-        n = randint(1, 6)
+        n = randint(1, 3)
         x = ndtuples(n)
         assert_array_equal(x, np.arange(n))
 
@@ -283,7 +270,7 @@ class TestNdtuples(unittest.TestCase):
         self.assertTupleEqual((m * n, 2), x.shape)
 
     def test_ndtuples_3(self):
-        m, n, l = randint(2, 5), randint(2, 4), randint(3, 10)
+        m, n, l = randint(2, 3), randint(2, 4), randint(3, 4)
         x = ndtuples(m, n, l)
         self.assertTupleEqual((m * n * l, 3), x.shape)
 
@@ -299,7 +286,7 @@ class TestNonzeroExistingFile(unittest.TestCase):
         name = self.name
 
         with open(name, 'wb') as tf:
-            randn(10).tofile(tf)
+            randn(2).tofile(tf)
 
         self.assert_(nonzero_existing_file(name))
 
@@ -311,7 +298,7 @@ class TestNonzeroExistingFile(unittest.TestCase):
         name = self.name
 
         with open(name, 'wb') as tf:
-            randn(10).tofile(tf)
+            randn(2).tofile(tf)
 
         assert_nonzero_existing_file(name)
 
@@ -328,12 +315,13 @@ class TestMi2Df(unittest.TestCase):
 
         dtypes = object, int, long, str, float
 
+        n = 2
         for dtype in dtypes:
-            s = np.array(list(rands(10, (1,))[0]))
-            i = randint(10, size=(10,))
-            f = rand(10)
-            o = rand(10).astype(object)
-            bo = np.array(list(itools.repeat(_BlobJect(), 10)))
+            s = np.array(list(rands(n, (1,))[0]))
+            i = randint(10, size=n)
+            f = rand(n)
+            o = rand(n).astype(object)
+            bo = np.array(list(itools.repeat(_BlobJect(), n)))
             x = s, i, f, o, bo
             names = rands(len(x), len(x))
             mi = MultiIndex.from_arrays(x, names=names)

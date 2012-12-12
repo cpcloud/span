@@ -7,21 +7,19 @@ from span.utils import clear_refrac, nextpow2
 
 
 class TestClearRefracModule(unittest.TestCase):
-    @classmethod
-    def setUpClass(cls):
-        m, n = randint(1000, 10001), randint(10, 20)
+    def setUp(self):
+        m, n = randint(10, 101), randint(4, 5)
         ms = randint(2, 10)
         fs = int(2 ** nextpow2(randint(1, m / ms)))
 
-        cls.x = rand(m, n)
-        cls.window = int(np.floor(ms / 1e3 * fs))
+        self.x = rand(m, n)
+        self.window = int(np.floor(ms / 1e3 * fs))
 
-        if not cls.window or cls.window < 0:
-            cls.window = abs(cls.window) + 1
+        if not self.window or self.window < 0:
+            self.window = abs(self.window) + 1
 
-    @classmethod
-    def tearDownClass(cls):
-        del cls.window, cls.x
+    def tearDown(self):
+        del self.window, self.x
 
     def test_many_threshes(self):
         thr = self.x > rand(self.x.shape[1])
