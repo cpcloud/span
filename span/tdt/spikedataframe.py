@@ -156,6 +156,8 @@ class SpikeDataFrameBase(SpikeGroupedDataFrame):
     span.tdt.spikedataframe.SpikeDataFrame
     """
 
+    __slots__ = 'meta', 'date'
+
     def __init__(self, data, meta, *args, **kwargs):
         super(SpikeDataFrameBase, self).__init__(data, *args, **kwargs)
 
@@ -208,8 +210,8 @@ class SpikeDataFrameBase(SpikeGroupedDataFrame):
         return self.meta.sort_code.unique().item()
 
     @cached_property
-    def fmt(self):
-        return self.meta.format.unique().item()
+    def dtype(self):
+        return np.dtype(self.meta.format.unique().item())
 
     @cached_property
     def tdt_type(self):
