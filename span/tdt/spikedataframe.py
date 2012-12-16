@@ -146,7 +146,7 @@ class SpikeDataFrameBase(SpikeGroupedDataFrame):
     nsamples (int) : Number of samples per channel
     chunk_size (int) : Samples per chunk
     sort_code (int) : I have no idea what the sort code is
-    fmt (dtype) : The dtype of the event
+    dtype (dtype) : The dtype of the underlying array
     tdt_type (int) : The integer corresponding to the type of event
     meta (DataFrame) : Recording metadata
     date (Timestamp) : The date of the recording
