@@ -106,6 +106,6 @@ class TestDistanceMapWithCrossCorrelation(unittest.TestCase):
 
     def test_set_index(self):
         xcc = self.xc.T.set_index(self.dm, append=True).T
-        lag0_tmp = xcc.ix[0].dropna().sortlevel(level=6)
-        lag0 = lag0_tmp.reset_index(level=range(6), drop=True)
+        lag0_tmp = xcc.ix[0].dropna().sortlevel(level=4)
+        lag0 = lag0_tmp.reset_index(level=range(5), drop=True)
         self.assertIsNotNone(lag0)

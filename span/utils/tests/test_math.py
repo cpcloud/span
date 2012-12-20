@@ -216,7 +216,7 @@ class TestDetrend(unittest.TestCase):
         s = dtx.std()
         ord_mag = int(np.floor(np.log10(n)))
         rtol = 10 ** (1 - ord_mag) + (ord_mag - 1)
-        eps = np.finfo(float).eps
+        eps = np.finfo(float).eps * 10
         assert_allclose(m, 0.0, rtol=rtol, atol=eps)
         assert_allclose(s, 1.0, rtol=rtol, atol=eps)
 

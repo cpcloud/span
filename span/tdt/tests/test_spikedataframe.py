@@ -155,9 +155,9 @@ class TestSpikeDataFrameBase(unittest.TestCase):
         sc = self.spikes.sort_code
         self.assertIsInstance(sc, numbers.Integral)
 
-    def test_fmt(self):
-        fmt = self.spikes.fmt
-        self.assertIsInstance(fmt, type)
+    def test_dtype(self):
+        dtype = self.spikes.dtype
+        self.assertIsInstance(dtype, np.dtype)
 
     def test_tdt_type(self):
         tt = self.spikes.tdt_type
