@@ -46,7 +46,7 @@ def create_stsq(size=None, typ='stream',
         samples_per_channel = randint(2 ** 6, 2 ** 7)
 
     names = ('size', 'type', 'name', 'channel', 'sort_code', 'timestamp',
-             'fp_loc', 'format', 'fs', 'shank', 'side')
+             'fp_loc', 'format', 'fs', 'shank')
     nsamples = samples_per_channel * nchannels
     index = Int64Index(np.arange(nsamples))
 
@@ -67,10 +67,9 @@ def create_stsq(size=None, typ='stream',
 
     srt = Indexer.sort('channel').reset_index(drop=True)
     shank = srt.shank[channel].reset_index(drop=True)
-    side = srt.side[channel].reset_index(drop=True)
 
-    data = [size, typ, name, channel, sort_code, timestamp, fp_loc, fmt, fs,
-            shank, side]
+    data = (size, typ, name, channel, sort_code, timestamp, fp_loc, fmt, fs,
+            shank)
 
     return DataFrame(dict(zip(names, data)))
 

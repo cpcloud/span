@@ -157,7 +157,7 @@ class ElectrodeMap(DataFrame):
         -------
         df : DataFrame
             A dataframe with pairwise distances between electrodes, indexed by
-            channel, shank, and side (if ordered).
+            channel, shank.
         """
         assert isinstance(within, numbers.Real) and within > 0, \
             '"within" must be a positive real number'

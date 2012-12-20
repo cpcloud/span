@@ -40,16 +40,12 @@ NSides = NShanks * 2
 ShankMap = pd.Series(np.outer(np.arange(NShanks),
                               np.ones(NShanks)).astype(int).ravel(),
                      name='Shank Map')
-MedLatRaw = np.array(('lat', 'med'))[np.hstack((np.zeros(NSides, int),
-                                                np.ones(NSides, int)))]
-MedialLateral = pd.Series(MedLatRaw, name='Side Map')
-Indexer = pd.DataFrame(dict(zip(('channel', 'shank', 'side'),
-                                (ElectrodeMap, ShankMap, MedialLateral))))
+Indexer = pd.DataFrame(dict(zip(('channel', 'shank'),
+                                (ElectrodeMap, ShankMap))))
 
 SortedIndexer = Indexer.sort('channel').reset_index(drop=True)
 ChannelIndex = pd.MultiIndex.from_arrays((SortedIndexer.channel,
-                                          SortedIndexer.shank,
-                                          SortedIndexer.side))
+                                          SortedIndexer.shank))
 
 EventTypes = pd.Series({
     0x0: 'unknown',
