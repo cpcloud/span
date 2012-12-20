@@ -161,9 +161,8 @@ class TdtTankAbstractBase(object):
         # create some new indices based on the electrode array
         srt = Indexer.sort('channel').reset_index(drop=True)
         shank = srt.shank[b.channel].reset_index(drop=True)
-        side = srt.side[b.channel].reset_index(drop=True)
 
-        tsq = b.join(shank).join(side)
+        tsq = b.join(shank)
 
         # convert the event_name to a number
         name = name2num(event_name)

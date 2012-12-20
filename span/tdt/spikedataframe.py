@@ -569,7 +569,4 @@ def _create_xcorr_inds(nchannels):
     lshank, rshank = srt_idx.shank[left], srt_idx.shank[right]
     lshank.name, rshank.name = 'shank i', 'shank j'
 
-    lside, rside = srt_idx.side[left], srt_idx.side[right]
-    lside.name, rside.name = 'side i', 'side j'
-
-    return MultiIndex.from_arrays((left, right, lshank, rshank, lside, rside))
+    return MultiIndex.from_arrays((left, right, lshank, rshank))
