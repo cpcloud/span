@@ -64,6 +64,27 @@ class TestElectrodeMap(unittest.TestCase):
             self.assertIsInstance(em.nchans, numbers.Integral)
 
     def test_1d_map(self):
+        b, w, nelecs = self.b, np.zeros_like(self.b), self.nelecs + 1
+        arg_sets = itools.product(b, w, nelecs)
+
+        for bb, ww, n in arg_sets:
+            a = randint(1, n + 1, size=n)
+
+            em = ElectrodeMap(a)
+            self.assertIsNotNone(em)
+
+    def test_2d_map(self):
+        nshanks = randint(2, 8)
+        b, w, nelecs = self.b, np.zeros_like(self.b), self.nelecs
+        arg_sets = itools.product(b, w, nelecs, nshanks)
+
+        for bb, ww, n, nsh in arg_sets:
+            a = randint(1, n + 1, size=(n, nsh))
+
+            em = ElectrodeMap(a)
+            self.assertIsNotNone(em)
+
+    def test_distance_map_1d(self):
         b, w, nelecs = self.b, np.zeros_like(self.b), self.nelecs
         arg_sets = itools.product(b, w, nelecs)
 
@@ -77,12 +98,6 @@ class TestElectrodeMap(unittest.TestCase):
                 self.assertIsNotNone(dm)
             else:
                 self.assertRaises(AssertionError, em.distance_map, 1, ww, bb)
-
-    def test_2d_map(self):
-        assert False
-
-    def test_distance_map_1d(self):
-        assert False
 
     def test_distance_map_2d(self):
         assert False
