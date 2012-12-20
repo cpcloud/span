@@ -1,4 +1,4 @@
-import unittest
+from unittest import TestCase
 import itertools as itools
 
 import numpy as np
@@ -15,7 +15,7 @@ from span.utils.math import (trimmean, sem, detrend_none, detrend_mean,
 from span.utils.tests.test_utils import rand_int_tuple
 
 
-class TestTrimmean(unittest.TestCase):
+class TestTrimmean(TestCase):
     @classmethod
     def setUpClass(cls):
         cls.alphas = np.r_[:100:20].tolist() + [99]
@@ -100,7 +100,7 @@ class TestTrimmean(unittest.TestCase):
                 self.assertIsInstance(m, float)
 
 
-class TestSem(unittest.TestCase):
+class TestSem(TestCase):
     @classmethod
     def setUpClass(cls):
         cls.axes, cls.ddof = (0, 1), (0, 1)
@@ -125,11 +125,29 @@ class TestSem(unittest.TestCase):
             else:
                 s = sem(x, axis, ddof)
 
+                try:
+                    dtype = s.dtype
+                except AttributeError:
+                    dtype = type(s)
+
+                self.assert_(np.issubdtype(dtype, np.floating))
+
     def test_2d(self):
         x = randn(3, 2)
 
         for axis, ddof in self.args:
             s = sem(x, axis, ddof)
+
+            try:
+                dtype = s.dtype
+            except AttributeError:
+                dtype = type(s)
+
+            sshape = list(s.shape)
+            not_xshape = list(filter(lambda a: a != x.shape[axis], x.shape))
+            self.assertListEqual(not_xshape, sshape)
+            self.assert_(np.issubdtype(dtype, np.floating))
+            self.assertIsInstance(s, np.ndarray)
 
     def test_3d(self):
         x = randn(4, 3, 2)
@@ -138,6 +156,17 @@ class TestSem(unittest.TestCase):
 
         for axis, ddof in args:
             s = sem(x, axis, ddof)
+
+            try:
+                dtype = s.dtype
+            except AttributeError:
+                dtype = type(s)
+
+            self.assert_(np.issubdtype(dtype, np.floating))
+            sshape = list(s.shape)
+            not_xshape = list(filter(lambda a: a != x.shape[axis], x.shape))
+            self.assertListEqual(not_xshape, sshape)
+            self.assertIsInstance(s, np.ndarray)
 
     def test_series(self):
         x = Series(randn(13))
@@ -148,14 +177,21 @@ class TestSem(unittest.TestCase):
                 self.assertRaises(IndexError, sem, x, axis, ddof)
             else:
                 s = sem(x, axis, ddof)
-                self.assertIsInstance(s, (float, np.float64))
+
+                try:
+                    dtype = s.dtype
+                    self.assert_(np.issubdtype(dtype, np.floating))
+                except AttributeError:
+                    dtype = type(s)
+                    self.assertIsInstance(s, (np.floating, float))
 
     def test_dataframe(self):
         x = DataFrame(randn(2, 3))
 
         for axis, ddof in self.args:
             s = sem(x, axis, ddof)
-            self.assertIsInstance(s, Series)
+            self.assert_(np.issubdtype(s.dtype, np.floating))
+            self.assertIsInstance(s, (Series, np.ndarray))
 
     def test_panel(self):
         x = Panel(randn(4, 3, 2))
@@ -175,7 +211,7 @@ def test_ndtuples():
     assert_array_equal(uk, np.arange(max(t)))
 
 
-class TestDetrend(unittest.TestCase):
+class TestDetrend(TestCase):
     def test_detrend_none(self):
         x = np.random.randn(2, 3)
         dtx = detrend_none(x)
@@ -221,7 +257,7 @@ class TestDetrend(unittest.TestCase):
         assert_allclose(s, 1.0, rtol=rtol, atol=eps)
 
 
-class TestCartesian(unittest.TestCase):
+class TestCartesian(TestCase):
     def test_cartesian(self):
         ncols = randint(2, 3)
         sizes = [randint(2, 4) for _ in xrange(ncols)]
@@ -230,7 +266,7 @@ class TestCartesian(unittest.TestCase):
         self.assertEqual(c.size, np.prod(sizes) * ncols)
 
 
-class TestNextPow2(unittest.TestCase):
+class TestNextPow2(TestCase):
     def test_nextpow2(self):
         int_max = 101
         n = randint(1, int_max)
@@ -242,7 +278,7 @@ class TestNextPow2(unittest.TestCase):
         self.assertEqual(nextpow2(0), np.iinfo(nextpow2(0).dtype).min)
 
 
-class TestFractional(unittest.TestCase):
+class TestFractional(TestCase):
     def test_fractional(self):
         m, n = 100, 1
         x = randn(n)
@@ -253,7 +289,7 @@ class TestFractional(unittest.TestCase):
         self.assertFalse(fractional(randint(1, np.iinfo(int).max)))
 
 
-class TestSamplesPerMs(unittest.TestCase):
+class TestSamplesPerMs(TestCase):
     def test_samples_per_ms(self):
         args = np.arange(10)
         fs = 24414.0625
@@ -261,7 +297,7 @@ class TestSamplesPerMs(unittest.TestCase):
         self.assertListEqual(r, list(itools.repeat(int, len(r))))
 
 
-class TestCompose2(unittest.TestCase):
+class TestCompose2(TestCase):
     def test_compose2(self):
         # fail if not both callables
         f, g = 1, 2
@@ -280,7 +316,7 @@ class TestCompose2(unittest.TestCase):
         assert_allclose(x, h(x))
 
 
-class TestCompose(unittest.TestCase):
+class TestCompose(TestCase):
     def test_compose(self):
         # fail if not both callables
         f, g, h, q = 1, 2, np.log, np.exp
