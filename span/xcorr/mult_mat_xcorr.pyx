@@ -25,7 +25,7 @@ from cython.parallel cimport prange, parallel
 
 cimport cython
 
-ctypedef fused floating:
+ctypedef fused cflt:
     f4
     f8
 
@@ -35,8 +35,8 @@ ctypedef fused floating:
 
 @cython.wraparound(False)
 @cython.boundscheck(False)
-cdef void _mult_mat_xcorr(floating[:, :] X, floating[:, :] Xc,
-                          floating[:, :] c, ip n, ip nx) nogil:
+cdef void _mult_mat_xcorr(cflt[:, :] X, cflt[:, :] Xc, cflt[:, :] c, ip n,
+                          ip nx) nogil:
 
     cdef ip i, j, k, r
 
@@ -49,8 +49,8 @@ cdef void _mult_mat_xcorr(floating[:, :] X, floating[:, :] Xc,
 
 @cython.wraparound(False)
 @cython.boundscheck(False)
-def mult_mat_xcorr(floating[:, :] X not None, floating[:, :] Xc not None,
-                   floating[:, :] c not None, ip n, ip nx):
+def mult_mat_xcorr(cflt[:, :] X not None, cflt[:, :] Xc not None,
+                   cflt[:, :] c not None, ip n, ip nx):
     """Perform the necessary matrix-vector multiplication and fill the cross-
     correlation array. Slightly faster than pure Python.
 
