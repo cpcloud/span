@@ -25,11 +25,10 @@
 from future_builtins import map, zip
 
 import numbers
+import operator
 
-from operator import attrgetter
-
-from numpy import asanyarray, sign, repeat, arange, ones, atleast_1d
-from pandas import Series, DataFrame,  MultiIndex
+from numpy import asanyarray, repeat, arange, ones, atleast_1d
+from pandas import DataFrame,  MultiIndex
 
 from span.utils import ndtuples
 from scipy.spatial.distance import squareform, pdist
@@ -173,7 +172,7 @@ class ElectrodeMap(DataFrame):
         s = self.sort()
         cols = s.index, s.shank
 
-        values_getter = attrgetter('values')
+        values_getter = operator.attrgetter('values')
         cols = tuple(map(values_getter, cols))
         names = 'channel', 'shank'
 
@@ -190,7 +189,7 @@ class ElectrodeMap(DataFrame):
         nlevels = nnames * ninds
 
         zipped = zip(xrange(nnames), xrange(nnames, nlevels))
-        reordering = tuple(reduce(lambda x, y: x + y, zipped))
+        reordering = tuple(reduce(operator.add, zipped))
 
         s = df.stack(0)
 
