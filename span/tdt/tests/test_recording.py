@@ -76,7 +76,7 @@ class TestElectrodeMap(unittest.TestCase):
     def test_2d_map(self):
         nshanks = randint(2, 8)
         b, w, nelecs = self.b, np.zeros_like(self.b), self.nelecs
-        arg_sets = itools.product(b, w, nelecs, nshanks)
+        arg_sets = itools.product(b, w, nelecs, [nshanks])
 
         for bb, ww, n, nsh in arg_sets:
             a = randint(1, n + 1, size=(n, nsh))
