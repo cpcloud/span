@@ -1,6 +1,7 @@
-import unittest
+from unittest import TestCase
 import numbers
 import itertools as itools
+import copy
 
 import numpy as np
 from numpy.random import randint
@@ -9,13 +10,13 @@ from span.tdt import distance_map, ElectrodeMap
 from span.testing import create_spike_df
 
 
-class TestDistanceMap(unittest.TestCase):
+class TestDistanceMap(TestCase):
     def test_distance_map(self):
-        nshanks = np.r_[:9]
-        elecs = nshanks.copy()
+        nshanks = tuple(np.r_[:9])
+        elecs = copy.deepcopy(nshanks)
 
-        between = np.array([25, 50])
-        within = between.copy()
+        between = 25, 50
+        within = copy.deepcopy(between)
 
         metrics = 'wminkowski',
         ps = 1, 2, np.inf
@@ -41,7 +42,7 @@ class TestDistanceMap(unittest.TestCase):
             _tester(*arg_set)
 
 
-class TestElectrodeMap(unittest.TestCase):
+class TestElectrodeMap(TestCase):
     @classmethod
     def setUpClass(cls):
         cls.b = np.arange(0, 101, 25)
@@ -53,7 +54,7 @@ class TestElectrodeMap(unittest.TestCase):
         del cls.nelecs, cls.w, cls.b
 
     def test_nchans(self):
-        b, w, nelecs = self.b, np.zeros_like(self.b), self.nelecs
+        b, w, nelecs = self.b, self.w, self.nelecs
         arg_sets = itools.product(b, w, nelecs)
 
         for bb, ww, nelec, in arg_sets:
@@ -64,7 +65,7 @@ class TestElectrodeMap(unittest.TestCase):
             self.assertIsInstance(em.nchans, numbers.Integral)
 
     def test_1d_map(self):
-        b, w, nelecs = self.b, np.zeros_like(self.b), self.nelecs + 1
+        b, w, nelecs = self.b, self.w, self.nelecs + 1
         arg_sets = itools.product(b, w, nelecs)
 
         for bb, ww, n in arg_sets:
@@ -75,17 +76,18 @@ class TestElectrodeMap(unittest.TestCase):
 
     def test_2d_map(self):
         nshanks = randint(2, 8)
-        b, w, nelecs = self.b, np.zeros_like(self.b), self.nelecs
+        b, w, nelecs = self.b, self.w, self.nelecs
         arg_sets = itools.product(b, w, nelecs, [nshanks])
 
         for bb, ww, n, nsh in arg_sets:
             a = randint(1, n + 1, size=(n, nsh))
 
             em = ElectrodeMap(a)
+            # self.assert_()
             self.assertIsNotNone(em)
 
     def test_distance_map_1d(self):
-        b, w, nelecs = self.b, np.zeros_like(self.b), self.nelecs
+        b, w, nelecs = self.b, self.w, self.nelecs
         arg_sets = itools.product(b, w, nelecs)
 
         for bb, ww, n in arg_sets:
@@ -94,16 +96,31 @@ class TestElectrodeMap(unittest.TestCase):
             em = ElectrodeMap(a)
 
             if ww and bb:
-                dm = em.distance_map(1, ww, bb)
+                dm = em.distance_map(ww, bb)
                 self.assertIsNotNone(dm)
             else:
                 self.assertRaises(AssertionError, em.distance_map, 1, ww, bb)
 
     def test_distance_map_2d(self):
-        assert False
+        nshanks = randint(2, 8)
+        b, w, nelecs = self.b, np.zeros_like(self.b), self.nelecs
+        arg_sets = itools.product(b, w, nelecs, [nshanks])
+
+        for bb, ww, n, nsh in arg_sets:
+            a = randint(1, n + 1, size=(n, nsh))
+
+            em = ElectrodeMap(a)
+
+            if ww and bb:
+                dm = em.distance_map(ww, bb)
+                self.assertIsNotNone(dm)
+            else:
+                self.assertRaises(AssertionError, em.distance_map, ww, bb)
+
+            self.assertIsNotNone(em)
 
 
-class TestDistanceMapWithCrossCorrelation(unittest.TestCase):
+class TestDistanceMapWithCrossCorrelation(TestCase):
     @classmethod
     def setUpClass(cls):
         sp = create_spike_df()
