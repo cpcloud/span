@@ -111,8 +111,6 @@ class ElectrodeMap(DataFrame):
             s = ones(m, dtype=int)
 
         data = {'channel': map_.ravel(), 'shank': s}
-
-        print 'channel', len(data['channel']), 'shank', len(data['shank'])
         df = DataFrame(data).sort('shank').reset_index(drop=True)
         df.index = df.pop('channel')
 
