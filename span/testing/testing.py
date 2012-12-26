@@ -1,10 +1,8 @@
 import functools
-import nose
 import copy
 
 import numpy as np
-from numpy import int64, float64
-from numpy.testing import assert_allclose, assert_array_equal
+from numpy.testing import *
 from numpy.testing.decorators import slow
 
 from nose.tools import nottest
@@ -12,15 +10,19 @@ from nose import SkipTest
 
 from pandas import Series, DataFrame, Int64Index
 from pandas.util.testing import *
-_rands = copy.deepcopy(rands)
-del rands
+
+try:
+    _rands = copy.deepcopy(rands)
+    del rands
+except NameError:
+    pass
 
 from numpy.random import uniform as randrange, randint
 
 import span
 from span.tdt.spikeglobals import Indexer
 from span.tdt.tank import _reshape_spikes
-# from span.utils import cartesian
+
 
 def assert_all_dtypes(df, dtype, msg='dtypes not all the same'):
     assert all(dt == dtype for dt in df.dtypes), msg
@@ -32,7 +34,7 @@ def skip(test):
         if mock:
             return test()
 
-        raise nose.SkipTest
+        raise SkipTest
 
 
 def create_stsq(size=None, typ='stream',

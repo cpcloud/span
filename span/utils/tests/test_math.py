@@ -50,8 +50,6 @@ class TestTrimmean(TestCase):
             alpha, include, axis = arg_set
             m = trimmean(x, alpha, include, axis)
             self.assertIsInstance(m, float)
-            if isinstance(m, np.ndarray):
-                self.assertEqual(m.dtype, float)
 
     def test_2d_array(self):
         x = randn(5, 4)
@@ -79,7 +77,7 @@ class TestTrimmean(TestCase):
 
     def test_series(self):
         x = Series(randn(2))
-        axes = self.axes
+        axes = self.axes + (1,)
         arg_sets = itools.product(self.alphas, self.includes, axes)
         for arg_set in arg_sets:
             alpha, include, axis = arg_set
@@ -124,12 +122,7 @@ class TestSem(TestCase):
                 self.assertRaises(IndexError, sem, x, axis, ddof)
             else:
                 s = sem(x, axis, ddof)
-
-                try:
-                    dtype = s.dtype
-                except AttributeError:
-                    dtype = type(s)
-
+                dtype = s.dtype
                 self.assert_(np.issubdtype(dtype, np.floating))
 
     def test_2d(self):

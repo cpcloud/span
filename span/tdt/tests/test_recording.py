@@ -7,7 +7,7 @@ import numpy as np
 from numpy.random import randint
 
 from span.tdt import distance_map, ElectrodeMap
-from span.testing import create_spike_df
+from span.testing import create_spike_df, slow
 
 
 class TestDistanceMap(TestCase):
@@ -83,7 +83,7 @@ class TestElectrodeMap(TestCase):
             a = randint(1, n + 1, size=(n, nsh))
 
             em = ElectrodeMap(a)
-            # self.assert_()
+            # self.assert_(False)
             self.assertIsNotNone(em)
 
     def test_distance_map_1d(self):

@@ -129,11 +129,7 @@ class TestSpikeDataFrameBase(unittest.TestCase):
         fs = self.spikes.fs
         self.assertEqual(fs, self.meta.fs.max())
         assert_array_equal([fs] * self.meta.fs.size, self.meta.fs)
-
-        if hasattr(fs, 'dtype'):
-            self.assert_(np.issubdtype(fs.dtype, np.floating))
-        else:
-            self.assertIsInstance(fs, float)
+        self.assertIsInstance(fs, float)
 
     def test_nchans(self):
         nchans = self.spikes.nchans
@@ -294,10 +290,16 @@ class TestSpikeDataFrame(unittest.TestCase):
                                   maxlag, detrend, scale_type, level, dropna,
                                   nan_auto, lag_name)
             else:
-
                 xc = self.spikes.xcorr(binned, maxlag, detrend, scale_type,
                                        level, dropna, nan_auto, lag_name)
                 self.assertIsInstance(xc, pd.DataFrame)
+
+            self.assertRaises(ValueError, self.spikes.xcorr, binned, maxlag,
+                              detrend, scale_type, 'asdfalsdj', dropna,
+                              nan_auto, lag_name)
+            self.assertRaises(ValueError, self.spikes.xcorr, binned, maxlag,
+                              detrend, scale_type, 2342, dropna,
+                              nan_auto, lag_name)
 
 
 class TestCreateXCorrInds(unittest.TestCase):
