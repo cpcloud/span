@@ -234,17 +234,17 @@ class TdtTankBase(TdtTankAbstractBase):
     header_ext
     raw_ext
 
-    path (str) : Full path of the tank sans extensions
-    name (str) : basename of self.path
-    age (int) : The postnatal day age of the animal
-    site (int) : The site number of the recording, can be ``None``
-    datetime (datetime.datetime) : Date and time of the recording
-    time (datetime.time) : Time of the recording
-    date (datetime.date) : Date of the recording
-    fs (float) : sampling rate
-    start (Timestamp) : Start time of the recording
-    end (Timestamp) : End time of the recording
-    duration (timedelta64) : Duration of the recording
+    path (``str``) : Full path of the tank sans extensions
+    name (``str``) : basename of self.path
+    age (``int``) : The postnatal day age of the animal
+    site (``int``) : The site number of the recording, can be ``None``
+    datetime (``datetime.datetime``) : Date and time of the recording
+    time (``datetime.time``) : Time of the recording
+    date (``datetime.date``) : Date of the recording
+    fs (``float``) : sampling rate
+    start (``Timestamp``) : Start time of the recording
+    end (``Timestamp``) : End time of the recording
+    duration (``timedelta64[us]``) : Duration of the recording
     """
 
     fields = _TsqFields
@@ -272,14 +272,14 @@ class TdtTankBase(TdtTankAbstractBase):
         self.name = os.path.basename(path)
         self.age = _match_int(self.age_re, self.name)
         self.site = _match_int(self.site_re, self.name)
-        i0 = self.stsq.timestamp.index[0]
+        istart = self.stsq.timestamp.index[0]
         iend = self.stsq.timestamp.index[-1]
-        tstart = pd.datetime.fromtimestamp(self.stsq.timestamp[i0])
-        self.datetime = pd.Timestamp(tstart)
-        self.time = self.datetime.time()
-        self.date = self.datetime.date()
+        tstart = pd.datetime.fromtimestamp(self.stsq.timestamp[istart])
+        self.__datetime = pd.Timestamp(tstart)
+        self.time = self.__datetime.time()
+        self.date = self.__datetime.date()
         self.fs = self.stsq.reset_index(drop=True).fs[0]
-        self.start = self.datetime
+        self.start = self.__datetime
         tend = pd.datetime.fromtimestamp(self.stsq.timestamp[iend])
         self.end = pd.Timestamp(tend)
         self.duration = np.timedelta64(self.end - self.start)
@@ -287,12 +287,16 @@ class TdtTankBase(TdtTankAbstractBase):
     def __repr__(self):
         objr = repr(self.__class__)
         params = dict(age=self.age, name=self.name, site=self.site, obj=objr,
-                      fs=self.fs, datetime=self.datetime,
+                      fs=self.fs, datetime=str(self.datetime),
                       duration=self.duration / np.timedelta64(1, 'm'))
         fmt = ('{obj}\nname:     {name}\ndatetime: {datetime}\nage:      '
                'P{age}\nsite:     {site}\nfs:       {fs}\n'
                'duration: {duration:.2f} min')
         return fmt.format(**params)
+
+    @property
+    def datetime(self):
+        return self.__datetime.to_pydatetime()
 
     @cached_property
     def spikes(self):
