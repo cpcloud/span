@@ -238,6 +238,13 @@ class TdtTankBase(TdtTankAbstractBase):
     name (str) : basename of self.path
     age (int) : The postnatal day age of the animal
     site (int) : The site number of the recording, can be ``None``
+    datetime (datetime.datetime) : Date and time of the recording
+    time (datetime.time) : Time of the recording
+    date (datetime.date) : Date of the recording
+    fs (float) : sampling rate
+    start (Timestamp) : Start time of the recording
+    end (Timestamp) : End time of the recording
+    duration (timedelta64) : Duration of the recording
     """
 
     fields = _TsqFields
