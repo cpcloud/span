@@ -146,8 +146,9 @@ class ElectrodeMap(DataFrame):
         -----
         The default `metric` of ``'wminkowski'`` and the default `p` of ``2.0``
         combine to give a weighted Euclidean distance metric. The weighted
-        Minkowski distance between two points and a weight vector
-        :math:`\mathbf{x},\mathbf{y},\mathbf{w}\in\mathbb{R}^{n}` is given by
+        Minkowski distance between two points
+        :math:`\mathbf{x},\mathbf{y}\in\mathbb{R}^{n}`, and a weight vector
+        :math:`\mathbf{w}\in\mathbb{R}^{n}` is given by
 
             .. math::
                \left(\sum_{i=1}^{n}w_i\left|x_i-y_i\right|^{p}\right)^{1/p}
