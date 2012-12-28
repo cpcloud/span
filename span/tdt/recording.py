@@ -20,7 +20,10 @@
 # along with this program. If not, see <http://www.gnu.org/licenses/>.
 
 
-"""Module for meta data about the recording."""
+"""
+``recording.py`` is a module for encapsulating information about the
+electrode array(s) used in an experiment.
+"""
 
 from future_builtins import map, zip
 
@@ -42,7 +45,7 @@ def distance_map(nshanks, electrodes_per_shank, within_shank, between_shank,
     ----------
     nshanks, electrodes_per_shank : int
 
-    between_shank, within_shank : float
+    within_shank, between_shank : float
 
     metric : str or callable, optional
         The distance measure to use to compute the distance between electrodes.
@@ -88,10 +91,6 @@ class ElectrodeMap(DataFrame):
     map_ : array_like
         The electrode configuration. Can have an arbitrary integer base.
 
-    order : None or str, optional
-        If there is a topography to the are that was recorded from, indicate
-        here by "lm". Defaults to None.
-
     Attributes
     ----------
     nshanks : int
@@ -125,7 +124,7 @@ class ElectrodeMap(DataFrame):
         return self.index.unique().size
 
     def distance_map(self, within, between, metric='wminkowski', p=2.0):
-        """Create a distance map from the current electrode configuration.
+        r"""Create a distance map from the current electrode configuration.
 
         This method performs some type checking on its arguments.
 
@@ -137,10 +136,21 @@ class ElectrodeMap(DataFrame):
 
         metric : str or callable, optional
             Metric to use to calculate the distance between electrodes/shanks.
+            Defaults to a weighted Minkowski distance
 
         p : numbers.Real, optional
-            The :math:`p` of the norm to use. Defaults to 2 for weighted
+            The :math:`p` of the norm to use. Defaults to 2.0 for weighted
             Euclidean distance.
+
+        Notes
+        -----
+        The default `metric` of ``'wminkowski'`` and the default `p` of ``2.0``
+        combine to give a weighted Euclidean distance metric. The weighted
+        Minkowski distance between two points and a weight vector
+        :math:`\mathbf{x},\mathbf{y},\mathbf{w}\in\mathbb{R}^{n}` is given by
+
+            .. math:
+               \left(\sum_{i=1}^{n}w_i\left|x_i-y_i\right|^{p}\right)^{1/p}
 
         Raises
         ------
