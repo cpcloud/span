@@ -149,7 +149,7 @@ class ElectrodeMap(DataFrame):
         Minkowski distance between two points and a weight vector
         :math:`\mathbf{x},\mathbf{y},\mathbf{w}\in\mathbb{R}^{n}` is given by
 
-            .. math:
+            .. math::
                \left(\sum_{i=1}^{n}w_i\left|x_i-y_i\right|^{p}\right)^{1/p}
 
         Raises
