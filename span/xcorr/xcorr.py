@@ -23,7 +23,7 @@
 import warnings
 
 import numpy as np
-from pandas import Series, DataFrame, Int64Index
+from pandas import Series, DataFrame
 
 from span.utils import (detrend_mean, get_fft_funcs, isvector, nextpow2,
                         pad_larger)
