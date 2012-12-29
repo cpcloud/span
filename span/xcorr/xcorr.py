@@ -193,8 +193,17 @@ def _normalize(c, x, y, lags, lsize):
     assert c.ndim in (1, 2), 'invalid size of cross correlation array'
 
     if c.ndim == 1:
-        cx00 = np.sum(np.abs(x) ** 2)
-        cy00 = np.sum(np.abs(y) ** 2) if y is not None else cx00
+        ax2 = np.abs(x)
+        ax2 *= ax2
+        cx00 = np.sum(ax2)
+
+        if y is not None:
+            ay2 = np.abs(y)
+            ay2 *= ay2
+            cy00 = np.sum(ay2)
+        else:
+            cy00 = cx00
+
         cdiv = np.sqrt(cx00 * cy00)
     else:
         _, nc = c.shape
