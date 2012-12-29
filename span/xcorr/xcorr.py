@@ -195,16 +195,17 @@ def _normalize(c, x, y, lags, lsize):
     if c.ndim == 1:
         ax2 = np.abs(x)
         ax2 *= ax2
-        cx00 = np.sum(ax2)
+        d = np.sum(ax2)
 
         if y is not None:
             ay2 = np.abs(y)
             ay2 *= ay2
             cy00 = np.sum(ay2)
+            d *= cy00
         else:
-            cy00 = cx00
+            d *= d
 
-        cdiv = np.sqrt(cx00 * cy00)
+        cdiv = np.sqrt(d)
     else:
         _, nc = c.shape
         ncsqrt = int(np.sqrt(nc))
