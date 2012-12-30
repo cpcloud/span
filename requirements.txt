@@ -1,16 +1,8 @@
 -e git://github.com/cython/cython.git@d3b253b82a4693da7940f8251fb5fc175c17edfd#egg=Cython-dev
--e git://github.com/mitsuhiko/jinja2.git@21a2010bf2768bc658e09666c2135063ce004efc#egg=Jinja2-dev
 Pygments==1.5
--e git://github.com/pinard/Pymacs.git@07fddfa48fc09a90011e68f5fba72e18578e2523#egg=Pymacs-dev
--e hg+https://bitbucket.org/birkenfeld/sphinx@c9e52dbef198ec732302962c1ea84a17ebaeaf6a#egg=Sphinx-dev
 distribute==0.6.32
-docutils==0.10
--e git://github.com/ipython/ipython.git@b84547f27c8cdd0f10508566c351dd74882ae829#egg=ipython-dev
--e git://github.com/llvmpy/llvmpy.git@5da98dac495df40e2712726b03564afeb10e99d1#egg=llvmpy-dev
 matplotlib==1.3.x
--e git://github.com/numba/Meta.git@4b114c638f123a9a5553c9dc180648d17a5c708a#egg=meta-dev
 -e git://github.com/nose-devs/nose.git@e879960507d51a4510a0900c784676951fc9581b#egg=nose-dev
--e git://github.com/numba/numba.git@85de5e72d6369c5ca03cf853d41aa2b03881c123#egg=numba-dev
 -e hg+https://code.google.com/p/numexpr@c367bb045a2e7d9fa26fcc75334d7adf301ed694#egg=numexpr-dev
 -e git://github.com/numpy/numpy.git@4a3c3478ececa99d0382ca9a8d9d134d4bdd256d#egg=numpy-dev
 numpydoc==0.4
@@ -18,12 +10,7 @@ numpydoc==0.4
 pexpect==2.4
 -e bzr+http://bazaar.launchpad.net/~dateutil/dateutil/trunk/@130#egg=python_dateutil-2.1-py2.7-dev_r130
 pytz==2012h
--e git://github.com/zeromq/pyzmq.git@a384fe39b215ecc0a2fc4181b74139b09281c075#egg=pyzmq-dev
--e hg+https://bitbucket.org/agr/rope@61c39fea21febe1ddcdac5d7cd8feae896d824c4#egg=rope-trunk
--e hg+https://bitbucket.org/agr/ropemacs@f422ac6f72c72f0917bbf93f9edb2e96714a0723#egg=ropemacs-trunk
--e hg+https://bitbucket.org/agr/ropemode@91d0e7b0e5ae546282ddc7cab713b0dd36d03abd#egg=ropemode-trunk
 -e git://github.com/scipy/scipy.git@b69fe1860220e83bbdd52f7a0c4606c600c4ce4b#egg=scipy-dev
 -e hg+https://bitbucket.org/gutworth/six@64891e65200f9853aa64d370184de838deee249c#egg=six-dev
 -e git://github.com/PyTables/PyTables.git@66973a5d9830b483f34523296e5d1ae2b58e3e32#egg=tables-dev
--e git://github.com/facebook/tornado.git@800ebbf066173d9873907d763dec8c4fce8143ad#egg=tornado-dev
 wsgiref==0.1.2
