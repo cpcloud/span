@@ -31,7 +31,7 @@ from span.utils import (detrend_mean, get_fft_funcs, isvector, nextpow2,
 from span.xcorr._mult_mat_xcorr import mult_mat_xcorr
 
 
-def _autocorr(x, nfft):
+def autocorr(x, nfft):
     """Compute the autocorrelation of `x` using a FFT.
 
     Parameters
@@ -53,7 +53,7 @@ def _autocorr(x, nfft):
     return ifft(a, nfft)
 
 
-def _crosscorr(x, y, nfft):
+def crosscorr(x, y, nfft):
     """Compute the cross correlation of `x` and `y` using an FFT.
 
     Parameters
@@ -73,7 +73,7 @@ def _crosscorr(x, y, nfft):
     return ifft(fft(x, nfft) * fft(y, nfft).conj(), nfft)
 
 
-def _matrixcorr(x, nfft):
+def matrixcorr(x, nfft):
     """Cross-correlation of the columns of a matrix.
 
     Parameters
@@ -101,7 +101,7 @@ def _matrixcorr(x, nfft):
     return ifft(c, nfft).T
 
 
-def _unbiased(c, x, y, lags, lsize):
+def unbiased(c, x, y, lags, lsize):
     """Compute the unbiased estimate of `c`.
 
     This function returns `c` scaled by number of data points available at
@@ -138,7 +138,7 @@ def _unbiased(c, x, y, lags, lsize):
     return c / denom
 
 
-def _biased(c, x, y, lags, lsize):
+def biased(c, x, y, lags, lsize):
     """Compute the biased estimate of `c`.
 
     Parameters
@@ -146,10 +146,7 @@ def _biased(c, x, y, lags, lsize):
     c : array_like
         The cross correlation array
 
-    x : array_like
-    y : array_like
-
-    lags : array_like
+    x, y, lags : array_like, array_like, array_like
 
     lsize : int
         The size of the largest of the inputs to the cross correlation
@@ -157,13 +154,26 @@ def _biased(c, x, y, lags, lsize):
 
     Returns
     -------
-    c : array_like
+    csc : array_like
         The biased estimate of the cross correlation.
+
+    Notes
+    -----
+    Conceptually, when you choose this scaling procedure you are
+    ignoring the fact that there is a different amount of data at
+    different lags, thus this procedure is called biased. Only the lag
+    0 cross/auto-correlation is a **true** estimate of the actual
+    cross/auto-correlation function.
+
+    See Also
+    --------
+    span.xcorr.xcorr.unbiased
+    span.xcorr.xcorr.normalize
     """
     return c / lsize
 
 
-def _normalize(c, x, y, lags, lsize):
+def normalize(c, x, y, lags, lsize):
     """Normalize `c` by the lag 0 cross correlation
 
     Parameters
@@ -189,6 +199,7 @@ def _normalize(c, x, y, lags, lsize):
     -------
     c : array_like
         The normalized cross correlation.
+
     """
     assert c.ndim in (1, 2), 'invalid size of cross correlation array'
 
@@ -225,17 +236,18 @@ def _normalize(c, x, y, lags, lsize):
     return c / cdiv
 
 
-def _none(c, x, y, lags, lsize):
+def none(c, x, y, lags, lsize):
     return c
 
 
 _SCALE_FUNCTIONS = {
-    None: _none,
-    'none': _none,
-    'unbiased': _unbiased,
-    'biased': _biased,
-    'normalize': _normalize
+    None: none,
+    'none': none,
+    'unbiased': unbiased,
+    'biased': biased,
+    'normalize': normalize
 }
+
 
 _SCALE_KEYS = tuple(_SCALE_FUNCTIONS.keys())
 
@@ -306,18 +318,19 @@ def xcorr(x, y=None, maxlags=None, detrend=detrend_mean,
         assert y is None, 'y argument not allowed when x is a 2D array'
         lsize = x.shape[0]
         inputs = x,
-        corrfunc = _matrixcorr
+        corrfunc = matrixcorr
     elif y is None or y is x or np.array_equal(x, y):
         assert isvector(x), 'x must be 1D'
         lsize = max(x.shape)
         inputs = x,
-        corrfunc = _autocorr
+        corrfunc = autocorr
     else:
         x, y, lsize = pad_larger(x, detrend(y))
         inputs = x, y
-        corrfunc = _crosscorr
+        corrfunc = crosscorr
 
-    ctmp = corrfunc(*inputs, nfft=2 ** nextpow2(2 * lsize - 1))
+    nfft = 2 ** nextpow2(2 * lsize - 1)
+    ctmp = corrfunc(*inputs, nfft=nfft)
 
     if maxlags is None:
         maxlags = lsize
