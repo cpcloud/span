@@ -24,7 +24,6 @@ from future_builtins import zip, map
 
 import os
 import glob
-import warnings
 
 try:
     import numpy as np
@@ -52,10 +51,11 @@ names = 'clear_refrac', 'bin_data', 'mult_mat_xcorr', 'read_tev'
 mod_pkgs = 'span.utils', 'span.utils', 'span.xcorr', 'span.tdt'
 
 # prefix for *.so files
-prefix = '_'
+underscore = '_'
 
 # name of python module as if one was going to import it
-base_names = tuple(map(lambda x, y: os.extsep.join((x, prefix + y)), mod_pkgs, names))
+base_names = tuple(map(lambda x, y: os.extsep.join((x, underscore + y)), mod_pkgs,
+                       names))
 
 # directory of the modules/files
 dirs = map(lambda x: x.replace(os.extsep, os.sep), mod_pkgs)
@@ -64,7 +64,7 @@ ext_modules = []
 
 
 for d, base_name in zip(dirs, base_names):
-    pyx_file_base = base_name.split(os.extsep)[-1].lstrip(prefix)
+    pyx_file_base = base_name.split(os.extsep)[-1].lstrip(underscore)
     pyx_file = os.path.join(d, pyx_file_base + os.extsep + 'pyx')
 
     ext_modules.append(Extension(base_name, [pyx_file],
@@ -77,19 +77,10 @@ for d, base_name in zip(dirs, base_names):
 if __name__ == '__main__':
     readme_filename = glob.glob('README*')
 
-    nr = len(readme_filename)
-
-    if nr > 1 or not nr:
-        if nr > 1:
-            msg = 'More than one README* file found, '\
-                  'using first. Found {0}'.format(readme_filename)
-            readme_filename = readme_filename[0]
-        else:
-            msg = 'No README* file(s) found, leaving blank'
-            readme_filename = ''
-
-        warnings.warn(msg)
-
+    if readme_filename:
+        readme_filename = readme_filename[0]
+    else:
+        readme_filename = ''
 
     if readme_filename:
         with open(readme_filename, 'r') as f:
