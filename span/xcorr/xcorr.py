@@ -160,7 +160,7 @@ def biased(c, x, y, lags, lsize):
     Notes
     -----
     Conceptually, when you choose this scaling procedure you are
-    ignoring the fact that there is a different amount of data at
+    ignoring the fact that there is a different amount of data at each of the
     different lags, thus this procedure is called biased. Only the lag
     0 cross/auto-correlation is a **true** estimate of the actual
     cross/auto-correlation function.
