@@ -156,8 +156,6 @@ class TestParseElectrodeConfig(unittest.TestCase):
         shanks = (np.arange(nelectrodes) + 1).reshape(electrodes_per_shank,
                                                       nshanks)
 
-        print shanks
-
         shanks_dict = {}
 
         for i, shank in enumerate(shanks):
@@ -175,10 +173,5 @@ class TestParseElectrodeConfig(unittest.TestCase):
             c.write(f)
 
         ecfg = parse_electrode_config(filename)
-
-        print
-        print ecfg.shanks
-
-        assert False
 
         os.remove(filename)
