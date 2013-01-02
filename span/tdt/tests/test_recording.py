@@ -173,5 +173,6 @@ class TestParseElectrodeConfig(unittest.TestCase):
             c.write(f)
 
         ecfg = parse_electrode_config(filename)
+        self.assertIsNotNone(ecfg)
 
         os.remove(filename)
