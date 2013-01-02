@@ -79,7 +79,7 @@ class TestPandasTank(unittest.TestCase):
                  'duration')
         typs = (numbers.Real, basestring, numbers.Integral,
                 numbers.Integral, datetime.date, datetime.time,
-                pd.tslib.Timestamp, np.timedelta64)
+                pd.datetime, np.timedelta64)
 
         for name, typ in zip(names, typs):
             self.assert_(hasattr(self.tank, name))
