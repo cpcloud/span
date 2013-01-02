@@ -83,7 +83,8 @@ class TestTrimmean(TestCase):
             alpha, include, axis = arg_set
             print alpha, include, axis
             if axis == 1:
-                self.assertRaises(TypeError, trimmean, x, alpha, include, axis)
+                self.assertRaises(AssertionError, trimmean, x, alpha, include,
+                                  axis)
 
     def test_dataframe(self):
         x = DataFrame(randn(3, 2))
