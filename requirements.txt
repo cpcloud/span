@@ -1,11 +1,5 @@
--e git://github.com/cython/cython.git@d3b253b82a4693da7940f8251fb5fc175c17edfd#egg=Cython-dev
-Pygments==1.5
-distribute==0.6.32
+-e git://github.com/cython/cython.git#egg=Cython-dev
 -e git://github.com/matplotlib/matplotlib.git#egg=matplotlib-dev
--e git://github.com/nose-devs/nose.git@e879960507d51a4510a0900c784676951fc9581b#egg=nose-dev
--e hg+https://code.google.com/p/numexpr@c367bb045a2e7d9fa26fcc75334d7adf301ed694#egg=numexpr-dev
--e git://github.com/numpy/numpy.git@4a3c3478ececa99d0382ca9a8d9d134d4bdd256d#egg=numpy-dev
--e git://github.com/pydata/pandas.git@dcd9df7b985d261d2ad6dd23879d61553aa92461#egg=pandas-dev
--e git://github.com/scipy/scipy.git@b69fe1860220e83bbdd52f7a0c4606c600c4ce4b#egg=scipy-dev
--e git://github.com/PyTables/PyTables.git@66973a5d9830b483f34523296e5d1ae2b58e3e32#egg=tables-dev
-wsgiref==0.1.2
+-e git://github.com/numpy/numpy.git#egg=numpy-dev
+-e git://github.com/pydata/pandas.git#egg=pandas-dev
+-e git://github.com/scipy/scipy.git#egg=scipy-dev
