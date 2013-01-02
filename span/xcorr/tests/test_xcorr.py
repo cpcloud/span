@@ -30,8 +30,8 @@ class TestXCorr(unittest.TestCase):
         rng = xrange(n)
 
         detrends = detrend_mean, detrend_none, detrend_linear
-        scale_types = 'normalize', 'none', 'unbiased', 'biased', None
-        maxlags = 10, None, 1000
+        scale_types = 'normalize', None, 'unbiased', 'biased', 'none'
+        maxlags = None, 2, 20
 
         args = cartprod(maxlags, detrends, scale_types)
 
@@ -117,8 +117,8 @@ class TestXCorr(unittest.TestCase):
     def test_numpy_matrix_input(self):
         x = randn(10, 15)
         detrends = detrend_mean, detrend_none, detrend_linear
-        scale_types = 'normalize', 'none', 'unbiased', 'biased', None
-        maxlags = 10, None, 1000000
+        scale_types = 'normalize', None, 'unbiased', 'biased', 'none'
+        maxlags = 8, None, 100
 
         args = cartprod(maxlags, detrends, scale_types)
 

@@ -84,7 +84,29 @@ def distance_map(nshanks, electrodes_per_shank, within_shank, between_shank,
     return squareform(pdist(locs, metric=metric, p=p, w=w))
 
 
-class ElectrodeMap(object):
+class ElectrodeMap1D(Series):
+    """
+    """
+    def __init__(self, *args, **kwargs):
+        super(ElectrodeMap1D, self).__init__(*args, **kwargs)
+
+    @property
+    def _constructor(self):
+        return ElectrodeMap1D
+
+    @property
+    def nshanks(self):
+        return 1
+
+    @property
+    def nchans(self):
+        return self.size
+
+    def distance_map(self, within, between=0, metric='wminkowski', p=2.0):
+        pass
+
+
+class ElectrodeMap2D(DataFrame):
     """Encapsulate the geometry of the electrode map used in a recording.
 
     Parameters
@@ -176,37 +198,37 @@ class ElectrodeMap(object):
 
         dm = distance_map(self.nshanks, self.nshanks, within, between,
                           metric=metric, p=p)
-        s = self.map.copy()
-        s.sort()
-        cols = s.index, s
+        # s = self.sort()
+        # cols = s.index, s.shank
 
-        values_getter = attrgetter('values')
-        cols = tuple(map(values_getter, cols))
-        names = 'channel', 'shank'
+        # values_getter = operator.attrgetter('values')
+        # cols = tuple(map(values_getter, cols))
+        # names = 'channel', 'shank'
 
-        def _label_maker(i, names):
-            new_names = tuple(map(lambda x: x + ' %s' % i, names))
-            return MultiIndex.from_arrays(cols, names=new_names)
+        # def _label_maker(i, names):
+        #     new_names = tuple(map(lambda x: x + ' %s' % i, names))
+        #     return MultiIndex.from_arrays(cols, names=new_names)
 
-        index = _label_maker('i', names)
-        columns = _label_maker('j', names)
-        df = DataFrame(dm, index=index, columns=columns)
+        # index = _label_maker('i', names)
+        # columns = _label_maker('j', names)
+        # df = DataFrame(dm, index=index, columns=columns)
 
-        nnames = len(names)
-        ninds = 2
-        nlevels = nnames * ninds
+        # nnames = len(names)
+        # ninds = len(index)
+        # nlevels = nnames * ninds
 
-        zipped = zip(xrange(nnames), xrange(nnames, nlevels))
-        reordering = tuple(reduce(lambda x, y: x + y, zipped))
+        # zipped = zip(xrange(nnames), xrange(nnames, nlevels))
+        # reordering = tuple(reduce(operator.add, zipped))
 
-        s = df.stack(0)
+        # s = df.stack(0)
 
-        for _ in xrange(nnames - 1):
-            s = s.stack(0)
+        # for _ in xrange(nnames - 1):
+        #     s = s.stack(0)
 
-        s.name = r'$d\left(i, j\right)$'
+        # s.name = r'$d\left(i, j\right)$'
 
-        return s.reorder_levels(reordering)
+        # return s.reorder_levels(reordering)
+        return dm
 
     def __repr__(self):
         return repr(self.map)
