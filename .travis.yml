@@ -2,14 +2,12 @@ language: python
 python:
   - 2.7
 
-# install: "pip install -r requirements.txt --use-mirrors"
+install: "pip install -r requirements.txt --use-mirrors"
 script: nosetests --with-coverage --cover-package=span --cover-branches --cover-tests
 
-# before_
-install:
+before_install:
   - sudo apt-get update -qq
-  # - sudo apt-get install gfortran libblas-dev liblapack-dev libatlas-dev libsuitesparse-dev swig
-  - sudo apt-get install python-pandas
+  - sudo apt-get install python-scipy python-matplotlib cython python-pytz python-dateutil python-six python-tables
 
 virtualenv:
   system_site_packages: true
