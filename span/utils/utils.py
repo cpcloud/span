@@ -38,25 +38,6 @@ from pandas import DataFrame, datetime, MultiIndex
 
 fromtimestamp = np.vectorize(datetime.fromtimestamp)
 
-try:
-    from pylab import gca
-
-    def remove_legend(ax=None):
-        """Remove legend for ax or the current axes if ax is None.
-
-        Parameters
-        ----------
-        ax : matplotlib.axes.Axes
-            Axis whose legend will be hidden
-        """
-        if ax is None:
-            ax = gca() # pragma: no cover
-        ax.legend_ = None
-
-except RuntimeError:  # pragma: no cover
-    def remove_legend(ax=None):
-        raise NotImplementedError('matplotlib not available on this system')
-
 
 def cast(a, dtype, copy=False):
     """Cast `a` to dtype `dtype`.

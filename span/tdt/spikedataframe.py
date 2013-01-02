@@ -46,11 +46,6 @@ from span.utils.decorate import cached_property
 from span.utils import (sem, cast, samples_per_ms, bin_data, clear_refrac,
                         ndtuples)
 
-try:
-    from pylab import subplots
-except RuntimeError:  # pragma: no cover
-    subplots = NotImplemented
-
 
 class _ChannelGetter(object):
     def __init__(self, obj):

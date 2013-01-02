@@ -10,35 +10,12 @@ from numpy.random import randint, rand, randn
 
 from pandas import Series, DataFrame, Panel, MultiIndex, Index
 
-try:
-    from pylab import gca
-
-    class TestRemoveLegend(unittest.TestCase):
-        def test_remove_legend_arg(self):
-            ax = gca()
-            remove_legend(ax)
-            self.assertIsNone(ax.legend_)
-
-        def test_remove_legend_noarg(self):
-            remove_legend()
-            ax = gca()
-            self.assertIsNone(ax.legend_)
-
-except RuntimeError:  # pragma: no cover
-    class TestRemoveLegend(unittest.TestCase):
-        def test_remove_legend_arg(self):
-            assert False
-
-        def test_remove_legend_noarg(self):
-            assert False
-
-
-from span.utils import (nextpow2, compose, nans, nans_like, name2num,
+from span.utils import (nextpow2, nans, nans_like, name2num,
                         pad_larger, pad_larger2, isvector, iscomplex,
                         hascomplex, get_fft_funcs, cast, ndtuples,
                         nonzero_existing_file, assert_nonzero_existing_file,
-                        mi2df, remove_legend)
-from span.testing import slow, assert_allclose, assert_array_equal, rands
+                        mi2df)
+from span.testing import assert_allclose, assert_array_equal, rands
 
 
 def rand_array_delegate(func, n, ndims):
