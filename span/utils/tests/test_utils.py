@@ -15,6 +15,7 @@ from span.utils import (nextpow2, nans, nans_like, name2num,
                         hascomplex, get_fft_funcs, cast, ndtuples,
                         nonzero_existing_file, assert_nonzero_existing_file,
                         mi2df)
+
 from span.testing import assert_allclose, assert_array_equal, rands
 
 
