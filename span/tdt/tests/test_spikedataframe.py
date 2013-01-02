@@ -1,7 +1,6 @@
 import unittest
 import numbers
 import itertools as itools
-import random
 
 import numpy as np
 from numpy.random import randn, rand, randint
@@ -13,7 +12,7 @@ from pandas.util.testing import assert_frame_equal
 
 
 from span.tdt.spikedataframe import (SpikeDataFrame, SpikeGroupedDataFrame,
-                                     SpikeGrouper)
+                                     SpikeGrouper, _create_xcorr_inds)
 from span.utils import detrend_none, detrend_mean, detrend_linear
 from span.testing import assert_all_dtypes, create_spike_df, assert_array_equal
 
@@ -304,4 +303,10 @@ class TestSpikeDataFrame(unittest.TestCase):
 
 class TestCreateXCorrInds(unittest.TestCase):
     def test_create_xcorr_inds(self):
-        assert False
+        nchannels = xrange(2, 33, 2)
+        names = 'channel i', 'channel j', 'shank i', 'shank j'
+        for nchannel in nchannels:
+            inds = _create_xcorr_inds(nchannel)
+            self.assertIsInstance(inds, pd.MultiIndex)
+            self.assertEqual(tuple(inds.names), names)
+            self.assertEqual(len(inds), nchannel ** 2)
