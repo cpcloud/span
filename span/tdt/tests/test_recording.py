@@ -7,7 +7,7 @@ import numpy as np
 from numpy.random import randint
 
 from span.tdt import distance_map, ElectrodeMap
-from span.testing import create_spike_df, slow
+from span.testing import create_spike_df
 
 
 class TestDistanceMap(TestCase):
@@ -45,7 +45,7 @@ class TestDistanceMap(TestCase):
 class TestElectrodeMap(TestCase):
     @classmethod
     def setUpClass(cls):
-        cls.b = np.arange(0, 101, 25)
+        cls.b = np.arange(1, 101, 25)
         cls.w = cls.b.copy()
         cls.nelecs = np.arange(64) + 1
 
@@ -65,25 +65,20 @@ class TestElectrodeMap(TestCase):
             self.assertIsInstance(em.nchans, numbers.Integral)
 
     def test_1d_map(self):
-        b, w, nelecs = self.b, self.w, self.nelecs + 1
-        arg_sets = itools.product(b, w, nelecs)
+        # 1d maps can only have either a between or a within and can
+        # only have a single shank
 
-        for bb, ww, n in arg_sets:
+        for n in self.nelecs:
             a = randint(1, n + 1, size=n)
 
             em = ElectrodeMap(a)
             self.assertIsNotNone(em)
 
     def test_2d_map(self):
-        nshanks = randint(2, 8)
-        b, w, nelecs = self.b, self.w, self.nelecs
-        arg_sets = itools.product(b, w, nelecs, [nshanks])
-
-        for bb, ww, n, nsh in arg_sets:
-            a = randint(1, n + 1, size=(n, nsh))
-
+        nshanks = xrange(2, 9)
+        for nelec, nshank in itools.product(self.nelecs + 1, nshanks):
+            a = randint(1, nelec + 1, size=(nelec, nshank))
             em = ElectrodeMap(a)
-            # self.assert_(False)
             self.assertIsNotNone(em)
 
     def test_distance_map_1d(self):
@@ -95,11 +90,11 @@ class TestElectrodeMap(TestCase):
 
             em = ElectrodeMap(a)
 
-            if ww and bb:
+            if ww and bb and em.values.size > 1:
                 dm = em.distance_map(ww, bb)
                 self.assertIsNotNone(dm)
             else:
-                self.assertRaises(AssertionError, em.distance_map, 1, ww, bb)
+                self.assertRaises(ValueError, em.distance_map, ww, bb)
 
     def test_distance_map_2d(self):
         nshanks = randint(2, 8)
