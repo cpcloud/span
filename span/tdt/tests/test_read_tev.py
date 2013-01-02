@@ -23,7 +23,6 @@ class TestReadTev(unittest.TestCase):
         del self.names, self.tank, self.path
 
     def test_read_tev(self):
-
         for name in self.names:
             tsq, _ = self.tank.tsq(name)
             fp_locs = tsq.fp_loc
