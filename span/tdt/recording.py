@@ -30,7 +30,7 @@ from future_builtins import map, zip
 import numbers
 import operator
 
-from numpy import asanyarray, repeat, arange, ones, atleast_1d
+import numpy as np
 from pandas import DataFrame,  MultiIndex
 
 from span.utils import ndtuples
@@ -78,7 +78,11 @@ def distance_map(nshanks, electrodes_per_shank, within_shank, between_shank,
         '"p" must be a positive real number'
 
     locs = ndtuples(electrodes_per_shank, nshanks)
-    w = asanyarray((between_shank, within_shank), dtype=float)
+
+    if locs.ndim == 1:
+        locs = locs[:, np.newaxis]
+
+    w = np.asanyarray((between_shank, within_shank), dtype=float)
 
     return squareform(pdist(locs, metric=metric, p=p, w=w))
 
@@ -100,14 +104,14 @@ class ElectrodeMap(DataFrame):
         Number of channels.
     """
     def __init__(self, map_):
-        map_ = atleast_1d(asanyarray(map_).squeeze())
+        map_ = np.atleast_1d(np.asanyarray(map_).squeeze())
 
         try:
             m, n = map_.shape
-            s = repeat(arange(n), m)
+            s = np.repeat(np.arange(n), m)
         except ValueError:
             m, = map_.shape
-            s = ones(m, dtype=int)
+            s = np.ones(m, dtype=int)
 
         data = {'channel': map_.ravel(), 'shank': s}
         df = DataFrame(data).sort('shank').reset_index(drop=True)
@@ -194,7 +198,7 @@ class ElectrodeMap(DataFrame):
         df = DataFrame(dm, index=index, columns=columns)
 
         nnames = len(names)
-        ninds = 2
+        ninds = len(index)
         nlevels = nnames * ninds
 
         zipped = zip(xrange(nnames), xrange(nnames, nlevels))
