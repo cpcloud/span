@@ -81,7 +81,7 @@ class TestTrimmean(TestCase):
         arg_sets = itools.product(self.alphas, self.includes, axes)
         for arg_set in arg_sets:
             alpha, include, axis = arg_set
-            print alpha, include, axis
+
             if axis == 1:
                 self.assertRaises(AssertionError, trimmean, x, alpha, include,
                                   axis)
@@ -226,7 +226,6 @@ class TestDetrend(TestCase):
         eps = np.finfo(float).eps
         assert_allclose(m.values.squeeze(), np.zeros(m.shape),
                         atol=eps)
-        print m.values.squeeze().size
 
     def test_detrend_linear(self):
         n = 100
