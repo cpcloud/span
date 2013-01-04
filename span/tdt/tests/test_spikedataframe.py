@@ -15,6 +15,7 @@ from span.tdt.spikedataframe import (SpikeDataFrame, SpikeGroupedDataFrame,
                                      SpikeGrouper, _create_xcorr_inds)
 from span.utils import detrend_none, detrend_mean, detrend_linear
 from span.testing import assert_all_dtypes, create_spike_df, assert_array_equal
+from span.testing import skip
 
 
 class Test_SpikeGrouper(unittest.TestCase):
@@ -236,7 +237,6 @@ class TestSpikeDataFrame(unittest.TestCase):
                 if axis:
                     if sem:
                         mfr, sm = sp.fr(binned, t, axis, sem)
-                        print binned
                         self.assertTupleEqual(mfr.shape, sm.shape)
                     else:
                         mfr = sp.fr(binned, t, axis, sem)
@@ -264,6 +264,7 @@ class TestSpikeDataFrame(unittest.TestCase):
         self.assertIsInstance(s_new, SpikeDataFrame)
         self.assertIsInstance(s, type(s_new))
 
+    @skip
     @slow
     def test_xcorr(self):
         thr = self.spikes.threshold(3.0 * self.spikes.std())
@@ -293,11 +294,11 @@ class TestSpikeDataFrame(unittest.TestCase):
                                        level, dropna, nan_auto, lag_name)
                 self.assertIsInstance(xc, pd.DataFrame)
 
-            self.assertRaises(ValueError, self.spikes.xcorr, binned, maxlag,
-                              detrend, scale_type, 'asdfalsdj', dropna,
+            self.assertRaises(AssertionError, self.spikes.xcorr, binned,
+                              maxlag, detrend, scale_type, 'asdfalsdj', dropna,
                               nan_auto, lag_name)
-            self.assertRaises(ValueError, self.spikes.xcorr, binned, maxlag,
-                              detrend, scale_type, 2342, dropna,
+            self.assertRaises(AssertionError, self.spikes.xcorr, binned,
+                              maxlag, detrend, scale_type, 2342, dropna,
                               nan_auto, lag_name)
 
 
