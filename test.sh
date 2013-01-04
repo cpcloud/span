@@ -1,11 +1,11 @@
 #!/bin/bash
 
-nosetests -w span --with-coverage \
+nosetests -w span --ignore='make_feature_file.py' --ignore='.*flymake.*' \
+    --detailed-errors \
+    --nocapture \
+    --with-coverage \
+    --cover-package=span \
     --cover-tests \
     --cover-erase \
-    --cover-package=span \
     --cover-inclusive \
-    --cover-branches \
-    --ignore=make_feature_file.py \
-    --ignore='.*flymake.*' \
-    --detailed-errors
+    --cover-branches
