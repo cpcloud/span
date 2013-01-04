@@ -49,22 +49,5 @@ cdef void _mult_mat_xcorr(cflt[:, :] X, cflt[:, :] Xc, cflt[:, :] c, ip n,
 
 @cython.wraparound(False)
 @cython.boundscheck(False)
-def mult_mat_xcorr(cflt[:, :] X not None, cflt[:, :] Xc not None,
-                   cflt[:, :] c not None, ip n, ip nx):
-    """Perform the necessary matrix-vector multiplication and fill the cross-
-    correlation array. Slightly faster than pure Python.
-
-    Parameters
-    ----------
-    X, Xc, c : c16[:, :]
-    n, nx : ip
-
-    Raises
-    ------
-    AssertionError
-       If n <= 0 or nx <= 0
-    """
-    assert n > 0, 'n must be greater than 0'
-    assert nx > 0, 'nx must be greater than 0'
-
+cpdef mult_mat_xcorr(cflt[:, :] X, cflt[:, :] Xc, cflt[:, :] c, ip n, ip nx):
     _mult_mat_xcorr(X, Xc, c, n, nx)
