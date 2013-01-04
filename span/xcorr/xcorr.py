@@ -19,16 +19,34 @@
 # You should have received a copy of the GNU General Public License
 # along with this program. If not, see <http://www.gnu.org/licenses/>.
 
+import numpy as np
+from pandas import Series, DataFrame
+from span.utils import (detrend_mean, get_fft_funcs, isvector, nextpow2,
+                        pad_larger)
+from span.xcorr._mult_mat_xcorr import mult_mat_xcorr as _mult_mat_xcorr
 
 import warnings
 
-import numpy as np
-from pandas import Series, DataFrame
 
-from span.utils import (detrend_mean, get_fft_funcs, isvector, nextpow2,
-                        pad_larger)
+def mult_mat_xcorr(X, Xc, c, n, nx):
+    """Perform the necessary matrix-vector multiplication and fill the cross-
+    correlation array. Slightly faster than pure Python.
 
-from span.xcorr._mult_mat_xcorr import mult_mat_xcorr
+    Parameters
+    ----------
+    X, Xc, c : c16[:, :]
+    n, nx : ip
+
+    Raises
+    ------
+    AssertionError
+       If n <= 0 or nx <= 0
+    """
+    assert X is not None, '1st argument "X" must not be None'
+    assert Xc is not None, '2nd argument "Xc" must not be None'
+    assert c is not None, '3rd argument "c" must not be None'
+    n, nx = X.shape
+    _mult_mat_xcorr(X, Xc, c, n, nx)
 
 
 def autocorr(x, nfft):
