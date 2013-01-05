@@ -1,5 +1,5 @@
 import time
-import unittest
+from unittest import TestCase
 
 from numpy.random import rand
 from numpy.testing import assert_allclose
@@ -8,7 +8,11 @@ from span.utils.decorate import cached_property, thunkify
 from span.testing import slow
 
 
-class TestCachedProperty(unittest.TestCase):
+class ThunkifyException(Exception):
+    pass
+
+
+class TestCachedProperty(TestCase):
     def test_cached_property(self):
         class CachedPropertyClass(object):
             def __init__(self, a, b):
@@ -30,7 +34,7 @@ class TestCachedProperty(unittest.TestCase):
         self.assertEqual(cpc.d, c)
 
 
-class TestThunkify(unittest.TestCase):
+class TestThunkify(TestCase):
     @slow
     def test_thunkify(self):
         @thunkify
@@ -65,7 +69,7 @@ class TestThunkify(unittest.TestCase):
 
         @thunkify
         def exception_thrower():
-            raise Exception('thunkify exception')
+            raise ThunkifyException('thunkify exception')
 
         self.assertRaises(TypeError, type_error_thrower())
         self.assertRaises(Exception, exception_thrower())
