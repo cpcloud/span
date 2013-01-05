@@ -50,8 +50,8 @@ ctypedef fused integer:
 
 @cython.boundscheck(False)
 @cython.wraparound(False)
-cdef void _read_tev(char* filename, integer nsamples, integer[:] fp_locs,
-                    floating[:, :] spikes):
+cdef void __read_tev(char* filename, integer nsamples, integer[:] fp_locs,
+                     floating[:, :] spikes) nogil:
     cdef:
         ip i, j
         ip n = fp_locs.shape[0]
@@ -62,7 +62,7 @@ cdef void _read_tev(char* filename, integer nsamples, integer[:] fp_locs,
 
         FILE* f = NULL
 
-    with nogil, parallel():
+    with parallel():
         chunk = <floating*> malloc(f_bytes * nsamples)
 
         if not chunk:
@@ -99,24 +99,6 @@ cdef void _read_tev(char* filename, integer nsamples, integer[:] fp_locs,
 
 @cython.wraparound(False)
 @cython.boundscheck(False)
-def read_tev(char* filename, ip nsamples, integer[:] fp_locs not None,
-             floating[:, :] spikes not None):
-    """Read a TDT tev file in. Slightly faster than the pure Python version.
-
-    Parameters
-    ----------
-    filename : char *
-        Name of the TDT file to load.
-
-    nsamples : i8
-        The number of samples per chunk of data.
-
-    fp_locs : i8[:]
-        The array of locations of each chunk in the TEV file.
-
-    spikes : floating[:, :]
-        Output array
-    """
-    assert filename, 'filename (1st argument) cannot be empty'
-    assert nsamples > 0, '"nsamples" must be greater than 0'
-    _read_tev(filename, nsamples, fp_locs, spikes)
+cpdef _read_tev(char* filename, ip nsamples, integer[:] fp_locs,
+                floating[:, :] spikes):
+    __read_tev(filename, nsamples, fp_locs, spikes)
