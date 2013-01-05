@@ -43,15 +43,13 @@ class TestDistanceMap(TestCase):
 
 
 class TestElectrodeMap(TestCase):
-    @classmethod
-    def setUpClass(cls):
-        cls.b = np.arange(1, 101, 25)
-        cls.w = cls.b.copy()
-        cls.nelecs = np.arange(64) + 1
+    def setUp(self):
+        self.b = np.arange(1, 101, 25)
+        self.w = self.b.copy()
+        self.nelecs = np.arange(64) + 1
 
-    @classmethod
-    def tearDownClass(cls):
-        del cls.nelecs, cls.w, cls.b
+    def tearDown(self):
+        del self.nelecs, self.w, self.b
 
     def test_nchans(self):
         b, w, nelecs = self.b, self.w, self.nelecs
@@ -65,12 +63,8 @@ class TestElectrodeMap(TestCase):
             self.assertIsInstance(em.nchans, numbers.Integral)
 
     def test_1d_map(self):
-        # 1d maps can only have either a between or a within and can
-        # only have a single shank
-
         for n in self.nelecs:
             a = randint(1, n + 1, size=n)
-
             em = ElectrodeMap(a)
             self.assertIsNotNone(em)
 
@@ -87,7 +81,6 @@ class TestElectrodeMap(TestCase):
 
         for bb, ww, n in arg_sets:
             a = randint(1, n + 1, size=n)
-
             em = ElectrodeMap(a)
 
             if ww and bb and em.values.size > 1:
@@ -116,20 +109,19 @@ class TestElectrodeMap(TestCase):
 
 
 class TestDistanceMapWithCrossCorrelation(TestCase):
-    @classmethod
-    def setUpClass(cls):
+    def setUp(self):
         sp = create_spike_df()
         thr = sp.threshold(4 * sp.std())
         clr = sp.clear_refrac(thr)
         binned = sp.bin(clr, binsize=10)
-        cls.xc = sp.xcorr(binned, maxlags=10)
+        self.xc = sp.xcorr(binned, maxlags=10)
 
         rawmap = np.array([1, 3, 2, 6,
                            7, 4, 8, 5,
                            13, 10, 12, 9,
                            14, 16, 11, 15]).reshape(4, 4)
-        cls.elecmap = ElectrodeMap(rawmap)
-        cls.dm = cls.elecmap.distance_map(50, 125)
+        self.elecmap = ElectrodeMap(rawmap)
+        self.dm = self.elecmap.distance_map(50, 125)
 
     def test_set_index(self):
         xcc = self.xc.T.set_index(self.dm, append=True).T
