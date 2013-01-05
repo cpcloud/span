@@ -35,6 +35,9 @@ import pandas as pd
 
 from pandas import DataFrame, datetime, MultiIndex
 
+from span.utils._bin_data import _bin_data as _bin_data_impl
+from span.utils._clear_refrac import _clear_refrac as _clear_refrac_impl
+
 
 fromtimestamp = np.vectorize(datetime.fromtimestamp)
 
@@ -391,3 +394,45 @@ def nonzero_existing_file(f):
 def assert_nonzero_existing_file(f):
     assert nonzero_existing_file(f), ("%s does not exist or has a size of 0 "
                                       "bytes" % f)
+
+
+def bin_data(a, bins, out):
+    """Bin `a` (a boolean matrix) according to `bins`.
+
+    For the :math:`k`th channel
+        For the :math:`i`th sample
+            Sum :math:`a_{jk}` where :math:`j \in` `bins`:math:`_{i},\ldots,`
+            `bins`:math:`_{i+1}`.
+
+    Parameters
+    ----------
+    a, bins, out : array_like
+        The array whose values to count up in the bins given by `bins`. The
+        result is stored in `out`.
+    """
+    assert a is not None
+    assert bins is not None
+    assert out is not None
+    _bin_data_impl(a, bins, out)
+
+
+def clear_refrac(a, window):
+    """Clear the refractory period of a boolean array.
+
+    Parameters
+    ----------
+    a : array_like
+    window : npy_intp
+
+    Notes
+    -----
+    If ``a.dtype == np.bool_`` in Python then this function will not work
+    unless ``a.view(uint8)`` is passed.
+
+    Raises
+    ------
+    AssertionError
+        If `window` is less than or equal to 0
+    """
+    assert window > 0, '"window" must be greater than 0'
+    _clear_refrac_impl(a, window)

@@ -26,13 +26,13 @@ from cython.parallel cimport prange, parallel
 
 @cython.wraparound(False)
 @cython.boundscheck(False)
-cdef void _bin_data(u1[:, :] a, u8[:] bins, u8[:, :] out):
+cdef void __bin_data(u1[:, :] a, u8[:] bins, u8[:, :] out) nogil:
     cdef ip i, j, k, m, n
 
-    m = out.shape[0]
-    n = out.shape[1]
+    with parallel():
+        m = out.shape[0]
+        n = out.shape[1]
 
-    with nogil, parallel():
         for k in prange(n, schedule='guided'):
             for i in xrange(m):
                 out[i, k] = 0
@@ -43,18 +43,5 @@ cdef void _bin_data(u1[:, :] a, u8[:] bins, u8[:, :] out):
 
 @cython.wraparound(False)
 @cython.boundscheck(False)
-def bin_data(u1[:, :] a not None, u8[:] bins not None, u8[:, :] out not None):
-    """Bin `a` (a boolean matrix) according to `bins`.
-
-    For the :math:`k`th channel
-        For the :math:`i`th sample
-            Sum :math:`a_{jk}` where :math:`j \in` `bins`:math:`_{i},\ldots,`
-            `bins`:math:`_{i+1}`.
-
-    Parameters
-    ----------
-    a, bins, out : array_like
-        The array whose values to count up in the bins given by `bins`. The
-        result is stored in `out`.
-    """
-    _bin_data(a, bins, out)
+cpdef _bin_data(u1[:, :] a, u8[:] bins, u8[:, :] out):
+    __bin_data(a, bins, out)
