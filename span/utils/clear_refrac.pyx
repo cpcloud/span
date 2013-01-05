@@ -19,13 +19,12 @@
 
 
 cimport cython
-cimport numpy as np
 from numpy cimport uint8_t as u1, npy_intp as ip
 
 
 @cython.wraparound(False)
 @cython.boundscheck(False)
-cdef void _clear_refrac(u1[:, :] a, ip window) nogil:
+cdef void __clear_refrac(u1[:, :] a, ip window) nogil:
     cdef ip channel, i, sample, sp1, nsamples, nchannels
 
     nsamples = a.shape[0]
@@ -48,23 +47,5 @@ cdef void _clear_refrac(u1[:, :] a, ip window) nogil:
 
 @cython.wraparound(False)
 @cython.boundscheck(False)
-def clear_refrac(u1[:, :] a not None, ip window):
-    """Clear the refractory period of a boolean array.
-
-    Parameters
-    ----------
-    a : array_like
-    window : npy_intp
-
-    Notes
-    -----
-    If ``a.dtype == np.bool_`` in Python then this function will not work
-    unless ``a.view(uint8)`` is passed.
-
-    Raises
-    ------
-    AssertionError
-        If `window` is less than or equal to 0
-    """
-    assert window > 0, '"window" must be greater than 0'
-    _clear_refrac(a, window)
+cpdef _clear_refrac(u1[:, :] a, ip window):
+    __clear_refrac(a, window)
