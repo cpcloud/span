@@ -42,7 +42,7 @@ import pandas as pd
 
 from span.tdt.spikeglobals import Indexer, EventTypes, DataTypes
 from span.tdt.spikedataframe import SpikeDataFrame
-from span.tdt._read_tev import read_tev
+from span.tdt._read_tev import _read_tev as _read_tev_impl
 
 from span.utils import (name2num, thunkify, cached_property, fromtimestamp,
                         assert_nonzero_existing_file)
@@ -72,6 +72,29 @@ def _get_first_match(pattern, string):
         r = re.match(pattern, string)
 
     return r.group(1)
+
+
+def _read_tev(filename, nsamples, fp_locs, spikes):
+    """Read a TDT tev file into a numpy array. Slightly faster than
+    the pure Python version.
+
+    Parameters
+    ----------
+    filename : char *
+        Name of the TDT file to load.
+
+    nsamples : i8
+        The number of samples per chunk of data.
+
+    fp_locs : i8[:]
+        The array of locations of each chunk in the TEV file.
+
+    spikes : floating[:, :]
+        Output array
+    """
+    assert filename, 'filename (1st argument) cannot be empty'
+    assert nsamples > 0, '"nsamples" must be greater than 0'
+    _read_tev_impl(filename, nsamples, fp_locs, spikes)
 
 
 def _match_int(pattern, string, get_exc=False, excs=(AttributeError,
@@ -362,7 +385,7 @@ class PandasTank(TdtTankBase):
         tev_name = self.path + os.extsep + self.raw_ext
 
         # read in the TEV data to spikes
-        read_tev(tev_name, nsamples, meta.fp_loc, spikes)
+        _read_tev(tev_name, nsamples, meta.fp_loc, spikes)
 
         # convert timestamps to datetime objects
         meta.timestamp = fromtimestamp(meta.timestamp)
