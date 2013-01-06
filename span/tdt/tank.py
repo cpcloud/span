@@ -97,6 +97,13 @@ def _read_tev(filename, nsamples, fp_locs, spikes):
     _read_tev_impl(filename, nsamples, fp_locs, spikes)
 
 
+def _read_tev_python(filename, nsamples, fp_locs, spikes):
+    with open(filename, 'rb') as f:
+        for i, fp_loc in enumerate(fp_locs):
+            f.seek(fp_loc)
+            spikes[i, :] = np.fromfile(f, spikes.dtype, nsamples)
+
+
 def _match_int(pattern, string, get_exc=False, excs=(AttributeError,
                                                      ValueError, TypeError)):
     """Convert a string matched from a regex to an integer or return None.
