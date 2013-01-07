@@ -282,26 +282,26 @@ class TdtTankBase(TdtTankAbstractBase):
     tsq_dtype = np.dtype(list(zip(fields, np_types)))
     types = Series(list(map(np.dtype, np_types)), index=fields)
 
-    site_re = re.compile(r'(?:.*s(?:ite)?(?:|_)?(\d+))?')
-    age_re = re.compile(r'.*[pP](\d+).*')
+    _site_re = re.compile(r'(?:.*s(?:ite)?(?:|_)?(\d+))?')
+    _age_re = re.compile(r'.*[pP](\d+).*')
 
-    header_ext = 'tsq'
-    raw_ext = 'tev'
+    _header_ext = 'tsq'
+    _raw_ext = 'tev'
 
     def __init__(self, path):
         super(TdtTankBase, self).__init__()
 
         tank_with_ext = path + os.extsep
-        tev_path = tank_with_ext + self.raw_ext
-        tsq_path = tank_with_ext + self.header_ext
+        tev_path = tank_with_ext + self._raw_ext
+        tsq_path = tank_with_ext + self._header_ext
 
         assert_nonzero_existing_file(tev_path)
         assert_nonzero_existing_file(tsq_path)
 
         self.path = path
         self.name = os.path.basename(path)
-        self.age = _match_int(self.age_re, self.name)
-        self.site = _match_int(self.site_re, self.name)
+        self.age = _match_int(self._age_re, self.name)
+        self.site = _match_int(self._site_re, self.name)
         istart = self.stsq.timestamp.index[0]
         iend = self.stsq.timestamp.index[-1]
         tstart = pd.datetime.fromtimestamp(self.stsq.timestamp[istart])
@@ -354,7 +354,7 @@ class PandasTank(TdtTankBase):
         super(PandasTank, self).__init__(path)
 
     @thunkify
-    def _read_tev(self, event_name):
+    def _read_tev(self, event_name, group='channel'):
         """Read an event from a TDT Tank tev file.
 
         Parameters
@@ -399,7 +399,7 @@ class PandasTank(TdtTankBase):
 
         # create the channel groups
         meta = meta.reset_index(drop=True)
-        groups = DataFrame(meta.groupby('channel').groups).values
+        groups = DataFrame(meta.groupby(group).groups).values
 
         # create a thunk to start this computation
         sdf = _reshape_spikes(spikes, groups, meta, meta.fs.unique().item(),
