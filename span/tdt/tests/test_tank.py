@@ -17,11 +17,19 @@ from span.testing import slow, assert_array_almost_equal
 @slow
 class TestReadTev(unittest.TestCase):
     def setUp(self):
-        home = os.path.expanduser('~')
-        path = os.path.join(home, 'Data', 'xcorr_data',
-                            'Spont_Spikes_091210_p17rat_s4_657umV')
-        self.path = glob(os.path.join(path, '*%stev' % os.extsep))[0]
-        self.tank = PandasTank(self.path[:-4])
+        path = os.getenv('SPAN_DATA_PATH')
+
+        self.assert_(os.path.isdir(path))
+
+        gettev = glob(os.path.join(path, '*%stev' % os.extsep))
+
+        if len(gettev) == 1:
+            self.path, = gettev
+        else:
+            self.path = gettev[0]
+
+        self.filename, _ = os.path.splitext(self.path)
+        self.tank = PandasTank(self.filename)
         self.names = 'Spik', 'LFPs'
 
     def tearDown(self):
