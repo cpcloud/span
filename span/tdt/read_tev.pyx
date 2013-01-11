@@ -25,9 +25,8 @@ from numpy cimport (uint8_t as u1, uint16_t as u2, uint32_t as u4,
 from libc.stdio cimport fopen, fclose, fread, fseek, SEEK_SET, FILE
 from libc.stdlib cimport malloc, free
 
-from cython.parallel cimport parallel, prange
-
 cimport cython
+from cython.parallel cimport prange, parallel
 
 ctypedef fused floating:
     f4
@@ -50,10 +49,10 @@ ctypedef fused integer:
 
 @cython.boundscheck(False)
 @cython.wraparound(False)
-cdef void __read_tev(char* filename, integer nsamples, integer[:] fp_locs,
-                     floating[:, :] spikes) nogil:
+cdef ip _read_tev_parallel(char* filename, integer nsamples,
+                            integer[:] fp_locs, floating[:, :] spikes) except -1:
     cdef:
-        ip i, j
+        ip i, j, r
         ip n = fp_locs.shape[0]
 
         size_t f_bytes = sizeof(floating)
@@ -62,28 +61,25 @@ cdef void __read_tev(char* filename, integer nsamples, integer[:] fp_locs,
 
         FILE* f = NULL
 
-    with parallel():
+    with nogil, parallel():
         chunk = <floating*> malloc(f_bytes * nsamples)
 
         if not chunk:
-            with gil:
-                raise MemoryError('Out of memory when allocating chunk')
+            return -1
 
         f = fopen(filename, 'rb')
 
         if not f:
             free(chunk)
             chunk = NULL
+            return -1
 
-            with gil:
-                raise IOError('Unable to open file %s' % filename)
-
-        for i in prange(n, schedule='guided'):
+        for i in prange(n):
             # go to the ith file pointer location
             fseek(f, fp_locs[i], SEEK_SET)
 
             # read floating_bytes * nsamples bytes into chunk_data
-            fread(chunk, f_bytes, nsamples, f)
+            r = fread(chunk, f_bytes, nsamples, f)
 
             # assign the chunk data to the spikes array
             for j in xrange(nsamples):
@@ -96,9 +92,12 @@ cdef void __read_tev(char* filename, integer nsamples, integer[:] fp_locs,
         fclose(f)
         f = NULL
 
+        return r
+
 
 @cython.wraparound(False)
 @cython.boundscheck(False)
-cpdef _read_tev(char* filename, ip nsamples, integer[:] fp_locs,
-                floating[:, :] spikes):
-    __read_tev(filename, nsamples, fp_locs, spikes)
+cpdef ip _read_tev(char* filename, ip nsamples, integer[:] fp_locs,
+                   floating[:, :] spikes):
+    cdef ip r = _read_tev_parallel(filename, nsamples, fp_locs, spikes)
+    return r
