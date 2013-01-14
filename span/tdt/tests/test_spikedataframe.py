@@ -1,4 +1,4 @@
-import unittest
+from unittest import TestCase
 import numbers
 import itertools as itools
 
@@ -18,7 +18,7 @@ from span.testing import assert_all_dtypes, create_spike_df, assert_array_equal
 from span.testing import skip
 
 
-class Test_SpikeGrouper(unittest.TestCase):
+class Test_SpikeGrouper(TestCase):
     def test_spike_grouper(self):
         name = 'TestSpikeGrouperClass'
         parents = pd.DataFrame,
@@ -30,7 +30,7 @@ class Test_SpikeGrouper(unittest.TestCase):
         self.assert_(hasattr(tc(), 'channel'))
 
 
-class BaseTestGetter(unittest.TestCase):
+class BaseTestGetter(TestCase):
     def setUp(self):
         self.sp = create_spike_df()
 
@@ -47,7 +47,7 @@ class Test_ChannelGetter(BaseTestGetter):
             self.assertIsInstance(ch, TimeSeries)
 
 
-class TestSpikeGroupedDataFrame(unittest.TestCase):
+class TestSpikeGroupedDataFrame(TestCase):
     def setUp(self):
         self.x = randn(randint(2, 4), randint(2, 4))
 
@@ -73,7 +73,7 @@ class TestSpikeGroupedDataFrame(unittest.TestCase):
             self.assertEqual(s.values.size, df.shape[1 - axis])
 
 
-class TestSpikeDataFrameBase(unittest.TestCase):
+class TestSpikeDataFrameBase(TestCase):
     @classmethod
     def setUpClass(cls):
         cls.df = create_spike_df()
@@ -164,7 +164,7 @@ class TestSpikeDataFrameBase(unittest.TestCase):
         self.assertIsInstance(nsh, numbers.Integral)
 
 
-class TestSpikeDataFrame(unittest.TestCase):
+class TestSpikeDataFrame(TestCase):
     def setUp(self):
         self.spikes = create_spike_df()
         self.threshes = 2e-5, 3e-5
@@ -302,7 +302,7 @@ class TestSpikeDataFrame(unittest.TestCase):
                               nan_auto, lag_name)
 
 
-class TestCreateXCorrInds(unittest.TestCase):
+class TestCreateXCorrInds(TestCase):
     def test_create_xcorr_inds(self):
         nchannels = xrange(2, 33, 2)
         names = 'channel i', 'channel j', 'shank i', 'shank j'
