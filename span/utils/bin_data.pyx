@@ -33,7 +33,7 @@ cdef void __bin_data(u1[:, :] a, u8[:] bins, u8[:, :] out) nogil:
         m = out.shape[0]
         n = out.shape[1]
 
-        for k in prange(n, schedule='guided'):
+        for k in prange(n):
             for i in xrange(m):
                 out[i, k] = 0
 
