@@ -41,9 +41,9 @@ cdef void _mult_mat_xcorr(cflt[:, :] X, cflt[:, :] Xc, cflt[:, :] c, ip n,
     cdef ip i, j, k, r
 
     with parallel():
-        for i in prange(n, schedule='guided'):
+        for i in prange(n):
             for r, j in enumerate(xrange(i * n, (i + 1) * n)):
-                for k in xrange(nx):
+                for k in prange(nx):
                     c[j, k] = X[i, k] * Xc[r, k]
 
 

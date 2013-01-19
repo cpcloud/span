@@ -94,7 +94,7 @@ def _read_tev(filename, nsamples, fp_locs, spikes):
     """
     assert filename, 'filename (1st argument) cannot be empty'
     assert nsamples > 0, '"nsamples" must be greater than 0'
-    _read_tev_impl(filename, nsamples, fp_locs, spikes)
+    return _read_tev_impl(filename, nsamples, fp_locs, spikes)
 
 
 def _read_tev_python(filename, nsamples, fp_locs, spikes):
@@ -383,7 +383,7 @@ class PandasTank(TdtTankBase):
         dtype = meta.format[first_row]
 
         # number of samples per chunk
-        nsamples = meta.size[first_row] * np.dtype(dtype).itemsize / 4
+        nsamples = int(meta.size[first_row] * np.dtype(dtype).itemsize / 4)
 
         # raw ndarray for data
         spikes = np.empty((meta.fp_loc.size, nsamples), dtype)

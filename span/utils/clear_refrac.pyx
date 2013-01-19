@@ -19,16 +19,16 @@
 
 
 cimport cython
+from cython.parallel cimport parallel, prange
 from numpy cimport uint8_t as u1, npy_intp as ip
 
 
 @cython.wraparound(False)
 @cython.boundscheck(False)
 cdef void __clear_refrac(u1[:, :] a, ip window) nogil:
-    cdef ip channel, i, sample, sp1, nsamples, nchannels
-
-    nsamples = a.shape[0]
-    nchannels = a.shape[1]
+    cdef:
+        ip channel, i, sample, sp1
+        ip nsamples = a.shape[0], nchannels = a.shape[1]
 
     for channel in xrange(nchannels):
         sample = 0
@@ -37,8 +37,9 @@ cdef void __clear_refrac(u1[:, :] a, ip window) nogil:
             if a[sample, channel]:
                 sp1 = sample + 1
 
-                for i in xrange(sp1, sp1 + window):
-                    a[i, channel] = 0
+                with parallel():
+                    for i in prange(sp1, sp1 + window):
+                        a[i, channel] = 0
 
                 sample += window
 
