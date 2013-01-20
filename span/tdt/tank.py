@@ -168,7 +168,7 @@ class TdtTankAbstractBase(object):
             Recording metadata
         """
         # create the path name
-        tsq_name = self.path + os.extsep + self.header_ext
+        tsq_name = self.path + os.extsep + self._header_ext
 
         # read in the raw data as a numpy rec array and convert to DataFrame
         b = DataFrame(np.fromfile(tsq_name, dtype=self.tsq_dtype))
@@ -258,12 +258,6 @@ class TdtTankBase(TdtTankAbstractBase):
     fields
     np_types
     tsq_dtype
-
-    site_re
-    age_re
-
-    header_ext
-    raw_ext
 
     path (``str``) : Full path of the tank sans extensions
     name (``str``) : basename of self.path
@@ -390,7 +384,7 @@ class PandasTank(TdtTankBase):
         spikes = np.empty((meta.fp_loc.size, nsamples), dtype)
 
         # tev filename
-        tev_name = self.path + os.extsep + self.raw_ext
+        tev_name = self.path + os.extsep + self._raw_ext
 
         # read in the TEV data to spikes
         _read_tev(tev_name, nsamples, meta.fp_loc, spikes)
