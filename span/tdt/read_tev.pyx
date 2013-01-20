@@ -63,7 +63,7 @@ cdef ip __read_tev(char* filename, integral nsamples, integral[:] fp_locs,
                 return -3
 
             # assign the chunk data to the spikes array
-            for j in xrange(nsamples):
+            for j in prange(nsamples):
                 spikes[i, j] = chunk[j]
 
         # get rid of the chunk data
