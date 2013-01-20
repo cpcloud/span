@@ -161,37 +161,6 @@ class SpikeDataFrameBase(SpikeGroupedDataFrame):
         self.meta = meta
         self.date = Timestamp(self.meta.timestamp[0])
 
-    def downsample(self, factor, n=None, ftype='iir', axis=-1):
-        """Downsample the data by an integer factor.
-
-        This is a wrapper around ``scipy.signal.decimate``.
-
-        Parameters
-        ----------
-        factor : int
-            Factor by which to downsample
-
-        n : int, optional
-            Filter order
-
-        ftype : str, optional
-            Type of filter to use to downsample
-
-        axis : int, optional
-            Axis over which to downsample
-
-        Returns
-        -------
-        dns : DataFrame
-            Downsampled data.
-
-        See Also
-        --------
-        scipy.signal.decimate
-        """
-        dec_s = scipy.signal.decimate(self.values.T, factor, n, ftype, axis)
-        return self._constructor(dec_s.T, columns=self.columns)
-
     @cached_property
     def fs(self):
         return self.meta.fs.unique().item()
@@ -564,4 +533,4 @@ def _create_xcorr_inds(nchannels):
     lshank, rshank = srt_idx.shank[left], srt_idx.shank[right]
     lshank.name, rshank.name = 'shank i', 'shank j'
 
-    return MultiIndex.from_arrays((left, right, lshank, rshank))
+    return MultiIndex.from_arrays((lshank, rshank, left, right))
