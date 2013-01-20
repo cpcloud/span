@@ -18,14 +18,15 @@
 # along with this program. If not, see <http://www.gnu.org/licenses/>.
 
 
-from numpy cimport (complex64_t as c8, complex128_t as c16, npy_intp as ip,
-                    int64_t as i8, float32_t as f4, float64_t as f8)
+from numpy cimport (ndarray, npy_intp as ip, float32_t as f4, float64_t as f8,
+                    complex64_t as c8, complex128_t as c16)
+
 
 from cython.parallel cimport prange, parallel
 
 cimport cython
 
-ctypedef fused cflt:
+ctypedef fused floating:
     f4
     f8
 
@@ -35,8 +36,8 @@ ctypedef fused cflt:
 
 @cython.wraparound(False)
 @cython.boundscheck(False)
-cdef void _mult_mat_xcorr(cflt[:, :] X, cflt[:, :] Xc, cflt[:, :] c, ip n,
-                          ip nx) nogil:
+cdef void _mult_mat_xcorr(floating[:, :] X, floating[:, :] Xc,
+                          floating[:, :] c, ip n, ip nx) nogil:
 
     cdef ip i, j, k, r
 
@@ -49,5 +50,6 @@ cdef void _mult_mat_xcorr(cflt[:, :] X, cflt[:, :] Xc, cflt[:, :] c, ip n,
 
 @cython.wraparound(False)
 @cython.boundscheck(False)
-cpdef mult_mat_xcorr(cflt[:, :] X, cflt[:, :] Xc, cflt[:, :] c, ip n, ip nx):
+cpdef mult_mat_xcorr(floating[:, :] X, floating[:, :] Xc,
+                     floating[:, :] c, ip n, ip nx):
     _mult_mat_xcorr(X, Xc, c, n, nx)
