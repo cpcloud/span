@@ -44,6 +44,7 @@ from span.tdt.spikeglobals import Indexer, EventTypes, DataTypes
 from span.tdt.spikedataframe import SpikeDataFrame
 from span.tdt._read_tev import _read_tev as _read_tev_impl
 
+
 from span.utils import (name2num, thunkify, cached_property, fromtimestamp,
                         assert_nonzero_existing_file)
 
@@ -99,6 +100,7 @@ def _read_tev(filename, nsamples, fp_locs, spikes):
 
 def _read_tev_python(filename, nsamples, fp_locs, spikes):
     dt = spikes.dtype
+
     with open(filename, 'rb') as f:
         for i, fp_loc in enumerate(fp_locs):
             f.seek(fp_loc)

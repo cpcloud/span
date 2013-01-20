@@ -28,7 +28,7 @@ from span.xcorr._mult_mat_xcorr import mult_mat_xcorr as _mult_mat_xcorr
 import warnings
 
 
-def mult_mat_xcorr(X, Xc, c, n, nx):
+def mult_mat_xcorr(X, Xc, c):
     """Perform the necessary matrix-vector multiplication and fill the cross-
     correlation array. Slightly faster than pure Python.
 
@@ -115,7 +115,7 @@ def matrixcorr(x, nfft):
     Xc = X.conj()
     mx, nx = X.shape
     c = np.empty((mx ** 2, nx), dtype=X.dtype)
-    mult_mat_xcorr(X, Xc, c, n, nx)
+    mult_mat_xcorr(X, Xc, c)
     return ifft(c, nfft).T
 
 
