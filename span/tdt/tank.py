@@ -98,10 +98,11 @@ def _read_tev(filename, nsamples, fp_locs, spikes):
 
 
 def _read_tev_python(filename, nsamples, fp_locs, spikes):
+    dt = spikes.dtype
     with open(filename, 'rb') as f:
         for i, fp_loc in enumerate(fp_locs):
             f.seek(fp_loc)
-            spikes[i, :] = np.fromfile(f, spikes.dtype, nsamples)
+            spikes[i] = np.fromfile(f, dt, nsamples)
 
 
 def _match_int(pattern, string, get_exc=False, excs=(AttributeError,
