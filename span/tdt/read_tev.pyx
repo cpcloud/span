@@ -17,12 +17,6 @@
 # You should have received a copy of the GNU General Public License
 # along with this program. If not, see <http://www.gnu.org/licenses/>.
 
-# from numpy cimport (npy_intp as ip, float32_t as f4, float64_t as f8,
-                    # int64_t as i8, int32_t as i4, int16_t as i2,
-                    # int8_t as i1)
-from numpy cimport npy_intp as ip
-# from numpy cimport (uint8_t as u1, uint16_t as u2, uint32_t as u4,
-                    # uint64_t as u8)
 from libc.stdio cimport fopen, fclose, fread, fseek, SEEK_SET, FILE
 from libc.stdlib cimport malloc, free
 
@@ -30,35 +24,13 @@ cimport cython
 from cython cimport floating, integral
 from cython.parallel cimport prange, parallel
 
-
-# ctypedef fused integer:
-#     i1
-#     i2
-#     i4
-#     i8
-#     ip
-#     ssize_t
-
-#     u1
-#     u2
-#     u4
-#     u8
-#     size_t
+from numpy cimport npy_intp as ip
 
 
 @cython.boundscheck(False)
 @cython.wraparound(False)
-cpdef ip _read_tev(char* filename, integral nsamples, integral[:] fp_locs,
-                   floating[:, :] spikes) nogil except -1:
-    cdef ip r = _read_tev_parallel(filename, nsamples, fp_locs, spikes)
-    return r
-
-
-@cython.boundscheck(False)
-@cython.wraparound(False)
-cdef ip _read_tev_parallel(char* filename, integral nsamples,
-                           integral[:] fp_locs,
-                           floating[:, :] spikes) nogil except -1:
+cdef ip __read_tev(char* filename, integral nsamples, integral[:] fp_locs,
+                   floating[:, :] spikes) nogil:
     cdef:
         ip i, j
         ip n = fp_locs.shape[0]
@@ -80,14 +52,15 @@ cdef ip _read_tev_parallel(char* filename, integral nsamples,
         if not f:
             free(chunk)
             chunk = NULL
-            return -1
+            return -2
 
         for i in prange(n):
             # go to the ith file pointer location
             fseek(f, fp_locs[i], SEEK_SET)
 
             # read floating_bytes * nsamples bytes into chunk_data
-            <void> fread(chunk, f_bytes, nsamples, f)
+            if not fread(chunk, f_bytes, nsamples, f):
+                return -3
 
             # assign the chunk data to the spikes array
             for j in xrange(nsamples):
@@ -101,3 +74,19 @@ cdef ip _read_tev_parallel(char* filename, integral nsamples,
         f = NULL
 
         return 0
+
+
+@cython.boundscheck(False)
+@cython.wraparound(False)
+def _read_tev(char* filename, integral nsamples,
+              integral[:] fp_locs not None,
+              floating[:, :] spikes not None):
+    cdef ip r = __read_tev(filename, nsamples, fp_locs, spikes)
+
+    if r:
+        if r == -1:
+            raise MemoryError('Error when allocating chunk')
+        elif r == -2:
+            raise IOError('Unable to open file %s' % filename)
+        else:
+            raise IOError('Unable to read chunk')
