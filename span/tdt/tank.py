@@ -433,4 +433,8 @@ def _reshape_spikes(raw, group_indices, meta, fs, nchans, date):
     us_per_sample = round(1e6 / fs) * datetools.Micro()
     index = date_range(date, periods=max(valsr.shape), freq=us_per_sample,
                        name='time', tz='US/Eastern')
-    return SpikeDataFrame(valsr, meta, index=index, columns=columns)
+    df = DataFrame(valsr, index=index, columns=columns.swaplevel(1, 0),
+                   copy=False)
+    df.sort_index(axis=1, inplace=True)
+    return SpikeDataFrame(df.values, meta, index=df.index, columns=df.columns,
+                          copy=False)
