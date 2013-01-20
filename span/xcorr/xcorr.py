@@ -23,12 +23,12 @@ import numpy as np
 from pandas import Series, DataFrame
 from span.utils import (detrend_mean, get_fft_funcs, isvector, nextpow2,
                         pad_larger)
-from span.xcorr._mult_mat_xcorr import mult_mat_xcorr as _mult_mat_xcorr
+from span.xcorr._mult_mat_xcorr import _mult_mat_xcorr
 
 import warnings
 
 
-def mult_mat_xcorr(X, Xc, c):
+def mult_mat_xcorr(X, Xc):
     """Perform the necessary matrix-vector multiplication and fill the cross-
     correlation array. Slightly faster than pure Python.
 
@@ -44,9 +44,10 @@ def mult_mat_xcorr(X, Xc, c):
     """
     assert X is not None, '1st argument "X" must not be None'
     assert Xc is not None, '2nd argument "Xc" must not be None'
-    assert c is not None, '3rd argument "c" must not be None'
     n, nx = X.shape
+    c = np.empty((n ** 2, nx), dtype=X.dtype)
     _mult_mat_xcorr(X, Xc, c, n, nx)
+    return c
 
 
 def autocorr(x, nfft):
@@ -113,9 +114,7 @@ def matrixcorr(x, nfft):
     ifft, fft = get_fft_funcs(x)
     X = fft(x.T, nfft)
     Xc = X.conj()
-    mx, nx = X.shape
-    c = np.empty((mx ** 2, nx), dtype=X.dtype)
-    mult_mat_xcorr(X, Xc, c)
+    c = mult_mat_xcorr(X, Xc)
     return ifft(c, nfft).T
 
 
