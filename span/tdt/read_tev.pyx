@@ -17,39 +17,48 @@
 # You should have received a copy of the GNU General Public License
 # along with this program. If not, see <http://www.gnu.org/licenses/>.
 
-from numpy cimport (npy_intp as ip, float32_t as f4, float64_t as f8,
-                    int64_t as i8, int32_t as i4, int16_t as i2, int8_t as i1)
-from numpy cimport (uint8_t as u1, uint16_t as u2, uint32_t as u4,
-                    uint64_t as u8)
+# from numpy cimport (npy_intp as ip, float32_t as f4, float64_t as f8,
+                    # int64_t as i8, int32_t as i4, int16_t as i2,
+                    # int8_t as i1)
+from numpy cimport npy_intp as ip
+# from numpy cimport (uint8_t as u1, uint16_t as u2, uint32_t as u4,
+                    # uint64_t as u8)
 from libc.stdio cimport fopen, fclose, fread, fseek, SEEK_SET, FILE
 from libc.stdlib cimport malloc, free
 
 cimport cython
+from cython cimport floating, integral
 from cython.parallel cimport prange, parallel
 
-ctypedef fused floating:
-    f4
-    f8
 
-ctypedef fused integer:
-    i1
-    i2
-    i4
-    i8
-    ip
-    ssize_t
+# ctypedef fused integer:
+#     i1
+#     i2
+#     i4
+#     i8
+#     ip
+#     ssize_t
 
-    u1
-    u2
-    u4
-    u8
-    size_t
+#     u1
+#     u2
+#     u4
+#     u8
+#     size_t
 
 
 @cython.boundscheck(False)
 @cython.wraparound(False)
-cpdef ip _read_tev(char* filename, integer nsamples, integer[:] fp_locs,
+cpdef ip _read_tev(char* filename, integral nsamples, integral[:] fp_locs,
                    floating[:, :] spikes) nogil except -1:
+    cdef ip r = _read_tev_parallel(filename, nsamples, fp_locs, spikes)
+    return r
+
+
+@cython.boundscheck(False)
+@cython.wraparound(False)
+cdef ip _read_tev_parallel(char* filename, integral nsamples,
+                           integral[:] fp_locs,
+                           floating[:, :] spikes) nogil except -1:
     cdef:
         ip i, j
         ip n = fp_locs.shape[0]
