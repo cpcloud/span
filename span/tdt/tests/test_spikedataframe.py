@@ -137,12 +137,6 @@ class TestSpikeDataFrameBase(TestCase):
         values = cols.levels[cols.names.index('channel')].values
         self.assertEqual(nchans, values.max() + 1)
 
-    def test_downsample(self):
-        factors = 2, 20
-        for factor in factors:
-            x = self.spikes.downsample(factor)
-            self.assertIsInstance(x, SpikeDataFrame)
-
     def test_chunk_size(self):
         cs = self.spikes.chunk_size
         self.assertIsInstance(cs, numbers.Integral)
@@ -305,7 +299,7 @@ class TestSpikeDataFrame(TestCase):
 class TestCreateXCorrInds(TestCase):
     def test_create_xcorr_inds(self):
         nchannels = xrange(2, 33, 2)
-        names = 'channel i', 'channel j', 'shank i', 'shank j'
+        names = 'shank i', 'shank j', 'channel i', 'channel j'
         for nchannel in nchannels:
             inds = _create_xcorr_inds(nchannel)
             self.assertIsInstance(inds, pd.MultiIndex)
