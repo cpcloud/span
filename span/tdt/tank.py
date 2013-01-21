@@ -42,7 +42,7 @@ import pandas as pd
 
 from span.tdt.spikeglobals import Indexer, EventTypes, DataTypes
 from span.tdt.spikedataframe import SpikeDataFrame
-from span.tdt._read_tev import _read_tev as _read_tev_impl
+from span.tdt._read_tev import _read_tev_parallel, _read_tev_serial
 
 
 from span.utils import (name2num, thunkify, cached_property, fromtimestamp,
@@ -75,7 +75,37 @@ def _get_first_match(pattern, string):
     return r.group(1)
 
 
-def _read_tev(filename, nsamples, fp_locs, spikes):
+def read_tev_parallel(filename, nsamples, fp_locs, spikes):
+    """Read a TDT tev file into a numpy array. Slightly faster than
+    the pure Python version.
+
+    Parameters
+    ----------
+    filename : char *
+        Name of the TDT file to load.
+
+    nsamples : int
+        The number of samples per chunk of data.
+
+    fp_locs : integral[:]
+        The array of locations of each chunk in the TEV file.
+
+    spikes : floating[:, :]
+        Output array
+    """
+    assert filename, 'filename (1st argument) cannot be empty'
+    assert nsamples > 0, '"nsamples" must be greater than 0'
+    r = _read_tev_parallel(filename, nsamples, fp_locs, spikes)
+    if r:
+        if r == -1:
+            pass
+        elif r == -2:
+            pass
+        else:
+            pass
+
+
+def read_tev_serial(filename, nsamples, fp_locs, spikes):
     """Read a TDT tev file into a numpy array. Slightly faster than
     the pure Python version.
 
@@ -95,7 +125,14 @@ def _read_tev(filename, nsamples, fp_locs, spikes):
     """
     assert filename, 'filename (1st argument) cannot be empty'
     assert nsamples > 0, '"nsamples" must be greater than 0'
-    return _read_tev_impl(filename, nsamples, fp_locs, spikes)
+    r = _read_tev_serial(filename, nsamples, fp_locs, spikes)
+    if r:
+        if r == -1:
+            pass
+        elif r == -2:
+            pass
+        else:
+            pass
 
 
 def _read_tev_python(filename, nsamples, fp_locs, spikes):
@@ -105,6 +142,9 @@ def _read_tev_python(filename, nsamples, fp_locs, spikes):
         for i, fp_loc in enumerate(fp_locs):
             f.seek(fp_loc)
             spikes[i] = np.fromfile(f, dt, nsamples)
+
+
+_read_tev = read_tev_parallel
 
 
 def _match_int(pattern, string, get_exc=False, excs=(AttributeError,
@@ -316,6 +356,10 @@ class TdtTankBase(TdtTankAbstractBase):
         params = dict(age=self.age, name=self.name, site=self.site, obj=objr,
                       fs=self.fs, datetime=str(self.datetime),
                       duration=self.duration / np.timedelta64(1, 'm'))
+        # max_str_len = max(map(len, params.values()))
+        # names = params.keys()
+        # values = map(lambda x: x.rjust(max_str_len), params.values())
+
         fmt = ('{obj}\nname:     {name}\ndatetime: {datetime}\nage:      '
                'P{age}\nsite:     {site}\nfs:       {fs}\n'
                'duration: {duration:.2f} min')
