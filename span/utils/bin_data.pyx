@@ -26,22 +26,16 @@ from cython.parallel cimport prange, parallel
 
 @cython.wraparound(False)
 @cython.boundscheck(False)
-cdef void __bin_data(u1[:, :] a, u8[:] bins, u8[:, :] out) nogil:
+cpdef _bin_data(u1[:, ::1] a, u8[:] bins, u8[:, ::1] out):
     cdef ip i, j, k, m, n
 
-    with parallel():
+    with nogil, parallel():
         m = out.shape[0]
         n = out.shape[1]
 
-        for k in prange(n):
+        for k in prange(n, schedule='static'):
             for i in xrange(m):
                 out[i, k] = 0
 
                 for j in xrange(bins[i], bins[i + 1]):
                      out[i, k] += a[j, k]
-
-
-@cython.wraparound(False)
-@cython.boundscheck(False)
-cpdef _bin_data(u1[:, :] a, u8[:] bins, u8[:, :] out):
-    __bin_data(a, bins, out)
