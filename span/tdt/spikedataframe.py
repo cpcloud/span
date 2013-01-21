@@ -34,8 +34,6 @@ import types
 import functools as fntools
 
 import numpy as np
-import scipy
-import scipy.signal
 
 from pandas import (Series, DataFrame, MultiIndex, date_range, datetools,
                     Timestamp)
