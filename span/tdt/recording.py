@@ -115,17 +115,17 @@ class ElectrodeMap(DataFrame):
 
         data = {'channel': map_.ravel(), 'shank': s}
         df = DataFrame(data).sort('shank').reset_index(drop=True)
-        df.index = df.pop('channel')
+        df.index = df.pop('shank')
 
         super(ElectrodeMap, self).__init__(df.sort())
 
     @property
     def nshanks(self):
-        return self.shank.nunique()
+        return self.index.unique().size
 
     @property
     def nchans(self):
-        return self.index.unique().size
+        return self.channel.unique().size
 
     def distance_map(self, within, between, metric='wminkowski', p=2.0):
         r"""Create a distance map from the current electrode configuration.
@@ -180,21 +180,21 @@ class ElectrodeMap(DataFrame):
         assert isinstance(p, numbers.Real) and p > 0, \
             'p must be a real number greater than 0'
 
-        dm = distance_map(self.nshanks, self.shank.nunique(), within, between,
-                          metric=metric, p=p)
+        dm = distance_map(self.nshanks, self.nchans / self.nshanks, within,
+                          between, metric=metric, p=p)
         s = self.sort()
-        cols = s.index, s.shank
+        cols = s.index, s.channel
 
         values_getter = operator.attrgetter('values')
         cols = tuple(map(values_getter, cols))
-        names = 'channel', 'shank'
+        names = 'shank', 'channel'
 
         def _label_maker(i, names):
             new_names = tuple(map(lambda x: x + ' %s' % i, names))
             return MultiIndex.from_arrays(cols, names=new_names)
 
-        index = _label_maker('i', names)
-        columns = _label_maker('j', names)
+        columns = _label_maker('i', names)
+        index = _label_maker('j', names)
         df = DataFrame(dm, index=index, columns=columns)
 
         nnames = len(names)
@@ -212,3 +212,4 @@ class ElectrodeMap(DataFrame):
         s.name = r'$d\left(i, j\right)$'
 
         return s.reorder_levels(reordering)
+        # return df

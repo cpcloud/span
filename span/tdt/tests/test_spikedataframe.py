@@ -295,6 +295,23 @@ class TestSpikeDataFrame(TestCase):
                               maxlag, detrend, scale_type, 2342, dropna,
                               nan_auto, lag_name)
 
+    def test_permute_channels_self(self):
+        s = self.spikes
+        sc = s.copy()
+        new = s.permute_channels()
+
+        assert np.any(new.columns.values != s.columns.values)
+        assert_frame_equal(s, sc)
+
+        s = self.spikes
+        sc = self.spikes.copy()
+        new = s.permute_channels(s)
+        assert np.any(new.columns.values != s.columns.values)
+        assert_frame_equal(s, sc)
+
+    def test_permute_channels_data(self):
+        assert False
+
 
 class TestCreateXCorrInds(TestCase):
     def test_create_xcorr_inds(self):
