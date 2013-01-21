@@ -160,12 +160,41 @@ def test_mult_mat_xcorr():
     mx, nx = X.shape
 
     c = np.empty((mx ** 2, nx), dtype=X.dtype)
-    oc = c.copy()
 
-    mult_mat_xcorr(X, Xc, oc, n, nx)
+    oc = mult_mat_xcorr(X, Xc)
 
     for i in xrange(n):
         c[i * n:(i + 1) * n] = X[i] * Xc
+
+    assert_allclose(c, oc)
+
+    cc, occ = map(lambda x: ifft(x, nfft).T, (c, oc))
+
+    assert_allclose(cc, occ)
+
+
+def profile_mat_mult_xcorr():
+    def gen_data(m, n):
+        x = randn(m, n)
+        ifft, fft = get_fft_funcs(x)
+        nfft = int(2 ** nextpow2(m))
+        X = fft(x.T, nfft)
+        Xc = X.conj()
+        return X, Xc, ifft, fft, nfft
+
+    def pure_py(X, Xc):
+        n, nx = X.shape
+        c = np.empty((n * n, nx), dtype=X.dtype)
+
+        for i in xrange(n):
+            c[i * n:(i + 1) * n] = X[i] * Xc
+
+        return c
+
+    X, Xc, ifft, fft, nfft = gen_data(randint(2, 4), randint(4, 5))
+
+    c = pure_py(X, Xc)
+    oc = mult_mat_xcorr(X, Xc)
 
     assert_allclose(c, oc)
 

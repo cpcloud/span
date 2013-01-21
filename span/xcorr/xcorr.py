@@ -23,12 +23,13 @@ import numpy as np
 from pandas import Series, DataFrame
 from span.utils import (detrend_mean, get_fft_funcs, isvector, nextpow2,
                         pad_larger)
-from span.xcorr._mult_mat_xcorr import _mult_mat_xcorr
+from span.xcorr._mult_mat_xcorr import (_mult_mat_xcorr_parallel,
+                                        _mult_mat_xcorr_serial)
 
 import warnings
 
 
-def mult_mat_xcorr(X, Xc):
+def mult_mat_xcorr_cython_parallel(X, Xc):
     """Perform the necessary matrix-vector multiplication and fill the cross-
     correlation array. Slightly faster than pure Python.
 
@@ -46,8 +47,46 @@ def mult_mat_xcorr(X, Xc):
     assert Xc is not None, '2nd argument "Xc" must not be None'
     n, nx = X.shape
     c = np.empty((n ** 2, nx), dtype=X.dtype)
-    _mult_mat_xcorr(X, Xc, c, n, nx)
+    _mult_mat_xcorr_parallel(X, Xc, c, n, nx)
     return c
+
+
+def mult_mat_xcorr_cython_serial(X, Xc):
+    """Perform the necessary matrix-vector multiplication and fill the cross-
+    correlation array. Slightly faster than pure Python.
+
+    Parameters
+    ----------
+    X, Xc, c : c16[:, :]
+    n, nx : ip
+
+    Raises
+    ------
+    AssertionError
+       If n <= 0 or nx <= 0
+    """
+    assert X is not None, '1st argument "X" must not be None'
+    assert Xc is not None, '2nd argument "Xc" must not be None'
+    n, nx = X.shape
+    c = np.empty((n ** 2, nx), dtype=X.dtype)
+    _mult_mat_xcorr_serial(X, Xc, c, n, nx)
+    return c
+
+
+def mult_mat_xcorr_python(X, Xc):
+    assert X is not None, '1st argument "X" must not be None'
+    assert Xc is not None, '2nd argument "Xc" must not be None'
+
+    n, nx = X.shape
+    c = np.empty((n ** 2, nx), dtype=X.dtype)
+
+    for i in xrange(n):
+        c[i * n:(i + 1) * n] = X[i] * Xc
+
+    return c
+
+
+mult_mat_xcorr = mult_mat_xcorr_cython_parallel
 
 
 def autocorr(x, nfft):
