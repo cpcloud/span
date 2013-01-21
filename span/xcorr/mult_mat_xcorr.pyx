@@ -36,13 +36,26 @@ ctypedef fused floating:
 
 @cython.wraparound(False)
 @cython.boundscheck(False)
-cpdef _mult_mat_xcorr(floating[:, :] X, floating[:, :] Xc,
-                      floating[:, :] c, ip n, ip nx):
+cpdef _mult_mat_xcorr_parallel(floating[:, ::1] X, floating[:, ::1] Xc,
+                               floating[:, ::1] c, ip n, ip nx):
 
     cdef ip i, j, k, r
 
     with nogil, parallel():
-        for i in prange(n):
+        for i in prange(n, schedule='static'):
             for r, j in enumerate(xrange(i * n, (i + 1) * n)):
-                for k in prange(nx):
+                for k in xrange(nx):
                     c[j, k] = X[i, k] * Xc[r, k]
+
+
+@cython.wraparound(False)
+@cython.boundscheck(False)
+cpdef _mult_mat_xcorr_serial(floating[:, ::1] X, floating[:, ::1] Xc,
+                             floating[:, ::1] c, ip n, ip nx):
+
+    cdef ip i, j, k, r
+
+    for i in xrange(n):
+        for r, j in enumerate(xrange(i * n, (i + 1) * n)):
+            for k in xrange(nx):
+                c[j, k] = X[i, k] * Xc[r, k]
