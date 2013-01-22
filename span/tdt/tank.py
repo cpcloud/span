@@ -223,7 +223,8 @@ class TdtTankAbstractBase(object):
         b.channel[b.channel == -1] = np.nan
 
         b.type = EventTypes[b.type].reset_index(drop=True)
-        b.format = DataTypes[b.format].reset_index(drop=True)
+        dtf = DataTypes[b.format]
+        b.format = dtf.map(lambda x: np.dtype(x).char).reset_index(drop=True)
 
         b.timestamp[np.logical_not(b.timestamp)] = np.nan
         b.fs[np.logical_not(b.fs)] = np.nan
@@ -480,5 +481,5 @@ def _reshape_spikes(raw, group_indices, meta, fs, nchans, date):
     df = DataFrame(valsr, index=index, columns=columns.swaplevel(1, 0),
                    copy=False)
     df.sort_index(axis=1, inplace=True)
-    return SpikeDataFrame(df.values, meta, index=df.index, columns=df.columns,
-                          copy=False)
+    return SpikeDataFrame(df.values.astype(float, copy=False), meta,
+                          index=df.index, columns=df.columns, copy=False)
