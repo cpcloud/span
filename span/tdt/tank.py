@@ -75,7 +75,8 @@ def _get_first_match(pattern, string):
     return r.group(1)
 
 
-def read_tev_parallel(filename, nsamples, fp_locs, spikes):
+def read_tev_parallel(filename, block_size, nchannels, fp_locs, channels,
+                      spikes):
     """Read a TDT tev file into a numpy array. Slightly faster than
     the pure Python version.
 
@@ -84,7 +85,7 @@ def read_tev_parallel(filename, nsamples, fp_locs, spikes):
     filename : char *
         Name of the TDT file to load.
 
-    nsamples : int
+    block_size : int
         The number of samples per chunk of data.
 
     fp_locs : integral[:]
@@ -94,8 +95,9 @@ def read_tev_parallel(filename, nsamples, fp_locs, spikes):
         Output array
     """
     assert filename, 'filename (1st argument) cannot be empty'
-    assert nsamples > 0, '"nsamples" must be greater than 0'
-    r = _read_tev_parallel(filename, nsamples, fp_locs, spikes)
+    assert block_size > 0, '"block_size" must be greater than 0'
+    r = _read_tev_parallel(filename, block_size, nchannels, fp_locs, channels,
+                           spikes)
     if r:
         if r == -1:
             pass
@@ -135,12 +137,14 @@ def read_tev_serial(filename, nsamples, fp_locs, spikes):
             pass
 
 
-def _read_tev_python(filename, nsamples, fp_locs, spikes):
+def _read_tev_python(filename, nsamples, fp_locs, channels, spikes):
     dt = spikes.dtype
 
     with open(filename, 'rb') as f:
         for i, fp_loc in enumerate(fp_locs):
             f.seek(fp_loc)
+
+            # for k, j
             spikes[i] = np.fromfile(f, dt, nsamples)
 
 
@@ -379,6 +383,10 @@ class TdtTankBase(TdtTankAbstractBase):
         return self.tev('LFPs')
 
 
+def _read_direct(filename, out=None):
+    assert False
+
+
 class PandasTank(TdtTankBase):
     """Implements the abstract methods from TdtTankBase.
 
@@ -416,6 +424,8 @@ class PandasTank(TdtTankBase):
         --------
         span.tdt.SpikeDataFrame
         """
+        from span.tdt.spikeglobals import ChannelIndex as columns
+
         meta, row = self.tsq(event_name)
 
         # first row of event type
@@ -425,29 +435,30 @@ class PandasTank(TdtTankBase):
         dtype = meta.format[first_row]
 
         # number of samples per chunk
-        nsamples = int(meta.size[first_row] * np.dtype(dtype).itemsize / 4)
+        block_size = int(meta.size[first_row])
+        nchannels = meta.channel.dropna().nunique()
+        nsamples = meta.shape[0] * block_size // nchannels
 
         # raw ndarray for data
-        spikes = np.empty((meta.fp_loc.size, nsamples), dtype)
+        spikes = np.empty((nsamples, nchannels), dtype=dtype)
 
         # tev filename
         tev_name = self.path + os.extsep + self._raw_ext
 
         # read in the TEV data to spikes
-        _read_tev(tev_name, nsamples, meta.fp_loc, spikes)
+        _read_tev(tev_name, block_size, nchannels, meta.fp_loc, meta.channel,
+                  spikes)
 
         # convert timestamps to datetime objects
         meta.timestamp = fromtimestamp(meta.timestamp)
 
         # create the channel groups
         meta = meta.reset_index(drop=True)
-        groups = DataFrame(meta.groupby(group).groups).values
-
-        # create a thunk to start this computation
-        sdf = _reshape_spikes(spikes, groups, meta, meta.fs.unique().item(),
-                              meta.channel.dropna().nunique(),
-                              meta.timestamp[0])
-        return sdf()
+        us_per_sample = round(1e6 / meta.fs[0]) * datetools.Micro()
+        index = date_range(meta.timestamp[0], periods=nsamples,
+                           freq=us_per_sample, name='time', tz='US/Eastern')
+        return SpikeDataFrame(spikes, meta, index=index,
+                              columns=columns.swaplevel(1, 0))
 
 
 @thunkify

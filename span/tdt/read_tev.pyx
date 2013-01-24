@@ -24,13 +24,13 @@ cimport cython
 from cython cimport floating, integral
 from cython.parallel cimport prange, parallel
 
-from numpy cimport npy_intp as ip
+from numpy cimport npy_intp as ip, ndarray
 
 
 @cython.boundscheck(False)
 @cython.wraparound(False)
-cpdef int _read_tev_parallel(char* filename, ip nsamples, integral[:] fp_locs,
-                    floating[:, :] spikes):
+cpdef int _read_tev_parallel_old(char* filename, ip nsamples,
+                                 integral[:] fp_locs, floating[:, :] spikes):
     cdef:
         ip i, j
         ip n = fp_locs.shape[0]
@@ -115,6 +115,54 @@ cpdef int _read_tev_serial(char* filename, ip nsamples, integral[:] fp_locs,
             spikes[i, j] = chunk[j]
 
     # get rid of the chunk data
+    free(chunk)
+    chunk = NULL
+
+    fclose(f)
+    f = NULL
+
+    return 0
+
+
+@cython.cdivision(True)
+cpdef int _read_tev_parallel(char* filename, ip block_size, ip nchannels,
+                             long[:] fp_locs, long[:] channels,
+                             ndarray[float, ndim=2] spikes):
+
+    cdef:
+        ip i, j, k, channel, r
+        ip nblocks = fp_locs.shape[0]
+        FILE* f = NULL
+        size_t f_bytes = sizeof(float)
+        float* chunk = NULL, *spikes_data = <float*> spikes.data
+
+
+    chunk = <float*> malloc(f_bytes * block_size)
+
+    if not chunk:
+        return -1
+
+    f = fopen(filename, "rb")
+
+    if not f:
+        free(chunk)
+        chunk = NULL
+        return -2
+
+    for i in xrange(nblocks):
+        fseek(f, fp_locs[i], SEEK_SET)
+
+        if not fread(chunk, f_bytes, block_size, f):
+            free(chunk)
+            chunk = NULL
+            fclose(f)
+            f = NULL
+
+        channel = channels[i]
+
+        for k, j in enumerate(xrange(i * block_size, (i + 1) * block_size)):
+            spikes_data[j] = chunk[k]
+
     free(chunk)
     chunk = NULL
 
