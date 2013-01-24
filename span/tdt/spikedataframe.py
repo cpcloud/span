@@ -476,10 +476,14 @@ class SpikeDataFrame(SpikeDataFrameBase):
         xc.columns = _create_xcorr_inds(self.nchans)
 
         if nan_auto:
-            npairs = self.nchans ** 2
-            auto_inds = np.diag(np.r_[:npairs].reshape(self.nchans,
-                                                       self.nchans))
-            xc.ix[0, auto_inds] = np.nan
+            # slight hack for channel names
+            xc0 = xc.ix[0]
+            names = xc0.index.names
+            chi_ind = names.index('channel i')
+            chj_ind = names.index('channel j')
+
+            select_func = lambda x: x[chi_ind] == x[chj_ind]
+            xc.ix[0, xc0.select(select_func).index] = np.nan
 
         if dropna:
             xc = xc.dropna(axis=1)

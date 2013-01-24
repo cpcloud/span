@@ -481,5 +481,5 @@ def _reshape_spikes(raw, group_indices, meta, fs, nchans, date):
     df = DataFrame(valsr, index=index, columns=columns.swaplevel(1, 0),
                    copy=False)
     df.sort_index(axis=1, inplace=True)
-    return SpikeDataFrame(df.values.astype(float, copy=False), meta,
+    return SpikeDataFrame(df.values, meta,
                           index=df.index, columns=df.columns, copy=False)
