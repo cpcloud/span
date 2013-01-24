@@ -509,15 +509,6 @@ class SpikeDataFrame(SpikeDataFrameBase):
 
         return xc
 
-    def permute_channels(self, data=None):
-        if data is None:
-            data = self
-
-        shank, channel = data.columns.labels
-        channel = np.random.permutation(channel)
-        mi = MultiIndex.from_arrays((shank, channel))
-        return self._constructor(data.values, index=data.index, columns=mi)
-
 
 # TODO: hack to make it so nans are allowed when creating indices
 def _create_xcorr_inds(nchannels):
