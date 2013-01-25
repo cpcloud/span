@@ -29,55 +29,6 @@ from numpy cimport npy_intp as ip, ndarray
 
 @cython.boundscheck(False)
 @cython.wraparound(False)
-cpdef int _read_tev_parallel_old(char* filename, ip nsamples,
-                                 integral[:] fp_locs, floating[:, :] spikes):
-    cdef:
-        ip i, j
-        ip n = fp_locs.shape[0]
-
-        size_t f_bytes = sizeof(floating)
-
-        floating* chunk = NULL
-
-        FILE* f = NULL
-
-    with nogil, parallel():
-        chunk = <floating*> malloc(f_bytes * nsamples)
-
-        if not chunk:
-            return -1
-
-        f = fopen(filename, 'rb')
-
-        if not f:
-            free(chunk)
-            chunk = NULL
-            return -2
-
-        for i in prange(n):
-            # go to the ith file pointer location
-            fseek(f, fp_locs[i], SEEK_SET)
-
-            # read floating_bytes * nsamples bytes into chunk_data
-            if not fread(chunk, f_bytes, nsamples, f):
-                return -3
-
-            # assign the chunk data to the spikes array
-            for j in xrange(nsamples):
-                spikes[i, j] = chunk[j]
-
-        # get rid of the chunk data
-        free(chunk)
-        chunk = NULL
-
-        fclose(f)
-        f = NULL
-
-        return 0
-
-
-@cython.boundscheck(False)
-@cython.wraparound(False)
 cpdef int _read_tev_serial(char* filename, ip nsamples, integral[:] fp_locs,
                            floating[:, :] spikes):
     cdef:
@@ -126,20 +77,20 @@ cpdef int _read_tev_serial(char* filename, ip nsamples, integral[:] fp_locs,
 
 @cython.boundscheck(False)
 @cython.wraparound(False)
-@cython.cdivision(True)
-cpdef int _read_tev_parallel(char* filename, long[:, :] grouped,
-                             long blocksize, float[:, :] spikes) nogil:
+cpdef int _read_tev_parallel(char* filename, integral[:, :] grouped,
+                             ip blocksize,
+                             floating[:, :] spikes) nogil except -1:
 
     cdef:
-        long channel, block, k, byte
-        long nchannels = grouped.shape[1], nblocks = grouped.shape[0]
+        ip channel, block, k, byte
+        ip nchannels = grouped.shape[1], nblocks = grouped.shape[0]
 
-        size_t f_bytes = sizeof(float)
-        float* chunk = NULL
+        size_t f_bytes = sizeof(floating)
+        floating* chunk = NULL
         FILE* f = NULL
 
     with parallel():
-        chunk = <float*> malloc(f_bytes * blocksize)
+        chunk = <floating*> malloc(f_bytes * blocksize)
 
         if not chunk:
             return -1
@@ -149,21 +100,18 @@ cpdef int _read_tev_parallel(char* filename, long[:, :] grouped,
         if not f:
             free(chunk)
             chunk = NULL
-            return -2
+            return -1
 
         for channel in prange(nchannels, schedule='static'):
             for block in xrange(nblocks):
 
                 fseek(f, grouped[block, channel], SEEK_SET)
-
-                if not fread(chunk, f_bytes, blocksize, f):
-                    free(chunk)
-                    fclose(f)
-                    return -3
+                fread(chunk, f_bytes, blocksize, f)
 
                 for k, byte in enumerate(xrange(block * blocksize,
                                                 (block + 1) * blocksize)):
                     spikes[byte, channel] = chunk[k]
+
 
         free(chunk)
         chunk = NULL
@@ -172,19 +120,3 @@ cpdef int _read_tev_parallel(char* filename, long[:, :] grouped,
         f = NULL
 
         return 0
-
-
-# @cython.boundscheck(False)
-# @cython.wraparound(False)
-# def _read_tev(char* filename, integral nsamples,
-#               integral[:] fp_locs not None,
-#               floating[:, ::1] spikes not None):
-#     cdef ip r = __read_tev(filename, nsamples, fp_locs, spikes)
-
-#     if r:
-#         if r == -1:
-#             raise MemoryError('Error when allocating chunk')
-#         elif r == -2:
-#             raise IOError('Unable to open file %s' % filename)
-#         else:
-#             raise IOError('Unable to read chunk')
