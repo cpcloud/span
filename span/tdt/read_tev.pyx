@@ -24,13 +24,13 @@ cimport cython
 from cython cimport floating, integral
 from cython.parallel cimport prange, parallel
 
-from numpy cimport npy_intp as ip
+from numpy cimport npy_intp as ip, ndarray
 
 
 @cython.boundscheck(False)
 @cython.wraparound(False)
-cpdef int _read_tev_parallel(char* filename, ip nsamples, integral[:] fp_locs,
-                    floating[:, :] spikes):
+cpdef int _read_tev_parallel_old(char* filename, ip nsamples,
+                                 integral[:] fp_locs, floating[:, :] spikes):
     cdef:
         ip i, j
         ip n = fp_locs.shape[0]
@@ -122,6 +122,56 @@ cpdef int _read_tev_serial(char* filename, ip nsamples, integral[:] fp_locs,
     f = NULL
 
     return 0
+
+
+@cython.boundscheck(False)
+@cython.wraparound(False)
+@cython.cdivision(True)
+cpdef int _read_tev_parallel(char* filename, long[:, :] grouped,
+                             long blocksize, float[:, :] spikes) nogil:
+
+    cdef:
+        long channel, block, k, byte
+        long nchannels = grouped.shape[1], nblocks = grouped.shape[0]
+
+        size_t f_bytes = sizeof(float)
+        float* chunk = NULL
+        FILE* f = NULL
+
+    with parallel():
+        chunk = <float*> malloc(f_bytes * blocksize)
+
+        if not chunk:
+            return -1
+
+        f = fopen(filename, "rb")
+
+        if not f:
+            free(chunk)
+            chunk = NULL
+            return -2
+
+        for channel in prange(nchannels, schedule='static'):
+            for block in xrange(nblocks):
+
+                fseek(f, grouped[block, channel], SEEK_SET)
+
+                if not fread(chunk, f_bytes, blocksize, f):
+                    free(chunk)
+                    fclose(f)
+                    return -3
+
+                for k, byte in enumerate(xrange(block * blocksize,
+                                                (block + 1) * blocksize)):
+                    spikes[byte, channel] = chunk[k]
+
+        free(chunk)
+        chunk = NULL
+
+        fclose(f)
+        f = NULL
+
+        return 0
 
 
 # @cython.boundscheck(False)
