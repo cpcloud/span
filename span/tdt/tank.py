@@ -75,8 +75,7 @@ def _get_first_match(pattern, string):
     return r.group(1)
 
 
-def read_tev_parallel(filename, block_size, nchannels, fp_locs, channels,
-                      spikes):
+def read_tev_parallel(filename, grouped, block_size, spikes):
     """Read a TDT tev file into a numpy array. Slightly faster than
     the pure Python version.
 
@@ -96,8 +95,9 @@ def read_tev_parallel(filename, block_size, nchannels, fp_locs, channels,
     """
     assert filename, 'filename (1st argument) cannot be empty'
     assert block_size > 0, '"block_size" must be greater than 0'
-    r = _read_tev_parallel(filename, block_size, nchannels, fp_locs, channels,
-                           spikes)
+
+    r = _read_tev_parallel(filename, grouped, block_size, spikes)
+
     if r:
         if r == -1:
             pass
@@ -445,20 +445,24 @@ class PandasTank(TdtTankBase):
         # tev filename
         tev_name = self.path + os.extsep + self._raw_ext
 
+        meta.reset_index(drop=True, inplace=True)
+
+        grouped = DataFrame(meta.groupby('channel').groups)
+        grouped_locs = meta.fp_loc.values.take(grouped.values)
+
         # read in the TEV data to spikes
-        _read_tev(tev_name, block_size, nchannels, meta.fp_loc, meta.channel,
-                  spikes)
+        _read_tev(tev_name, grouped_locs, block_size, spikes)
 
         # convert timestamps to datetime objects
         meta.timestamp = fromtimestamp(meta.timestamp)
 
-        # create the channel groups
         meta = meta.reset_index(drop=True)
-        us_per_sample = round(1e6 / meta.fs[0]) * datetools.Micro()
-        index = date_range(meta.timestamp[0], periods=nsamples,
+        us_per_sample = round(1e6 / meta.fs.get_value(0)) * datetools.Micro()
+        index = date_range(meta.timestamp.get_value(0), periods=nsamples,
                            freq=us_per_sample, name='time', tz='US/Eastern')
-        return SpikeDataFrame(spikes, meta, index=index,
-                              columns=columns.swaplevel(1, 0))
+        cols, _ = columns.swaplevel(1, 0).sortlevel('shank')
+        return SpikeDataFrame(spikes, meta, index=index, columns=cols,
+                              dtype=float)
 
 
 @thunkify

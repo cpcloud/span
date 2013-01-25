@@ -124,52 +124,54 @@ cpdef int _read_tev_serial(char* filename, ip nsamples, integral[:] fp_locs,
     return 0
 
 
+@cython.boundscheck(False)
+@cython.wraparound(False)
 @cython.cdivision(True)
-cpdef int _read_tev_parallel(char* filename, ip block_size, ip nchannels,
-                             long[:] fp_locs, long[:] channels,
-                             ndarray[float, ndim=2] spikes):
+cpdef int _read_tev_parallel(char* filename, long[:, :] grouped,
+                             long blocksize, float[:, :] spikes) nogil:
 
     cdef:
-        ip i, j, k, channel, r
-        ip nblocks = fp_locs.shape[0]
-        FILE* f = NULL
+        long channel, block, k, byte
+        long nchannels = grouped.shape[1], nblocks = grouped.shape[0]
+
         size_t f_bytes = sizeof(float)
-        float* chunk = NULL, *spikes_data = <float*> spikes.data
+        float* chunk = NULL
+        FILE* f = NULL
 
+    with parallel():
+        chunk = <float*> malloc(f_bytes * blocksize)
 
-    chunk = <float*> malloc(f_bytes * block_size)
+        if not chunk:
+            return -1
 
-    if not chunk:
-        return -1
+        f = fopen(filename, "rb")
 
-    f = fopen(filename, "rb")
-
-    if not f:
-        free(chunk)
-        chunk = NULL
-        return -2
-
-    for i in xrange(nblocks):
-        fseek(f, fp_locs[i], SEEK_SET)
-
-        if not fread(chunk, f_bytes, block_size, f):
+        if not f:
             free(chunk)
             chunk = NULL
-            fclose(f)
-            f = NULL
+            return -2
 
-        channel = channels[i]
+        for channel in prange(nchannels, schedule='static'):
+            for block in xrange(nblocks):
 
-        for k, j in enumerate(xrange(i * block_size, (i + 1) * block_size)):
-            spikes_data[j] = chunk[k]
+                fseek(f, grouped[block, channel], SEEK_SET)
 
-    free(chunk)
-    chunk = NULL
+                if not fread(chunk, f_bytes, blocksize, f):
+                    free(chunk)
+                    fclose(f)
+                    return -3
 
-    fclose(f)
-    f = NULL
+                for k, byte in enumerate(xrange(block * blocksize,
+                                                (block + 1) * blocksize)):
+                    spikes[byte, channel] = chunk[k]
 
-    return 0
+        free(chunk)
+        chunk = NULL
+
+        fclose(f)
+        f = NULL
+
+        return 0
 
 
 # @cython.boundscheck(False)
