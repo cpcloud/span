@@ -1,20 +1,16 @@
 #!/bin/bash
 
-function ncores
-{
-    grep -c 'model name' /proc/cpuinfo
-}
 
 function nocoverfast
 {
     nosetests -w span -A "not slow" --ignore='make_feature_file.py' \
-        --ignore='.*flymake.*' --detailed-errors --processes=$(ncores)
+        --ignore='.*flymake.*' --detailed-errors --processes=`nproc`
 }
 
 function nocover
 {
     nosetests -w span --ignore='make_feature_file.py' --ignore='.*flymake.*' \
-        --detailed-errors --processes=$(ncores)
+        --detailed-errors --processes=`nproc`
 }
 
 function cover

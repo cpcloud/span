@@ -36,86 +36,15 @@ import functools as fntools
 import numpy as np
 
 from pandas import (Series, DataFrame, MultiIndex, date_range, datetools,
-                    Timestamp, Panel)
+                    Timestamp)
 
 import span
 from span.xcorr import xcorr
 from span.utils.decorate import cached_property
-from span.utils import (sem, cast, samples_per_ms, bin_data, clear_refrac,
-                        ndtuples)
+from span.utils import sem, cast, samples_per_ms, clear_refrac, ndtuples
 
 
-class _ChannelGetter(object):
-    def __init__(self, obj):
-        super(_ChannelGetter, self).__init__()
-        self.obj = obj
-
-    def __getitem__(self, i):
-        assert isinstance(i, numbers.Integral), ('only integer indices are '
-                                                 'allowed for channel getting,'
-                                                 ' you gave a '
-                                                 '%s' % type(i))
-        return self.obj.ix[:, i]
-
-
-class SpikeGrouper(type):
-    """Metaclass for creating grouping selectors.
-
-    This is mostly for convenience, and could probably be made more general.
-    That is, have a function to create classes on the fly that index into the
-    ix or call select to retreive a subset of the data.
-    """
-    def __new__(cls, name, parents, dct):
-        dct['channel'] = property(fget=_ChannelGetter)
-        return type.__new__(cls, name, parents, dct)
-
-
-class SpikeGroupedDataFrame(DataFrame):
-    """Base class for spike data frames."""
-
-    __metaclass__ = SpikeGrouper
-
-    def __init__(self, *args, **kwargs):
-        super(SpikeGroupedDataFrame, self).__init__(*args, **kwargs)
-
-    @property
-    def _constructor(self):
-        return type(self)
-
-    def sem(self, axis=0, ddof=1):
-        r"""Return the standard error of the mean of array along `axis`.
-
-        Parameters
-        ----------
-        axis : int, optional
-            The axis along which to compute the standard error of the mean.
-
-        ddof : int, optional
-            Delta degrees of freedom. 0 computes the sem using the population
-            standard deviation, 1 computes the sem using the sample standard
-            deviation.
-
-        Returns
-        -------
-        sem : Series
-            The standard error of the mean of the object along `axis`.
-
-        Notes
-        -----
-        The standard error of the mean is defined as:
-
-        .. math::
-
-           \operatorname{sem}\left(\mathbf{x}\right)=\sqrt{\frac{\frac{1}{n -
-           \textrm{ddof}}\sum_{i=1}^{n}\left(x_{i} -
-           \bar{\mathbf{x}}\right)^{2}}{n}}
-
-        where :math:`n` is the number of elements along the axis `axis`.
-        """
-        return self.apply(sem, axis=axis, ddof=ddof)
-
-
-class SpikeDataFrameBase(SpikeGroupedDataFrame):
+class SpikeDataFrameBase(DataFrame):
     """Base class implementing basic spike data set properties and methods.
 
     Parameters
@@ -158,6 +87,42 @@ class SpikeDataFrameBase(SpikeGroupedDataFrame):
 
         self.meta = meta
         self.date = Timestamp(self.meta.timestamp[0])
+
+    @property
+    def _constructor(self):
+        return type(self)
+
+    def sem(self, axis=0, ddof=1):
+        r"""Return the standard error of the mean of array along `axis`.
+
+        Parameters
+        ----------
+        axis : int, optional
+            The axis along which to compute the standard error of the mean.
+
+        ddof : int, optional
+            Delta degrees of freedom. 0 computes the sem using the population
+            standard deviation, 1 computes the sem using the sample standard
+            deviation.
+
+        Returns
+        -------
+        sem : Series
+            The standard error of the mean of the object along `axis`.
+
+        Notes
+        -----
+        The standard error of the mean is defined as:
+
+        .. math::
+
+           \operatorname{sem}\left(\mathbf{x}\right)=\sqrt{\frac{\frac{1}{n -
+           \textrm{ddof}}\sum_{i=1}^{n}\left(x_{i} -
+           \bar{\mathbf{x}}\right)^{2}}{n}}
+
+        where :math:`n` is the number of elements along the axis `axis`.
+        """
+        return self.apply(sem, axis=axis, ddof=ddof)
 
     @cached_property
     def fs(self):
@@ -238,85 +203,14 @@ class SpikeDataFrame(SpikeDataFrameBase):
     @property
     def _constructor(self):
         self_t = type(self)
-        return lambda *args, **kwargs: self_t(*args, meta=self.meta, **kwargs)
 
-    def bin(self, cleared, binsize, reject_count=100, dropna=False):
-        """Bin spike data by `binsize` millisecond bins.
+        def _c(*args, **kwargs):
+            if 'meta' not in kwargs:
+                kwargs['meta'] = self.meta
 
-        Roughly, sum up the ones (and zeros) in the data using bins of size
-        `binsize`.
+            return self_t(*args, **kwargs)
 
-        See :func:span.utils.utils.bin_data for the actual loop that
-        executes this binning. This method is a wrapper around that function.
-
-        Parameters
-        ----------
-        cleared : array_like
-            The "refractory-period-cleared" array of booleans to bin.
-
-        binsize : numbers.Real
-            The size of the bins to use, in milliseconds
-
-        reject_count : numbers.Real, optional, default 100
-            Assign ``NaN`` to channels whose firing rates are less than this
-            number over the whole recording.
-
-        dropna : bool, optional
-            Whether to drop NaN'd values if any
-
-        Raises
-        ------
-        AssertionError
-            * If `binsize` is not a positive number or if `reject_count` is
-              not a nonnegative number
-
-        Returns
-        -------
-        binned : SpikeGroupedDataFrame of float64
-
-        See Also
-        --------
-        span.utils.utils.bin_data
-        """
-        assert binsize > 0 and isinstance(binsize, numbers.Real), \
-            '"binsize" must be a positive number'
-        assert reject_count >= 0 and isinstance(reject_count, numbers.Real), \
-            '"reject_count" must be a nonnegative real number'
-
-        ms_per_s = 1e3
-        bin_samples = cast(np.floor(binsize * self.fs / ms_per_s), np.uint64)
-        bins = np.arange(0, self.nsamples - 1, bin_samples, np.uint64)
-
-        shape = bins.shape[0] - 1, cleared.shape[1]
-        btmp = np.empty(shape, np.uint64)
-
-        bin_data(cleared.values.view(np.uint8), bins, btmp)
-
-        # make a datetime index of milliseconds
-        freq = binsize * datetools.Milli()
-        index = date_range(start=self.date, periods=btmp.shape[0],
-                           freq=freq, name=r'$t\left(i\right)$',
-                           tz='US/Eastern') + freq
-        binned = DataFrame(btmp, index=index, columns=cleared.columns,
-                           dtype=np.float64)
-
-        # samples / (samples / s) == s
-        rec_len_s = self.nsamples / self.fs
-
-        # spikes / s
-        min_sp_per_s = reject_count / rec_len_s
-
-        # spikes / s * ms / ms == spikes / s
-        sp_per_s = binned.mean() * ms_per_s / binsize
-
-        # get rid of channels who have less then "reject_count" spikes over
-        # the whole recording
-        binned.ix[:, sp_per_s < min_sp_per_s] = np.nan
-
-        if dropna:
-            binned = binned.dropna(axis=1)
-
-        return SpikeGroupedDataFrame(binned)
+        return _c
 
     def clear_refrac(self, threshed, ms=2):
         """Remove spikes from the refractory period of all channels.
@@ -357,7 +251,7 @@ class SpikeDataFrame(SpikeDataFrameBase):
             # WARNING: you must pass a np.uint8 type array (view or otherwise)
             clear_refrac(clr.view(np.uint8), ms_fs)
 
-            r = SpikeDataFrame(clr, self.meta, index=threshed.index,
+            r = self._constructor(clr, self.meta, index=threshed.index,
                                columns=threshed.columns)
         else:
             r = threshed
@@ -401,8 +295,8 @@ class SpikeDataFrame(SpikeDataFrameBase):
         return r
 
     def xcorr(self, binned, maxlags=None, detrend=span.utils.detrend_mean,
-              scale_type='normalize', sortlevel='shank i', dropna=False,
-              nan_auto=False, lag_name=r'$\ell$'):
+              scale_type='normalize', sortlevel='shank i', nan_auto=False,
+              lag_name='lag'):
         """Compute the cross correlation of binned data.
 
         Parameters
@@ -425,11 +319,6 @@ class SpikeDataFrame(SpikeDataFrameBase):
             How to sort the index of the returned cross-correlation.
             Defaults to "shank i" so the the xcorrs are ordered by their
             physical ordering.
-
-        dropna : bool, optional
-            If ``True`` this will drop all channels whose cross correlation is
-            ``NaN``. Cross-correlations will be ``NaN`` if any of the columns
-            of `binned` are ``NaN``.
 
         nan_auto : bool, optional
             If ``True`` then the autocorrelation values will be ``NaN``.
@@ -473,6 +362,7 @@ class SpikeDataFrame(SpikeDataFrameBase):
         xc = xcorr(binned, maxlags=maxlags, detrend=detrend,
                    scale_type=scale_type)
 
+        # this has REALLY go to go
         xc.columns = _create_xcorr_inds(self.nchans)
 
         if nan_auto:
@@ -484,9 +374,6 @@ class SpikeDataFrame(SpikeDataFrameBase):
 
             select_func = lambda x: x[chi_ind] == x[chj_ind]
             xc.ix[0, xc0.select(select_func).index] = np.nan
-
-        if dropna:
-            xc = xc.dropna(axis=1)
 
         if sortlevel is not None:
             fmt_str = 'sortlevel {0} not in {1}'

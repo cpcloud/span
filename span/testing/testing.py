@@ -8,8 +8,9 @@ from numpy.testing.decorators import slow
 from nose.tools import nottest
 from nose import SkipTest
 
-from pandas import Series, DataFrame, Int64Index
+from pandas import Series, DataFrame, Int64Index, DatetimeIndex
 from pandas.util.testing import *
+import pandas as pd
 
 try:
     _rands = copy.deepcopy(rands)
@@ -20,8 +21,8 @@ except NameError:
 from numpy.random import uniform as randrange, randint
 
 import span
+from span.tdt import SpikeDataFrame
 from span.tdt.spikeglobals import Indexer
-from span.tdt.tank import _reshape_spikes
 
 
 def assert_all_dtypes(df, dtype, msg='dtypes not all the same'):
@@ -42,10 +43,10 @@ def create_stsq(size=None, typ='stream',
                 fmt=np.float32, fs=4882.8125,
                 samples_per_channel=None):
     if size is None:
-        size = randint(2 ** 5, 2 ** 6)
+        size = randint(2 ** 3, 2 ** 4)
 
     if samples_per_channel is None:
-        samples_per_channel = randint(2 ** 6, 2 ** 7)
+        samples_per_channel = randint(2 ** 5, 2 ** 6)
 
     names = ('size', 'type', 'name', 'channel', 'sort_code', 'timestamp',
              'fp_loc', 'format', 'fs', 'shank')
@@ -79,23 +80,25 @@ def create_stsq(size=None, typ='stream',
 def create_spike_df(size=None, typ='stream', name=span.utils.name2num('Spik'),
                     nchannels=16, sort_code=0, fmt=np.float32, fs=4882.8125,
                     samples_per_channel=None):
+    from span.tdt.spikeglobals import ChannelIndex as columns
     tsq = create_stsq(size, typ, name, nchannels, sort_code, fmt, fs,
                       samples_per_channel)
-    spikes = np.empty((tsq.fp_loc.size, tsq.size[0]), tsq.format[0])
+
     tsq.timestamp = span.utils.fromtimestamp(tsq.timestamp)
     tsq = tsq.reset_index(drop=True)
-    groups = DataFrame(tsq.groupby('channel').groups).values
-    df = _reshape_spikes(spikes, groups, tsq, tsq.fs.unique().item(),
-                         tsq.channel.dropna().nunique(), tsq.timestamp[0])
-    return df()
+    groups = DataFrame(tsq.groupby('channel').groups)
+    spikes = np.random.randn(groups.shape[0] * tsq.size.get_value(0),
+                             nchannels) / 1e5
+    ns = int(1e9 / tsq.fs.get_value(0))
+    dtstart = np.datetime64(tsq.timestamp.get_value(0))
+    dt = dtstart + np.arange(spikes.shape[0]) * np.timedelta64(ns, 'ns')
+    index = DatetimeIndex(dt, freq=ns * pd.datetools.Nano(), name='time',
+                          tz='US/Eastern')
+    cols, _ = columns.swaplevel(1, 0).sortlevel('shank')
+    return SpikeDataFrame(spikes, tsq, index=index, columns=cols,
+                          dtype=np.float64)
 
 
 def rands(size, shape):
-    r = []
-
     n = np.prod(shape)
-
-    for i in xrange(n):
-        r.append(_rands(size))
-
-    return np.asarray(r).reshape(shape)
+    return np.asarray([_rands(size) for _ in xrange(n)]).reshape(shape)

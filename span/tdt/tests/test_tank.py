@@ -8,18 +8,20 @@ from glob import glob
 import numpy as np
 import pandas as pd
 
-from span.tdt.tank import TdtTankBase, PandasTank, _read_tev, _read_tev_python
+from span.tdt.tank import (TdtTankBase, PandasTank, _read_tev,
+                           _read_tev_parallel, _read_tev_python,
+                           _read_tev_serial)
 from span.tdt import SpikeDataFrame
 from span.tdt.tank import _get_first_match, _match_int
 from span.testing import slow, assert_array_almost_equal
 
 
 @slow
-class TestReadTev(unittest.TestCase):
+class TestReadTev(object):
     def setUp(self):
         path = os.getenv('SPAN_DATA_PATH')
 
-        self.assert_(os.path.isdir(path))
+        assert os.path.isdir(path)
 
         gettev = glob(os.path.join(path, '*%stev' % os.extsep))
 
@@ -33,74 +35,35 @@ class TestReadTev(unittest.TestCase):
         self.names = 'Spik', 'LFPs'
 
     def tearDown(self):
-        del self.names, self.tank, self.path
+        del self.names, self.tank, self.filename, self.path
 
-    def test_read_tev_equal(self):
+    def _reader_builder(self, reader):
         for name in self.names:
             tsq, _ = self.tank.tsq(name)
+
+            tsq.reset_index(drop=True, inplace=True)
             fp_locs = tsq.fp_loc
 
-            self.assertEqual(np.dtype(np.int64), fp_locs.dtype)
+            assert np.dtype(np.int64) == fp_locs.dtype
 
-            nsamples, chunk_size = fp_locs.size, tsq.size.unique().max()
+            chunk_size = tsq.size.unique().max()
+            grouped = pd.DataFrame(tsq.groupby('channel').groups)
+            grouped_locs = fp_locs.values.take(grouped.values)
 
-            del tsq
+            spikes = np.empty((grouped_locs.shape[0] * chunk_size,
+                               grouped_locs.shape[1]), np.float32)
 
-            spikes = np.empty((nsamples, chunk_size), np.float32)
-            spikes_cython = spikes.copy()
-
-            _read_tev_python(self.path, chunk_size, fp_locs, spikes)
-            _read_tev(self.path, chunk_size, fp_locs, spikes_cython)
-
-            assert_array_almost_equal(spikes, spikes_cython)
+            reader(self.path, grouped_locs, chunk_size, spikes)
 
             # mean should be at least on the order of millivolts if not less
             mag = np.log10(np.abs(spikes).mean())
-            self.assertLessEqual(mag, -3.0)
+            assert mag <= -3.0
 
-            del spikes, mag, fp_locs
 
-    def test_read_tev_python(self):
-        for name in self.names:
-            tsq, _ = self.tank.tsq(name)
-            fp_locs = tsq.fp_loc
-
-            self.assertEqual(np.dtype(np.int64), fp_locs.dtype)
-
-            nsamples, chunk_size = fp_locs.size, tsq.size.unique().max()
-
-            del tsq
-
-            spikes = np.empty((nsamples, chunk_size), np.float32)
-
-            _read_tev_python(self.path, chunk_size, fp_locs, spikes)
-
-            # mean should be at least on the order of millivolts if not less
-            mag = np.log10(np.abs(spikes).mean())
-            self.assertLessEqual(mag, -3.0)
-
-            del spikes, mag, fp_locs
-
-    def test_read_tev_cython(self):
-        for name in self.names:
-            tsq, _ = self.tank.tsq(name)
-            fp_locs = tsq.fp_loc
-
-            self.assertEqual(np.dtype(np.int64), fp_locs.dtype)
-
-            nsamples, chunk_size = fp_locs.size, tsq.size.unique().max()
-
-            del tsq
-
-            spikes = np.empty((nsamples, chunk_size), np.float32)
-
-            _read_tev(self.path, chunk_size, fp_locs, spikes)
-
-            # mean should be at least on the order of millivolts if not less
-            mag = np.log10(np.abs(spikes).mean())
-            self.assertLessEqual(mag, -3.0)
-
-            del spikes, mag, fp_locs
+    def test_read_tev(self):
+        for reader in set((_read_tev, _read_tev_serial, _read_tev_python,
+                           _read_tev_parallel)):
+            yield self._reader_builder, reader
 
 
 class TestGetFirstMatch(unittest.TestCase):
