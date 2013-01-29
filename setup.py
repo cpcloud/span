@@ -45,10 +45,10 @@ include_dirs = [npy_includes]
 define_macros = []
 
 # module file names sans extension
-names = 'clear_refrac', 'bin_data', 'mult_mat_xcorr', 'read_tev'
+names = 'clear_refrac', 'mult_mat_xcorr', 'read_tev'
 
 # module packages
-mod_pkgs = 'span.utils', 'span.utils', 'span.xcorr', 'span.tdt'
+mod_pkgs = 'span.utils', 'span.xcorr', 'span.tdt'
 
 # prefix for *.so files
 underscore = '_'
