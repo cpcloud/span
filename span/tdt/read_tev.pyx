@@ -27,96 +27,106 @@ from cython.parallel cimport prange, parallel
 from numpy cimport npy_intp as ip, ndarray
 
 
-@cython.boundscheck(False)
-@cython.wraparound(False)
-cpdef int _read_tev_serial(char* filename, ip nsamples, integral[:] fp_locs,
-                           floating[:, :] spikes):
-    cdef:
-        ip i, j
-        ip n = fp_locs.shape[0]
-
-        size_t f_bytes = sizeof(floating)
-
-        floating* chunk = NULL
-
-        FILE* f = NULL
-
-    chunk = <floating*> malloc(f_bytes * nsamples)
-
-    if not chunk:
-        return -1
-
-    f = fopen(filename, 'rb')
-
-    if not f:
-        free(chunk)
-        chunk = NULL
-        return -2
-
-    for i in xrange(n):
-        # go to the ith file pointer location
-        fseek(f, fp_locs[i], SEEK_SET)
-
-        # read floating_bytes * nsamples bytes into chunk_data
-        if not fread(chunk, f_bytes, nsamples, f):
-            return -3
-
-        # assign the chunk data to the spikes array
-        for j in xrange(nsamples):
-            spikes[i, j] = chunk[j]
-
-    # get rid of the chunk data
-    free(chunk)
-    chunk = NULL
-
-    fclose(f)
-    f = NULL
-
-    return 0
-
 
 @cython.boundscheck(False)
 @cython.wraparound(False)
-cpdef int _read_tev_parallel(char* filename, integral[:, :] grouped,
-                             ip blocksize,
-                             floating[:, :] spikes) nogil except -1:
+cpdef _read_tev_serial(char* filename, integral[:, :] grouped, ip blocksize,
+                       floating[:, :] spikes):
 
     cdef:
-        ip channel, block, k, byte
+        ip c, b, k, byte, low, high
         ip nchannels = grouped.shape[1], nblocks = grouped.shape[0]
 
         size_t f_bytes = sizeof(floating)
         floating* chunk = NULL
         FILE* f = NULL
 
-    with parallel():
+    with nogil:
         chunk = <floating*> malloc(f_bytes * blocksize)
 
         if not chunk:
-            return -1
+            with gil:
+                raise MemoryError('Cannot allocate chunk of size '
+                                  '%i' % blocksize)
 
         f = fopen(filename, "rb")
 
         if not f:
             free(chunk)
-            chunk = NULL
-            return -1
 
-        for channel in prange(nchannels, schedule='static'):
-            for block in xrange(nblocks):
+            with gil:
+                raise IOError("Unable to open file %s" % filename)
 
-                fseek(f, grouped[block, channel], SEEK_SET)
-                fread(chunk, f_bytes, blocksize, f)
+        for c in xrange(nchannels):
+            for b in xrange(nblocks):
 
-                for k, byte in enumerate(xrange(block * blocksize,
-                                                (block + 1) * blocksize)):
-                    spikes[byte, channel] = chunk[k]
+                fseek(f, grouped[b, c], SEEK_SET)
+
+                if not fread(chunk, f_bytes, blocksize, f):
+                    free(chunk)
+                    fclose(f)
+
+                    with gil:
+                        raise IOError('Unable to read %i elements from '
+                                      '%s' % (blocksize, filename))
+
+                low = b * blocksize
+                high = (b + 1) * blocksize
+
+                for k, byte in enumerate(xrange(low, high)):
+                    spikes[byte, c] = chunk[k]
+
+        free(chunk)
+        fclose(f)
+
+
+@cython.boundscheck(False)
+@cython.wraparound(False)
+cpdef _read_tev_parallel(char* filename, integral[:, :] grouped, ip blocksize,
+                         floating[:, :] spikes):
+
+    cdef:
+        ip c, b, k, byte, low, high
+        ip nchannels = grouped.shape[1], nblocks = grouped.shape[0]
+
+        size_t f_bytes = sizeof(floating)
+        floating* chunk = NULL
+        FILE* f = NULL
+
+    with nogil, parallel():
+        chunk = <floating*> malloc(f_bytes * blocksize)
+
+        if not chunk:
+            with gil:
+                raise MemoryError('Unable to allocate array of size '
+                                  '%i' % blocksize)
+
+        f = fopen(filename, "rb")
+
+        if not f:
+            free(chunk)
+
+            with gil:
+                raise IOError('Unable to open file %s' % filename)
+
+        for c in prange(nchannels, schedule='static'):
+            for b in xrange(nblocks):
+
+                fseek(f, grouped[b, c], SEEK_SET)
+                if not fread(chunk, f_bytes, blocksize, f):
+                    free(chunk)
+                    fclose(f)
+
+                    with gil:
+                        raise IOError('Unable to read %i elements from '
+                                      '%s' % (blocksize, filename))
+
+                low = b * blocksize
+                high = (b + 1) * blocksize
+
+                for k, byte in enumerate(xrange(low, high)):
+                    spikes[byte, c] = chunk[k]
 
 
         free(chunk)
-        chunk = NULL
-
         fclose(f)
-        f = NULL
-
-        return 0
