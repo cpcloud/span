@@ -293,6 +293,13 @@ def normalize(c, x, y, lags, lsize):
 
 
 def none(c, x, y, lags, lsize):
+    """Do nothing with the input and return `c`.
+
+    Parameters
+    ----------
+    c, x, y, lags : array_like
+    lsize : int
+    """
     return c
 
 
