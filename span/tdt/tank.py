@@ -42,6 +42,8 @@ from numpy import (float32 as f4, int32 as i4, uint32 as u4, uint16 as u2,
 from pandas import Series, DataFrame, DatetimeIndex
 import pandas as pd
 
+from numba import autojit, typeof
+
 from span.tdt.spikeglobals import Indexer, EventTypes, DataTypes
 from span.tdt.spikedataframe import SpikeDataFrame
 from span.tdt._read_tev import (_read_tev_parallel as __read_tev_parallel,
@@ -76,6 +78,29 @@ def _get_first_match(pattern, string):
         r = re.match(pattern, string)
 
     return r.group(1)
+
+
+@autojit
+def _read_tev_numba(filename, grouped, block_size, spikes):
+    nblocks, nchannels = grouped.shape
+
+    f = open(filename, 'rb')
+    dt = spikes.dtype
+
+    for c in xrange(nchannels):
+        for b in xrange(nblocks):
+            f.seek(grouped[b, c])
+            chunk = np.fromfile(f, dt, block_size)
+
+            low = b * block_size
+            high = (b + 1) * block_size
+
+            k = 0
+            for byte in xrange(low, high):
+                spikes[byte, c] = chunk[k]
+                k += 1
+
+    f.close()
 
 
 def _read_tev_parallel(filename, grouped, block_size, spikes):
@@ -140,7 +165,6 @@ def _read_tev_python(filename, grouped, block_size, spikes):
             f.seek(grouped[b, c])
             v = np.fromfile(f, dt, block_size)
             spikes[b * block_size:(b + 1) * block_size, c] = v
-
 
 
 _read_tev = _read_tev_parallel
@@ -457,5 +481,4 @@ class PandasTank(TdtTankBase):
         index = DatetimeIndex(dt, freq=ns * pd.datetools.Nano(), name='time',
                               tz='US/Eastern')
         cols, _ = columns.swaplevel(1, 0).sortlevel('shank')
-        return SpikeDataFrame(spikes, meta, index=index, columns=cols,
-                              dtype=np.float64)
+        return SpikeDataFrame(spikes, index=index, columns=cols, dtype=float)
