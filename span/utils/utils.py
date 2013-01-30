@@ -35,6 +35,8 @@ import pandas as pd
 
 from pandas import DataFrame, datetime, MultiIndex
 
+from numba import jit, NumbaError
+
 from span.utils._clear_refrac import _clear_refrac as _clear_refrac_impl
 
 
@@ -394,24 +396,44 @@ def assert_nonzero_existing_file(f):
     assert nonzero_existing_file(f), ("%s does not exist or has a size of 0 "
                                       "bytes" % f)
 
+try:
+    @jit('void(b1[:, :], i8)')
+    def clear_refrac(a, window):
+        nsamples, nchannels = a.shape
+        i = 0  # because numba cannot figure out this is an integer
 
-def clear_refrac(a, window):
-    """Clear the refractory period of a boolean array.
+        for channel in xrange(nchannels):
+            sample = 0
 
-    Parameters
-    ----------
-    a : array_like
-    window : npy_intp
+            while sample + window < nsamples:
+                if a[sample, channel]:
+                    sp1 = sample + 1
 
-    Notes
-    -----
-    If ``a.dtype == np.bool_`` in Python then this function will not work
-    unless ``a.view(uint8)`` is passed.
+                    for i in xrange(sp1, sp1 + window):
+                        a[i, channel] = False
 
-    Raises
-    ------
-    AssertionError
+                    sample += window
+
+                sample += 1
+except NumbaError:
+    def clear_refrac(a, window):
+        """Clear the refractory period of a boolean array.
+
+        Parameters
+        ----------
+        a : array_like
+        window : npy_intp
+
+        Notes
+        -----
+        If ``a.dtype == np.bool_`` in Python then this function will not work
+        unless ``a.view(uint8)`` is passed.
+
+        Raises
+        ------
+        AssertionError
         If `window` is less than or equal to 0
-    """
-    assert window > 0, '"window" must be greater than 0'
-    _clear_refrac_impl(a, window)
+        """
+        assert a is not None
+        assert window > 0, '"window" must be greater than 0'
+        _clear_refrac_impl(a, window)
