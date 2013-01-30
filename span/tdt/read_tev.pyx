@@ -27,7 +27,6 @@ from cython.parallel cimport prange, parallel
 from numpy cimport npy_intp as ip, ndarray
 
 
-
 @cython.boundscheck(False)
 @cython.wraparound(False)
 cpdef _read_tev_serial(char* filename, integral[:, :] grouped, ip blocksize,
