@@ -35,13 +35,12 @@ import functools as fntools
 
 import numpy as np
 
-from pandas import (Series, DataFrame, MultiIndex, date_range, datetools,
-                    Timestamp)
+from pandas import Series, DataFrame, MultiIndex, Timestamp
 
 import span
 from span.xcorr import xcorr
 from span.utils.decorate import cached_property
-from span.utils import sem, cast, samples_per_ms, clear_refrac, ndtuples
+from span.utils import sem, samples_per_ms, clear_refrac, ndtuples
 
 
 class SpikeDataFrameBase(DataFrame):
@@ -64,14 +63,8 @@ class SpikeDataFrameBase(DataFrame):
     Attributes
     ----------
     fs (float) : Sampling rate
-    nchans (int) : Number of channels
+    nchannels (int) : Number of channels
     nsamples (int) : Number of samples per channel
-    chunk_size (int) : Samples per chunk
-    sort_code (int) : I have no idea what the sort code is
-    dtype (dtype) : The dtype of the underlying array
-    tdt_type (int) : The integer corresponding to the type of event
-    meta (DataFrame) : Recording metadata
-    date (Timestamp) : The date of the recording
 
     See Also
     --------
@@ -80,17 +73,8 @@ class SpikeDataFrameBase(DataFrame):
 
     __slots__ = 'meta', 'date'
 
-    def __init__(self, data, meta, *args, **kwargs):
-        super(SpikeDataFrameBase, self).__init__(data, *args, **kwargs)
-
-        assert meta is not None, 'meta cannot be None'
-
-        self.meta = meta
-        self.date = Timestamp(self.meta.timestamp[0])
-
-    @property
-    def _constructor(self):
-        return type(self)
+    def __init__(self, *args, **kwargs):
+        super(SpikeDataFrameBase, self).__init__(*args, **kwargs)
 
     def sem(self, axis=0, ddof=1):
         r"""Return the standard error of the mean of array along `axis`.
@@ -124,37 +108,17 @@ class SpikeDataFrameBase(DataFrame):
         """
         return self.apply(sem, axis=axis, ddof=ddof)
 
-    @cached_property
-    def fs(self):
-        return self.meta.fs.unique().item()
-
-    @cached_property
-    def chunk_size(self):
-        return self.meta.size.unique().item()
-
-    @cached_property
-    def sort_code(self):
-        return self.meta.sort_code.unique().item()
-
-    @cached_property
-    def dtype(self):
-        return np.dtype(self.meta.format.unique().item())
-
-    @cached_property
-    def tdt_type(self):
-        return self.meta.type.unique().item()
-
     @property
-    def nchans(self):
-        return min(self.shape)
-
-    @property
-    def nshanks(self):
-        return self.meta.shank.nunique()
+    def nchannels(self):
+        return self.shape[1]
 
     @property
     def nsamples(self):
-        return max(self.shape)
+        return self.shape[0]
+
+    @property
+    def fs(self):
+        return 1e9 / self.index.freq.n
 
     def threshold(self, threshes):
         """Threshold spikes.
@@ -173,11 +137,10 @@ class SpikeDataFrameBase(DataFrame):
         -------
         threshed : array_like
         """
-        threshes = np.asanyarray(np.atleast_1d(threshes))
 
-        assert threshes.size == 1 or threshes.size == self.nchans, \
+        assert threshes.size == 1 or threshes.size == self.nchannels, \
             'number of threshold values must be 1 (same for all channels) or '\
-            '{0}, different threshold for each channel'.format(self.nchans)
+            '{0}, different threshold for each channel'.format(self.nchannels)
 
         is_neg = np.all(threshes < 0)
         cmpf = self.lt if is_neg else self.gt
@@ -202,15 +165,7 @@ class SpikeDataFrame(SpikeDataFrameBase):
 
     @property
     def _constructor(self):
-        self_t = type(self)
-
-        def _c(*args, **kwargs):
-            if 'meta' not in kwargs:
-                kwargs['meta'] = self.meta
-
-            return self_t(*args, **kwargs)
-
-        return _c
+        return type(self)
 
     def clear_refrac(self, threshed, ms=2):
         """Remove spikes from the refractory period of all channels.
@@ -249,10 +204,10 @@ class SpikeDataFrame(SpikeDataFrameBase):
 
             # TODO: make sure samples by channels is shape of clr
             # WARNING: you must pass a np.uint8 type array (view or otherwise)
-            clear_refrac(clr.view(np.uint8), ms_fs)
+            clear_refrac(clr, ms_fs)
 
-            r = self._constructor(clr, self.meta, index=threshed.index,
-                               columns=threshed.columns)
+            r = self._constructor(clr, index=threshed.index,
+                                  columns=threshed.columns, dtype=clr.dtype)
         else:
             r = threshed
 
@@ -363,7 +318,7 @@ class SpikeDataFrame(SpikeDataFrameBase):
                    scale_type=scale_type)
 
         # this has REALLY go to go
-        xc.columns = _create_xcorr_inds(self.nchans)
+        xc.columns = _create_xcorr_inds(self.nchannels)
 
         if nan_auto:
             # slight hack for channel names
