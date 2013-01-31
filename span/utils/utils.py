@@ -35,9 +35,9 @@ import pandas as pd
 
 from pandas import DataFrame, datetime, MultiIndex
 
-from numba import jit, NumbaError
+from numba import autojit, NumbaError
 
-from span.utils._clear_refrac import _clear_refrac as _clear_refrac_impl
+from span.utils._clear_refrac import _clear_refrac as _clear_refrac_cython
 
 
 fromtimestamp = np.vectorize(datetime.fromtimestamp)
@@ -397,8 +397,8 @@ def assert_nonzero_existing_file(f):
                                       "bytes" % f)
 
 try:
-    @jit('void(b1[:, :], i8)')
-    def clear_refrac(a, window):
+    @autojit
+    def _clear_refrac_numba(a, window):
         nsamples, nchannels = a.shape
         i = 0  # because numba cannot figure out this is an integer
 
@@ -416,24 +416,31 @@ try:
 
                 sample += 1
 except NumbaError:
-    def clear_refrac(a, window):
-        """Clear the refractory period of a boolean array.
+    pass
 
-        Parameters
-        ----------
-        a : array_like
-        window : npy_intp
 
-        Notes
-        -----
-        If ``a.dtype == np.bool_`` in Python then this function will not work
-        unless ``a.view(uint8)`` is passed.
+def clear_refrac(a, window):
+    """Clear the refractory period of a boolean array.
 
-        Raises
-        ------
-        AssertionError
-        If `window` is less than or equal to 0
-        """
-        assert a is not None
-        assert window > 0, '"window" must be greater than 0'
-        _clear_refrac_impl(a, window)
+    Parameters
+    ----------
+    a : array_like
+    window : npy_intp
+
+    Notes
+    -----
+    If ``a.dtype == np.bool_`` in Python then this function will not work
+    unless ``a.view(uint8)`` is passed.
+
+    Raises
+    ------
+    AssertionError
+    If `window` is less than or equal to 0
+    """
+    assert a is not None
+    assert window > 0, '"window" must be greater than 0'
+
+    try:
+        _clear_refrac_numba(a, window)
+    except (NameError, NumbaError):
+        _clear_refrac_cython(a, window)
