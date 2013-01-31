@@ -25,23 +25,28 @@ from numpy cimport uint8_t as u1, npy_intp as ip
 
 @cython.wraparound(False)
 @cython.boundscheck(False)
-cpdef _clear_refrac(u1[:, ::1] a, ip window):
+cdef void __clear_refrac(u1[:, :] a, ip window) nogil:
     cdef:
         ip channel, i, sample, sp1
         ip nsamples = a.shape[0], nchannels = a.shape[1]
 
-    with nogil:
-        for channel in xrange(nchannels):
-            sample = 0
 
-            while sample + window < nsamples:
-                if a[sample, channel]:
-                    sp1 = sample + 1
+    for channel in xrange(nchannels):
+        sample = 0
 
-                    with parallel():
-                        for i in prange(sp1, sp1 + window, schedule='static'):
-                            a[i, channel] = 0
+        while sample + window < nsamples:
+            if a[sample, channel]:
+                sp1 = sample + 1
 
-                    sample += window
+                for i in xrange(sp1, sp1 + window):
+                    a[i, channel] = 0
 
-                sample += 1
+                sample += window
+
+            sample += 1
+
+
+@cython.wraparound(False)
+@cython.boundscheck(False)
+cpdef _clear_refrac(u1[:, :] a, ip window):
+    __clear_refrac(a, window)
