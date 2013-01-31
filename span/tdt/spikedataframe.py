@@ -202,9 +202,10 @@ class SpikeDataFrame(SpikeDataFrameBase):
             # get the number of samples in ms milliseconds
             ms_fs = samples_per_ms(self.fs, ms)
 
-            # TODO: make sure samples by channels is shape of clr
-            # WARNING: you must pass a np.uint8 type array (view or otherwise)
-            clear_refrac(clr, ms_fs)
+            try:
+                clear_refrac(clr, ms_fs)
+            except ValueError:
+                clear_refrac(clr.view(np.uint8), ms_fs)
 
             r = self._constructor(clr, index=threshed.index,
                                   columns=threshed.columns, dtype=clr.dtype)
