@@ -96,7 +96,7 @@ class TestTrimmean(TestCase):
             if axis is not None:
                 self.assertEqual(m.ndim, x.ndim - 1)
             else:
-                self.assertIsInstance(m, float)
+                self.assertIsInstance(m, Series)
 
 
 class TestSem(TestCase):
@@ -206,6 +206,14 @@ def test_ndtuples():
 
 
 class TestDetrend(TestCase):
+    @classmethod
+    def setUpClass(cls):
+        cls.eps = np.finfo(float).eps
+
+    @classmethod
+    def tearDownClass(cls):
+        del cls.eps
+
     def test_detrend_none(self):
         x = np.random.randn(2, 3)
         dtx = detrend_none(x)
@@ -213,41 +221,41 @@ class TestDetrend(TestCase):
 
     def test_detrend_mean(self):
         x = np.random.randn(3, 2)
-        dtx = detrend_mean(x)
-        expect = x - x.mean(0)
-        self.assertEqual(expect.dtype, dtx.dtype)
-        assert_array_equal(dtx, expect)
-        assert_allclose(dtx.mean(), 0.0, atol=np.finfo(dtx.dtype).eps)
+
+        axes = 0, 1
+        for axis in axes:
+            dtx = detrend_mean(x, axis)
+            zs = np.zeros(dtx.shape[1 - axis])
+            assert_allclose(dtx.mean(axis).ravel(), zs, atol=self.eps)
 
     def test_detrend_mean_dataframe(self):
         x = DataFrame(np.random.randn(3, 4))
-        dtx = detrend_mean(x)
-        m = dtx.mean()
-        eps = np.finfo(float).eps
-        assert_allclose(m.values.squeeze(), np.zeros(m.shape),
-                        atol=eps)
+
+        axes = 0, 1
+        for axis in axes:
+            dtx = detrend_mean(x, axis)
+            zs = np.zeros(dtx.shape[1 - axis])
+            assert_allclose(dtx.mean(axis), zs, atol=self.eps)
 
     def test_detrend_linear(self):
-        n = 100
-        x = np.random.randn(n)
+        n = 3
+        x = np.arange(n)
         dtx = detrend_linear(x)
-        eps = np.finfo(dtx.dtype).eps
-        ord_mag = int(np.floor(np.log10(n)))
-        rtol = 10.0 ** (1 - ord_mag) + (ord_mag - 1)
-        assert_allclose(dtx.mean(), 0.0, rtol=rtol, atol=eps)
-        assert_allclose(dtx.std(), 1.0, rtol=rtol, atol=eps)
+        m = dtx.mean()
+        s = dtx.std(ddof=1)
+        assert_allclose(m, 0.0, atol=self.eps * 5)
+        assert_allclose(s, 0.0, atol=self.eps * 5)
 
     def test_detrend_linear_series(self):
-        n = 5
-        x = Series(np.random.randn(n))
+        n = 3
+        x = Series(np.arange(n))
         dtx = detrend_linear(x)
         m = dtx.mean()
         s = dtx.std()
         ord_mag = int(np.floor(np.log10(n)))
-        rtol = 10 ** (1 - ord_mag) + (ord_mag - 1)
-        eps = np.finfo(float).eps * 10
-        assert_allclose(m, 0.0, rtol=rtol, atol=eps)
-        assert_allclose(s, 1.0, rtol=rtol, atol=eps)
+        rtol = 10.0 ** ((1 - ord_mag) + (ord_mag - 1))
+        assert_allclose(m, 0.0, atol=self.eps * 5)
+        assert_allclose(s, 0.0, atol=self.eps * 5)
 
 
 class TestCartesian(TestCase):
