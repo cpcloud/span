@@ -137,6 +137,8 @@ class SpikeDataFrameBase(DataFrame):
         -------
         threshed : array_like
         """
+        if np.isscalar(threshes):
+            threshes = np.repeat(threshes, self.nchannels)
 
         assert threshes.size == 1 or threshes.size == self.nchannels, \
             'number of threshold values must be 1 (same for all channels) or '\
@@ -195,60 +197,17 @@ class SpikeDataFrame(SpikeDataFrameBase):
         assert ms >= 0 or ms is None, \
             'refractory period must be a nonnegative integer or None'
 
+        clr = threshed
+
         if ms:
-            # copy so we don't write over the values
-            clr = threshed.values.copy()
+            # copy so we don't write over the values of threshed
+            clr = threshed.copy()
 
             # get the number of samples in ms milliseconds
             ms_fs = samples_per_ms(self.fs, ms)
+            clear_refrac(clr.values, ms_fs)
 
-            try:
-                clear_refrac(clr, ms_fs)
-            except ValueError:
-                clear_refrac(clr.view(np.uint8), ms_fs)
-
-            r = self._constructor(clr, index=threshed.index,
-                                  columns=threshed.columns, dtype=clr.dtype)
-        else:
-            r = threshed
-
-        return r
-
-    def fr(self, binned, level='channel', axis=1, return_sem=False):
-        """Compute the firing rate over a given level.
-
-        Parameters
-        ----------
-        binned : array_like
-            Threshold scalar array.
-
-        level : str, optional
-            The level of the data set on which to run the analyses. Defaults
-            to "channel".
-
-        axis : int, optional
-            The axis on which to look for the level; defaults to 1.
-
-        return_sem : bool, optional
-            Whether to return the standard error of the mean along with the
-            average firing rate; defaults to ``False``.
-
-        Returns
-        -------
-        fr, sem : array_like, array_like
-            The average firing rate in spikes per `binsize` milliseconds and
-            the standard error of the mean of the spike counts for a given
-            level.
-        """
-        group = binned.groupby(axis=axis, level=level)
-        gm = group.mean()
-
-        r = gm.mean()
-
-        if return_sem:
-            r = r, gm.apply(sem)
-
-        return r
+        return clr
 
     def xcorr(self, binned, maxlags=None, detrend=span.utils.detrend_mean,
               scale_type='normalize', sortlevel='shank i', nan_auto=False,
@@ -333,17 +292,18 @@ class SpikeDataFrame(SpikeDataFrameBase):
 
         if sortlevel is not None:
             fmt_str = 'sortlevel {0} not in {1}'
+            cols = xc.columns
 
             try:
                 sl = int(sortlevel)
-                nlevels = xc.columns.nlevels
+                nlevels = cols.nlevels
                 assert 0 <= sl < nlevels, fmt_str.format(sl, range(nlevels))
-            except ValueError:
+            except (ValueError, AssertionError):
                 try:
                     sl = str(sortlevel)
-                    names = xc.columns.names
+                    names = cols.names
                     assert sl in names, fmt_str.format(sl, names)
-                except ValueError:
+                except (ValueError, AssertionError):
                     raise ValueError('sortlevel must be an int or a string')
 
             xc = xc.sortlevel(level=sl, axis=1)
