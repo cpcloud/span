@@ -24,13 +24,11 @@ class TestClearRefracModule(unittest.TestCase):
     def test_many_threshes(self):
         thr = self.x > rand(self.x.shape[1])
         cleared = thr.copy()
-        clear_refrac(thr.view(np.uint8), self.window)
-        self.assertRaises(ValueError, clear_refrac, thr, self.window)
+        clear_refrac(cleared, self.window)
         self.assertFalse(np.array_equal(thr, cleared))
 
     def test_one_thresh(self):
         thr = self.x > rand()
         cleared = thr.copy()
-        clear_refrac(thr.view(np.uint8), self.window)
-        self.assertRaises(ValueError, clear_refrac, thr, self.window)
+        clear_refrac(cleared, self.window)
         self.assertFalse(np.array_equal(thr, cleared))
