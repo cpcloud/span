@@ -35,7 +35,8 @@ import pandas as pd
 
 from pandas import DataFrame, datetime, MultiIndex
 
-from numba import autojit, NumbaError
+import numba
+from numba import autojit, NumbaError, void
 
 from span.utils._clear_refrac import _clear_refrac as _clear_refrac_cython
 
@@ -397,19 +398,19 @@ def assert_nonzero_existing_file(f):
                                       "bytes" % f)
 
 try:
-    @autojit
+    B = numba.template("B")
+    I = numba.template("I")
+
+    @autojit(void(B[:, :], I))
     def _clear_refrac_numba(a, window):
         nsamples, nchannels = a.shape
-        i = 0  # because numba cannot figure out this is an integer
 
         for channel in xrange(nchannels):
             sample = 0
 
             while sample + window < nsamples:
                 if a[sample, channel]:
-                    sp1 = sample + 1
-
-                    for i in xrange(sp1, sp1 + window):
+                    for i in xrange(sample + 1, sample + 1 + window):
                         a[i, channel] = False
 
                     sample += window
@@ -442,5 +443,5 @@ def clear_refrac(a, window):
 
     try:
         _clear_refrac_numba(a, window)
-    except (NameError, NumbaError):
-        _clear_refrac_cython(a, window)
+    except:
+        _clear_refrac_cython(a.view(np.uint8), window)
