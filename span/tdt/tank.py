@@ -42,7 +42,7 @@ from numpy import (float32 as f4, int32 as i4, uint32 as u4, uint16 as u2,
 from pandas import Series, DataFrame, DatetimeIndex
 import pandas as pd
 
-from numba import autojit, typeof
+from numba import autojit, NumbaError
 
 from span.tdt.spikeglobals import Indexer, EventTypes, DataTypes
 from span.tdt.spikedataframe import SpikeDataFrame
@@ -84,21 +84,15 @@ def _get_first_match(pattern, string):
 def _read_tev_numba(filename, grouped, block_size, spikes):
     nblocks, nchannels = grouped.shape
 
-    f = open(filename, 'rb')
     dt = spikes.dtype
+
+    f = open(filename, 'rb')
 
     for c in xrange(nchannels):
         for b in xrange(nblocks):
             f.seek(grouped[b, c])
             chunk = np.fromfile(f, dt, block_size)
-
-            low = b * block_size
-            high = (b + 1) * block_size
-
-            k = 0
-            for byte in xrange(low, high):
-                spikes[byte, c] = chunk[k]
-                k += 1
+            spikes[b * block_size:(b + 1) * block_size, c] = chunk
 
     f.close()
 
@@ -167,7 +161,11 @@ def _read_tev_python(filename, grouped, block_size, spikes):
             spikes[b * block_size:(b + 1) * block_size, c] = v
 
 
-_read_tev = _read_tev_parallel
+def _read_tev(*args, **kwargs):
+    try:
+        _read_tev_numba(*args, **kwargs)
+    except (NameError, NumbaError):
+        _read_tev_parallel(*args, **kwargs)
 
 
 def _match_int(pattern, string, get_exc=False, excs=(AttributeError,
@@ -247,8 +245,7 @@ class TdtTankAbstractBase(object):
         b.channel[b.channel == -1] = np.nan
 
         b.type = EventTypes[b.type].reset_index(drop=True)
-        dtf = DataTypes[b.format]
-        b.format = dtf.map(lambda x: np.dtype(x).char).reset_index(drop=True)
+        b.format = DataTypes[b.format].reset_index(drop=True)
 
         b.timestamp[np.logical_not(b.timestamp)] = np.nan
         b.fs[np.logical_not(b.fs)] = np.nan
