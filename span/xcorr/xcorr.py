@@ -29,14 +29,28 @@ from span.xcorr._mult_mat_xcorr import (_mult_mat_xcorr_parallel,
 import warnings
 
 import numba
-from numba import autojit, NumbaError, void, i8
+from numba import autojit, NumbaError, void
 
 
 try:
     T = numba.template("T")
+    S = numba.template("S")
 
-    @autojit(void(T[:, :], T[:, :], T[:, :], i8, i8))
+    @autojit(void(T[:, :], T[:, :], T[:, :], S, S))
     def mult_mat_xcorr_numba(X, Xc, c, n, nx):
+        """Perform the necessary matrix-vector multiplication and fill the cross-
+        correlation array. Slightly faster than pure Python.
+
+        Parameters
+        ----------
+        X, Xc, c : c16[:, :]
+        n, nx : ip
+
+        Raises
+        ------
+        AssertionError
+           If n <= 0 or nx <= 0
+        """
         for i in xrange(n):
             r = 0
 
@@ -45,6 +59,25 @@ try:
                     c[j, k] = X[i, k] * Xc[r, k]
 
                 r += 1
+
+    @autojit(void(T[:, :], T[:, :], T[:, :], S, S))
+    def mult_mat_xcorr_numba_slow(X, Xc, c, n, nx):
+        """Perform the necessary matrix-vector multiplication and fill the cross-
+        correlation array. Slightly faster than pure Python.
+
+        Parameters
+        ----------
+        X, Xc, c : c16[:, :]
+        n, nx : ip
+
+        Raises
+        ------
+        AssertionError
+           If n <= 0 or nx <= 0
+        """
+        for i in xrange(n):
+            c[i * n:(i + 1) * n] = X[i] * Xc
+
 except NumbaError:
     pass
 
@@ -97,7 +130,7 @@ def mult_mat_xcorr_python(X, Xc, c, n, nx):
 
 def mult_mat_xcorr(X, Xc):
     n, nx = X.shape
-    c = np.empty((n ** 2, nx), X.dtype)
+    c = np.empty((n * n, nx), X.dtype)
 
     try:
         mult_mat_xcorr_numba(X, Xc, c, n, nx)
