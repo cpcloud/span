@@ -112,6 +112,7 @@ cpdef _read_tev_parallel(char* filename, integral[:, :] grouped, ip blocksize,
             for b in xrange(nblocks):
 
                 fseek(f, grouped[b, c], SEEK_SET)
+
                 if not fread(chunk, f_bytes, blocksize, f):
                     free(chunk)
                     fclose(f)
@@ -125,7 +126,6 @@ cpdef _read_tev_parallel(char* filename, integral[:, :] grouped, ip blocksize,
 
                 for k, byte in enumerate(xrange(low, high)):
                     spikes[byte, c] = chunk[k]
-
 
         free(chunk)
         fclose(f)
