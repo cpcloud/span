@@ -35,8 +35,11 @@ import pandas as pd
 
 from pandas import DataFrame, datetime, MultiIndex
 
-import numba
-from numba import autojit, NumbaError, void
+try:
+    import numba
+    from numba import autojit, NumbaError, void
+except ImportError:
+    NumbaError = Exception
 
 from span.utils._clear_refrac import _clear_refrac as _clear_refrac_cython
 
@@ -416,7 +419,7 @@ try:
                     sample += window
 
                 sample += 1
-except NumbaError:
+except NameError:
     pass
 
 
@@ -443,5 +446,5 @@ def clear_refrac(a, window):
 
     try:
         _clear_refrac_numba(a, window)
-    except:
+    except (NameError, NumbaError):
         _clear_refrac_cython(a.view(np.uint8), window)

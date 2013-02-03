@@ -43,7 +43,10 @@ from numpy import (float32 as f4, int32 as i4, uint32 as u4, uint16 as u2,
 from pandas import Series, DataFrame, DatetimeIndex
 import pandas as pd
 
-from numba import autojit, NumbaError
+try:
+    from numba import autojit, NumbaError
+except ImportError:
+    NumbaError = Exception
 
 from span.tdt.spikeglobals import Indexer, EventTypes, DataTypes
 from span.tdt.spikedataframe import SpikeDataFrame
@@ -83,22 +86,25 @@ def _get_first_match(pattern, string):
     return r.group(1)
 
 
-@autojit
-def _read_tev_numba(filename, grouped, block_size, spikes):
-    nblocks, nchannels = grouped.shape
+try:
+    @autojit
+    def _read_tev_numba(filename, grouped, block_size, spikes):
+        nblocks, nchannels = grouped.shape
 
-    dt = spikes.dtype
+        dt = spikes.dtype
 
-    f = open(filename, 'rb')
+        f = open(filename, 'rb')
 
-    for c in xrange(nchannels):
-        for b in xrange(nblocks):
-            f.seek(grouped[b, c])
-            low = b * block_size
-            high = (b + 1) * block_size
-            spikes[low:high, c] = np.fromfile(f, dt, block_size)
+        for c in xrange(nchannels):
+            for b in xrange(nblocks):
+                f.seek(grouped[b, c])
+                low = b * block_size
+                high = (b + 1) * block_size
+                spikes[low:high, c] = np.fromfile(f, dt, block_size)
 
-    f.close()
+        f.close()
+except NameError:
+    pass
 
 
 def _read_tev_parallel(filename, grouped, block_size, spikes):

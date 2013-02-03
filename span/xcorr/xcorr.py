@@ -28,8 +28,11 @@ from span.xcorr._mult_mat_xcorr import (_mult_mat_xcorr_parallel,
 
 import warnings
 
-import numba
-from numba import autojit, NumbaError, void
+try:
+    import numba
+    from numba import autojit, NumbaError, void
+except ImportError:
+    NumbaError = Exception
 
 
 try:
@@ -78,7 +81,7 @@ try:
         for i in xrange(n):
             c[i * n:(i + 1) * n] = X[i] * Xc
 
-except NumbaError:
+except NameError:
     pass
 
 
