@@ -250,7 +250,7 @@ class TdtTankAbstractBase(object):
         tsq.type = EventTypes[tsq.type].reset_index(drop=True)
         tsq.format = DataTypes[tsq.format].reset_index(drop=True)
 
-        tsq.timestamp[tsq.logical_not(tsq.timestamp)] = NA
+        tsq.timestamp[np.logical_not(tsq.timestamp)] = NA
         tsq.fs[np.logical_not(tsq.fs)] = NA
 
         # fragile subtraction (i.e., what if TDT changes this value?)
