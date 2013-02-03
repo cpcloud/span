@@ -31,6 +31,7 @@ import functools
 import numbers
 
 import numpy as np
+from numpy.fft import fft, ifft, rfft, irfft
 import pandas as pd
 
 from pandas import DataFrame, datetime, MultiIndex
@@ -322,11 +323,7 @@ def get_fft_funcs(*arrays):
     r : tuple of callables
         The fft and ifft appropriate for the dtype of input.
     """
-    r = np.fft.irfft, np.fft.rfft
-    arecomplex = functools.partial(map, iscomplex)
-    if any(arecomplex(arrays)):
-        r = np.fft.ifft, np.fft.fft
-    return r
+    return ifft, fft if any(map(iscomplex, arrays)) else irfft, rfft
 
 
 def isvector(x):
@@ -348,20 +345,18 @@ def isvector(x):
 
 
 def mi2df(mi):
-    """Return a `pandas <http://pandas.pydata.org>`_
-    `MultiIndex <http://pandas.pydata.org/pandas-docs/dev/indexing.html#hierarchical-indexing-multiindex>`_
-    as a `DataFrame <http://pandas.pydata.org/pandas-docs/dev/dsintro.html#dataframe>`_.
+    """Return a pandas MultiIndex as DataFrame.
 
     Parameters
     ----------
-    mi : `MultiIndex <http://pandas.pydata.org/pandas-docs/dev/indexing.html#hierarchical-indexing-multiindex>`_
+    mi : MultiIndex
 
     Returns
     -------
-    df : `DataFrame <http://pandas.pydata.org/pandas-docs/dev/dsintro.html#dataframe>`_
+    df : DataFrame
     """
-    assert isinstance(mi, MultiIndex), \
-        'conversion not implemented for simple indices'
+    assert isinstance(mi, MultiIndex), ('conversion not implemented for '
+                                        'simple indices')
 
     def _type_converter(x):
         if not isinstance(x, basestring):
@@ -369,12 +364,14 @@ def mi2df(mi):
 
         return 'S%i' % len(x)
 
-    v = mi.values  # raw object array
+    v = mi.values
     n = mi.names
+
     t = list(map(_type_converter, v[0]))  # strings are empty without this call
     dt = np.dtype(list(zip(n, t)))
-    r = v.astype(dt)  # recarray
-    return DataFrame(r)  # df handles recarrays very nicely
+    r = v.astype(dt)
+
+    return DataFrame(r)
 
 
 def nonzero_existing_file(f):
