@@ -37,6 +37,7 @@ import numbers
 import itertools
 
 import numpy as np
+from numpy import nan as NA
 from numpy import (float32 as f4, int32 as i4, uint32 as u4, uint16 as u2,
                    float64 as f8, int64 as i8)
 from pandas import Series, DataFrame, DatetimeIndex
@@ -58,6 +59,8 @@ _TsqFields = ('size', 'type', 'name', 'channel', 'sort_code', 'timestamp',
               'fp_loc', 'format', 'fs')
 
 _TsqNumpyTypes = i4, i4, u4, u2, u2, f8, i8, i4, f4
+
+_TsqTypeDict = dict(zip(_TsqFields, _TsqNumpyTypes))
 
 
 def _get_first_match(pattern, string):
@@ -91,8 +94,9 @@ def _read_tev_numba(filename, grouped, block_size, spikes):
     for c in xrange(nchannels):
         for b in xrange(nblocks):
             f.seek(grouped[b, c])
-            chunk = np.fromfile(f, dt, block_size)
-            spikes[b * block_size:(b + 1) * block_size, c] = chunk
+            low = b * block_size
+            high = (b + 1) * block_size
+            spikes[low:high, c] = np.fromfile(f, dt, block_size)
 
     f.close()
 
@@ -235,29 +239,28 @@ class TdtTankAbstractBase(object):
 
         # read in the raw data as a numpy rec array and convert to
         # DataFrame
-        b = DataFrame.from_records(np.fromfile(tsq_name, dtype=self.tsq_dtype))
+        tsq = DataFrame.from_records(np.fromfile(tsq_name, dtype=self.tsq_dtype))
 
         # zero based indexing
-        b.channel -= 1
-        b.channel = b.channel.astype(f8)
+        tsq.channel -= 1.0
 
         # -1s are invalid
-        b.channel[b.channel == -1] = np.nan
+        tsq.channel[tsq.channel == -1.0] = NA
 
-        b.type = EventTypes[b.type].reset_index(drop=True)
-        b.format = DataTypes[b.format].reset_index(drop=True)
+        tsq.type = EventTypes[tsq.type].reset_index(drop=True)
+        tsq.format = DataTypes[tsq.format].reset_index(drop=True)
 
-        b.timestamp[np.logical_not(b.timestamp)] = np.nan
-        b.fs[np.logical_not(b.fs)] = np.nan
+        tsq.timestamp[tsq.logical_not(tsq.timestamp)] = NA
+        tsq.fs[np.logical_not(tsq.fs)] = NA
 
         # fragile subtraction (i.e., what if TDT changes this value?)
-        b.size -= 10
+        tsq.size -= 10
 
         # create some new indices based on the electrode array
         srt = Indexer.sort('channel').reset_index(drop=True)
-        shank = srt.shank[b.channel].reset_index(drop=True)
+        shank = srt.shank[tsq.channel].reset_index(drop=True)
 
-        tsq = b.join(shank)
+        tsq['shank'] = shank
 
         # convert the event_name to a number
         name = name2num(event_name)
@@ -273,8 +276,8 @@ class TdtTankAbstractBase(object):
         tsq = tsq[row]
 
         # convert to integer where possible
-        tsq.channel = tsq.channel.astype(np.int64)
-        tsq.shank = tsq.shank.astype(np.int64)
+        tsq.channel = tsq.channel.astype(int)
+        tsq.shank = tsq.shank.astype(int)
 
         return tsq, row
 
