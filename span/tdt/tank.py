@@ -239,7 +239,7 @@ class TdtTankAbstractBase(object):
 
         # read in the raw data as a numpy rec array and convert to
         # DataFrame
-        tsq = DataFrame.from_records(np.fromfile(tsq_name, dtype=self.tsq_dtype))
+        tsq = DataFrame.from_records(np.fromfile(tsq_name, self.tsq_dtype))
 
         # zero based indexing
         tsq.channel -= 1.0
@@ -463,7 +463,7 @@ class PandasTank(TdtTankBase):
 
         meta.reset_index(drop=True, inplace=True)
 
-        grouped = DataFrame(meta.groupby('channel').groups)
+        grouped = DataFrame(meta.groupby('channel').indices)
         grouped_locs = meta.fp_loc.values.take(grouped.values)
 
         # read in the TEV data to spikes
