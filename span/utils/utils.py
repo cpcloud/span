@@ -35,7 +35,10 @@ import pandas as pd
 
 from pandas import DataFrame, datetime, MultiIndex
 
-from span.utils._clear_refrac import _clear_refrac as _clear_refrac_impl
+import numba
+from numba import autojit, NumbaError, void
+
+from span.utils._clear_refrac import _clear_refrac as _clear_refrac_cython
 
 
 fromtimestamp = np.vectorize(datetime.fromtimestamp)
@@ -394,6 +397,28 @@ def assert_nonzero_existing_file(f):
     assert nonzero_existing_file(f), ("%s does not exist or has a size of 0 "
                                       "bytes" % f)
 
+try:
+    B = numba.template("B")
+    I = numba.template("I")
+
+    @autojit(void(B[:, :], I))
+    def _clear_refrac_numba(a, window):
+        nsamples, nchannels = a.shape
+
+        for channel in xrange(nchannels):
+            sample = 0
+
+            while sample + window < nsamples:
+                if a[sample, channel]:
+                    for i in xrange(sample + 1, sample + 1 + window):
+                        a[i, channel] = False
+
+                    sample += window
+
+                sample += 1
+except NumbaError:
+    pass
+
 
 def clear_refrac(a, window):
     """Clear the refractory period of a boolean array.
@@ -411,7 +436,12 @@ def clear_refrac(a, window):
     Raises
     ------
     AssertionError
-        If `window` is less than or equal to 0
+    If `window` is less than or equal to 0
     """
+    assert a is not None
     assert window > 0, '"window" must be greater than 0'
-    _clear_refrac_impl(a, window)
+
+    try:
+        _clear_refrac_numba(a, window)
+    except:
+        _clear_refrac_cython(a.view(np.uint8), window)

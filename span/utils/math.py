@@ -30,7 +30,7 @@ import functools as fntools
 
 
 import numpy as np
-from pandas import Series, DataFrame
+from pandas import Series, DataFrame, Panel, Panel4D
 
 
 try:
@@ -38,7 +38,7 @@ try:
     from scipy.stats.mstats import trimboth
     from scipy.stats import nanmean
 
-    def trimmean(x, alpha, inclusive=(False, False), axis=None):
+    def trimmean(x, alpha=0.05, inclusive=(False, False), axis=None):
         """Compute the `alpha`-trimmed mean of an array `x`.
 
         Parameters
@@ -73,12 +73,13 @@ try:
         assert axis is None or 0 <= axis < x.ndim, \
             'axis must be None or less than x.ndim: {0}'.format(x.ndim)
 
-        trimmed = trimboth(x, alpha / 100.0, inclusive, axis).mean(axis)
-
         index = None
         if isinstance(x, DataFrame):
-            index = {0: x.columns, 1: x.index, None: None}[axis]
+            if axis is None:
+                axis = 0
+                index = x.axes[1 - axis]
 
+        trimmed = trimboth(x, alpha / 100.0, inclusive, axis).mean(axis)
         return Series(trimmed, index=index)
 
 except ImportError:  # pragma: no cover
@@ -134,6 +135,10 @@ def detrend_none(x):
     return x
 
 
+def isvector(x):
+    return np.prod(x.shape) == np.max(x.shape)
+
+
 def detrend_mean(x, axis=0):
     """Subtract the mean of `x` from itself.
 
@@ -147,7 +152,26 @@ def detrend_mean(x, axis=0):
     c : array_like
         The mean centered `x`.
     """
-    return x - np.ma.masked_where(np.isnan(x), x).mean(axis=axis)
+    if isinstance(x, Series):
+        means = x.mean()
+        return x - means
+    elif isinstance(x, DataFrame):
+        means = x.mean(axis)
+        return x.sub(means, axis=1 - axis)
+    elif isinstance(x, (Panel, Panel4D)):
+        raise NotImplementedError('Detrending not implemented for Panel and '
+                                  'Panel4D')
+    elif np.isscalar(x):
+        return 0.0
+    else:
+        ma = np.ma.masked_where(np.isnan(x), x)
+        means = np.atleast_1d(ma.mean(axis=axis))
+
+        indexer = [slice(None)] * x.ndim
+        indexer[axis] = np.newaxis
+        mind = means[indexer]
+
+        return np.squeeze(x - mind)
 
 
 def detrend_linear(y):

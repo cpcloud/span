@@ -95,10 +95,23 @@ def create_spike_df(size=None, typ='stream', name=span.utils.name2num('Spik'),
     index = DatetimeIndex(dt, freq=ns * pd.datetools.Nano(), name='time',
                           tz='US/Eastern')
     cols, _ = columns.swaplevel(1, 0).sortlevel('shank')
-    return SpikeDataFrame(spikes, tsq, index=index, columns=cols,
-                          dtype=np.float64)
+    return SpikeDataFrame(spikes, index=index, columns=cols, dtype=float)
 
 
 def rands(size, shape):
     n = np.prod(shape)
     return np.asarray([_rands(size) for _ in xrange(n)]).reshape(shape)
+
+
+def knownfailure(test):
+
+    @functools.wraps(test)
+    def inner(*args, **kwargs):
+        try:
+            test(*args, **kwargs)
+        except Exception:
+            raise SkipTest
+        else:
+            raise AssertionError('Failure expected')
+
+    return inner

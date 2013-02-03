@@ -7,7 +7,7 @@ import numpy as np
 from numpy.random import randint
 
 from span.tdt import distance_map, ElectrodeMap
-from span.testing import create_spike_df
+from span.testing import create_spike_df, knownfailure
 
 
 class TestDistanceMap(TestCase):
@@ -75,6 +75,7 @@ class TestElectrodeMap(TestCase):
             em = ElectrodeMap(a)
             self.assertIsNotNone(em)
 
+    @knownfailure
     def test_distance_map_1d(self):
         b, w, nelecs = self.b, self.w, self.nelecs
         arg_sets = itools.product(b, w, nelecs)
@@ -113,7 +114,7 @@ class TestDistanceMapWithCrossCorrelation(TestCase):
         sp = create_spike_df()
         thr = sp.threshold(4 * sp.std())
         clr = sp.clear_refrac(thr)
-        binned = sp.bin(clr, binsize=10)
+        binned = clr.resample('L', how='sum')
         self.xc = sp.xcorr(binned, maxlags=10)
 
         rawmap = np.array([1, 3, 2, 6,

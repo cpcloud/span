@@ -28,8 +28,61 @@ from span.xcorr._mult_mat_xcorr import (_mult_mat_xcorr_parallel,
 
 import warnings
 
+import numba
+from numba import autojit, NumbaError, void
 
-def mult_mat_xcorr_cython_parallel(X, Xc):
+
+try:
+    T = numba.template("T")
+    S = numba.template("S")
+
+    @autojit(void(T[:, :], T[:, :], T[:, :], S, S))
+    def mult_mat_xcorr_numba(X, Xc, c, n, nx):
+        """Perform the necessary matrix-vector multiplication and fill the cross-
+        correlation array. Slightly faster than pure Python.
+
+        Parameters
+        ----------
+        X, Xc, c : c16[:, :]
+        n, nx : ip
+
+        Raises
+        ------
+        AssertionError
+           If n <= 0 or nx <= 0
+        """
+        for i in xrange(n):
+            r = 0
+
+            for j in xrange(i * n, (i + 1) * n):
+                for k in xrange(nx):
+                    c[j, k] = X[i, k] * Xc[r, k]
+
+                r += 1
+
+    @autojit(void(T[:, :], T[:, :], T[:, :], S, S))
+    def mult_mat_xcorr_numba_slow(X, Xc, c, n, nx):
+        """Perform the necessary matrix-vector multiplication and fill the cross-
+        correlation array. Slightly faster than pure Python.
+
+        Parameters
+        ----------
+        X, Xc, c : c16[:, :]
+        n, nx : ip
+
+        Raises
+        ------
+        AssertionError
+           If n <= 0 or nx <= 0
+        """
+        for i in xrange(n):
+            c[i * n:(i + 1) * n] = X[i] * Xc
+
+except NumbaError:
+    pass
+
+
+def mult_mat_xcorr_cython_parallel(X, Xc, c, n, nx):
     """Perform the necessary matrix-vector multiplication and fill the cross-
     correlation array. Slightly faster than pure Python.
 
@@ -45,13 +98,10 @@ def mult_mat_xcorr_cython_parallel(X, Xc):
     """
     assert X is not None, '1st argument "X" must not be None'
     assert Xc is not None, '2nd argument "Xc" must not be None'
-    n, nx = X.shape
-    c = np.empty((n ** 2, nx), dtype=X.dtype)
     _mult_mat_xcorr_parallel(X, Xc, c, n, nx)
-    return c
 
 
-def mult_mat_xcorr_cython_serial(X, Xc):
+def mult_mat_xcorr_cython_serial(X, Xc, c, n, nx):
     """Perform the necessary matrix-vector multiplication and fill the cross-
     correlation array. Slightly faster than pure Python.
 
@@ -67,26 +117,27 @@ def mult_mat_xcorr_cython_serial(X, Xc):
     """
     assert X is not None, '1st argument "X" must not be None'
     assert Xc is not None, '2nd argument "Xc" must not be None'
-    n, nx = X.shape
-    c = np.empty((n ** 2, nx), dtype=X.dtype)
     _mult_mat_xcorr_serial(X, Xc, c, n, nx)
-    return c
 
 
-def mult_mat_xcorr_python(X, Xc):
+def mult_mat_xcorr_python(X, Xc, c, n, nx):
     assert X is not None, '1st argument "X" must not be None'
     assert Xc is not None, '2nd argument "Xc" must not be None'
-
-    n, nx = X.shape
-    c = np.empty((n ** 2, nx), dtype=X.dtype)
 
     for i in xrange(n):
         c[i * n:(i + 1) * n] = X[i] * Xc
 
+
+def mult_mat_xcorr(X, Xc):
+    n, nx = X.shape
+    c = np.empty((n * n, nx), X.dtype)
+
+    try:
+        mult_mat_xcorr_numba(X, Xc, c, n, nx)
+    except (NameError, NumbaError):
+        mult_mat_xcorr_cython_parallel(X, Xc, c, n, nx)
+
     return c
-
-
-mult_mat_xcorr = mult_mat_xcorr_cython_parallel
 
 
 def autocorr(x, nfft):
@@ -183,14 +234,8 @@ def unbiased(c, x, y, lags, lsize):
         The unbiased estimate of the cross correlation.
     """
     d = lsize - np.abs(lags)
-    d[np.logical_not(d)] = 1
-
-    if c.ndim == 2:
-        newshape = 1, c.shape[1]
-        denom = np.tile(d[:, np.newaxis], newshape)
-    else:
-        denom = d
-
+    d[np.logical_not(d)] = 1.0
+    denom = np.tile(d[:, np.newaxis], (1, c.shape[1])) if c.ndim == 2 else d
     return c / denom
 
 

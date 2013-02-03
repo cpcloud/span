@@ -59,10 +59,14 @@ EventTypes = pd.Series({
 
 DistanceMap = partial(distance_map, NShanks, ElectrodesPerShank)
 
+
+def _dtype_mapper(raw, attr='name'):
+    return getattr(np.dtype(raw), attr)
+
 DataTypes = pd.Series({
     0: np.float32,
     1: np.int32,
     2: np.int16,
     3: np.int8,
-    4: np.float64
-}, name='TDT Data Types')
+    4: np.float64,
+}, name='TDT Data Types').map(_dtype_mapper)

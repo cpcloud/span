@@ -36,8 +36,8 @@ ctypedef fused floating:
 
 @cython.wraparound(False)
 @cython.boundscheck(False)
-cpdef _mult_mat_xcorr_parallel(floating[:, ::1] X, floating[:, ::1] Xc,
-                               floating[:, ::1] c, ip n, ip nx):
+cpdef _mult_mat_xcorr_parallel(floating[:, :] X, floating[:, :] Xc,
+                               floating[:, :] c, ip n, ip nx):
 
     cdef ip i, j, k, r
 
@@ -50,8 +50,8 @@ cpdef _mult_mat_xcorr_parallel(floating[:, ::1] X, floating[:, ::1] Xc,
 
 @cython.wraparound(False)
 @cython.boundscheck(False)
-cpdef _mult_mat_xcorr_serial(floating[:, ::1] X, floating[:, ::1] Xc,
-                             floating[:, ::1] c, ip n, ip nx):
+cpdef _mult_mat_xcorr_serial(floating[:, :] X, floating[:, :] Xc,
+                             floating[:, :] c, ip n, ip nx):
 
     cdef ip i, j, k, r
 
