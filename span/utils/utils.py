@@ -37,8 +37,7 @@ import pandas as pd
 from pandas import DataFrame, datetime, MultiIndex
 
 try:
-    import numba
-    from numba import autojit, NumbaError, void
+    from numba import autojit, NumbaError
 except ImportError:
     NumbaError = Exception
 
@@ -323,7 +322,7 @@ def get_fft_funcs(*arrays):
     r : tuple of callables
         The fft and ifft appropriate for the dtype of input.
     """
-    return ifft, fft if any(map(iscomplex, arrays)) else irfft, rfft
+    return (ifft, fft) if any(map(iscomplex, arrays)) else (irfft, rfft)
 
 
 def isvector(x):
@@ -398,9 +397,7 @@ def assert_nonzero_existing_file(f):
                                       "bytes" % f)
 
 try:
-    B, I = map(numba.template, ('B', 'I'))
-
-    @autojit(void(B[:, :], I))
+    @autojit
     def _clear_refrac_numba(a, window):
         nsamples, nchannels = a.shape
 
