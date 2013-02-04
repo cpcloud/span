@@ -31,7 +31,8 @@ Examples
 
 import numbers
 import types
-import functools as fntools
+from functools import partial
+from itertools import product as iproduct
 
 import numpy as np
 
@@ -39,7 +40,7 @@ from pandas import Series, DataFrame, MultiIndex
 
 import span
 from span.xcorr import xcorr
-from span.utils import sem, samples_per_ms, clear_refrac, ndtuples
+from span.utils import sem, samples_per_ms, clear_refrac
 
 
 class SpikeDataFrameBase(DataFrame):
@@ -149,7 +150,7 @@ class SpikeDataFrameBase(DataFrame):
         thr = threshes.item() if threshes.size == 1 else threshes
         threshes = Series(thr, index=self.columns)
 
-        f = fntools.partial(cmpf, axis=1)
+        f = partial(cmpf, axis=1)
 
         return f(threshes)
 
@@ -276,7 +277,7 @@ class SpikeDataFrame(SpikeDataFrameBase):
         xc = xcorr(binned, maxlags=maxlags, detrend=detrend,
                    scale_type=scale_type)
 
-        xc.columns = _create_xcorr_inds(binned)
+        xc.columns = _create_xcorr_inds(binned.columns)
 
         if nan_auto:
             # slight hack for channel names
@@ -312,18 +313,9 @@ class SpikeDataFrame(SpikeDataFrameBase):
 
 
 # TODO: hack to make it so nans are allowed when creating indices
-def _create_xcorr_inds(binned):
-    from span.tdt.spikeglobals import Indexer
-
-    raw_inds = span.utils.mi2df(binned.columns)
-
-    channels = raw_inds.channel.values.ravel()
-    channeli, channelj = span.utils.cartesian((channels, channels)).T
-
-    ind = Indexer.sort('channel').reset_index(drop=True)
-    indv = ind.values
-    inds = np.hstack((indv.take(channeli, axis=0)[:, ::-1],
-                      indv.take(channelj, axis=0)[:, ::-1]))
-
-    names = 'shank i', 'channel i', 'shank j', 'channel j'
-    return MultiIndex.from_arrays(inds.values.T, names=names)
+def _create_xcorr_inds(columns):
+    ncols = len(columns)
+    xr = xrange(ncols)
+    prod = iproduct(xr, xr)
+    inds = [columns[i] + columns[j] for i, j in prod]
+    return MultiIndex.from_tuples(inds)
