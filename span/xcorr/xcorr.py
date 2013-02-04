@@ -41,8 +41,9 @@ try:
 
     @autojit(void(T[:, :], T[:, :], T[:, :], S, S))
     def mult_mat_xcorr_numba(X, Xc, c, n, nx):
-        """Perform the necessary matrix-vector multiplication and fill the cross-
-        correlation array. Slightly faster than pure Python.
+        """Perform the necessary matrix-vector multiplication and fill
+        the cross- correlation array. Slightly faster than pure
+        Python.
 
         Parameters
         ----------
@@ -65,8 +66,9 @@ try:
 
     @autojit(void(T[:, :], T[:, :], T[:, :], S, S))
     def mult_mat_xcorr_numba_slow(X, Xc, c, n, nx):
-        """Perform the necessary matrix-vector multiplication and fill the cross-
-        correlation array. Slightly faster than pure Python.
+        """Perform the necessary matrix-vector multiplication and fill
+        the cross- correlation array. Slightly faster than pure
+        Python.
 
         Parameters
         ----------

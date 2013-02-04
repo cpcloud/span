@@ -398,8 +398,7 @@ def assert_nonzero_existing_file(f):
                                       "bytes" % f)
 
 try:
-    B = numba.template("B")
-    I = numba.template("I")
+    B, I = map(numba.template, ('B', 'I'))
 
     @autojit(void(B[:, :], I))
     def _clear_refrac_numba(a, window):
