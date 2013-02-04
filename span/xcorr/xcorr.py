@@ -36,7 +36,7 @@ except ImportError:
 
 try:
     @autojit
-    def mult_mat_xcorr_numba(X, Xc, c, n, nx):
+    def mult_mat_xcorr_numba(X, Xc, c, n):
         """Perform the necessary matrix-vector multiplication and fill
         the cross- correlation array. Slightly faster than pure
         Python.
@@ -51,18 +51,19 @@ try:
         AssertionError
            If n <= 0 or nx <= 0
         """
+        nx = c.shape[1]
+
         for i in xrange(n):
             r = 0
 
             for j in xrange(i * n, (i + 1) * n):
-                c[j] = X[i] * Xc[r]
-                # for k in xrange(nx):
-                    # c[j, k] = X[i, k] * Xc[r, k]
+                for k in xrange(nx):
+                    c[j, k] = X[i, k] * Xc[r, k]
 
                 r += 1
 
     @autojit
-    def mult_mat_xcorr_numba_sliced(X, Xc, c, n, nx):
+    def mult_mat_xcorr_numba_sliced(X, Xc, c, n):
         """Perform the necessary matrix-vector multiplication and fill
         the cross- correlation array. Slightly faster than pure
         Python.
@@ -84,7 +85,7 @@ except NameError:
     pass
 
 
-def mult_mat_xcorr_cython_parallel(X, Xc, c, n, nx):
+def mult_mat_xcorr_cython_parallel(X, Xc, c, n):
     """Perform the necessary matrix-vector multiplication and fill the cross-
     correlation array. Slightly faster than pure Python.
 
@@ -98,12 +99,11 @@ def mult_mat_xcorr_cython_parallel(X, Xc, c, n, nx):
     AssertionError
        If n <= 0 or nx <= 0
     """
-    assert X is not None, '1st argument "X" must not be None'
-    assert Xc is not None, '2nd argument "Xc" must not be None'
+    nx = c.shape[1]
     _mult_mat_xcorr_parallel(X, Xc, c, n, nx)
 
 
-def mult_mat_xcorr_cython_serial(X, Xc, c, n, nx):
+def mult_mat_xcorr_cython_serial(X, Xc, c, n):
     """Perform the necessary matrix-vector multiplication and fill the cross-
     correlation array. Slightly faster than pure Python.
 
@@ -117,27 +117,26 @@ def mult_mat_xcorr_cython_serial(X, Xc, c, n, nx):
     AssertionError
        If n <= 0 or nx <= 0
     """
-    assert X is not None, '1st argument "X" must not be None'
-    assert Xc is not None, '2nd argument "Xc" must not be None'
+    nx = c.shape[1]
     _mult_mat_xcorr_serial(X, Xc, c, n, nx)
 
 
-def mult_mat_xcorr_python(X, Xc, c, n, nx):
-    assert X is not None, '1st argument "X" must not be None'
-    assert Xc is not None, '2nd argument "Xc" must not be None'
-
+def mult_mat_xcorr_python(X, Xc, c, n):
     for i in xrange(n):
         c[i * n:(i + 1) * n] = X[i] * Xc
 
 
 def mult_mat_xcorr(X, Xc):
+    assert X is not None, '1st argument "X" must not be None'
+    assert Xc is not None, '2nd argument "Xc" must not be None'
+
     n, nx = X.shape
     c = np.empty((n * n, nx), X.dtype)
 
     try:
-        mult_mat_xcorr_numba_sliced(X, Xc, c, n, nx)
+        mult_mat_xcorr_numba_sliced(X, Xc, c, n)
     except (NameError, NumbaError):
-        mult_mat_xcorr_cython_parallel(X, Xc, c, n, nx)
+        mult_mat_xcorr_cython_parallel(X, Xc, c, n)
 
     return c
 
