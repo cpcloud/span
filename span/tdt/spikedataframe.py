@@ -318,4 +318,5 @@ def _create_xcorr_inds(columns):
     xr = xrange(ncols)
     prod = iproduct(xr, xr)
     inds = [columns[i] + columns[j] for i, j in prod]
-    return MultiIndex.from_tuples(inds)
+    names = 'shank i', 'channel i', 'shank j', 'channel j'
+    return MultiIndex.from_tuples(inds, names=names)
