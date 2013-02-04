@@ -35,11 +35,10 @@ import functools as fntools
 
 import numpy as np
 
-from pandas import Series, DataFrame, MultiIndex, Timestamp
+from pandas import Series, DataFrame, MultiIndex
 
 import span
 from span.xcorr import xcorr
-from span.utils.decorate import cached_property
 from span.utils import sem, samples_per_ms, clear_refrac, ndtuples
 
 
@@ -277,8 +276,7 @@ class SpikeDataFrame(SpikeDataFrameBase):
         xc = xcorr(binned, maxlags=maxlags, detrend=detrend,
                    scale_type=scale_type)
 
-        # this has REALLY go to go
-        xc.columns = _create_xcorr_inds(self.nchannels)
+        xc.columns = _create_xcorr_inds(binned)
 
         if nan_auto:
             # slight hack for channel names
@@ -314,28 +312,18 @@ class SpikeDataFrame(SpikeDataFrameBase):
 
 
 # TODO: hack to make it so nans are allowed when creating indices
-def _create_xcorr_inds(nchannels):
-    """Create a ``MultiIndex`` for `nchannels` channels.
-
-    Parameters
-    ----------
-    nchannels : int
-
-    Returns
-    -------
-    xc_inds : MultiIndex
-    """
+def _create_xcorr_inds(binned):
     from span.tdt.spikeglobals import Indexer
 
-    channel_i, channel_j = 'channel i', 'channel j'
-    channel_names = channel_i, channel_j
+    raw_inds = span.utils.mi2df(binned.columns)
 
-    lr = DataFrame(ndtuples(nchannels, nchannels), columns=channel_names)
-    left, right = lr[channel_i], lr[channel_j]
+    channels = raw_inds.channel.values.ravel()
+    channeli, channelj = span.utils.cartesian((channels, channels)).T
 
-    srt_idx = Indexer.sort('channel').reset_index(drop=True)
+    ind = Indexer.sort('channel').reset_index(drop=True)
+    indv = ind.values
+    inds = np.hstack((indv.take(channeli, axis=0)[:, ::-1],
+                      indv.take(channelj, axis=0)[:, ::-1]))
 
-    lshank, rshank = srt_idx.shank[left], srt_idx.shank[right]
-    lshank.name, rshank.name = 'shank i', 'shank j'
-
-    return MultiIndex.from_arrays((lshank, rshank, left, right))
+    names = 'shank i', 'channel i', 'shank j', 'channel j'
+    return MultiIndex.from_arrays(inds.values.T, names=names)
