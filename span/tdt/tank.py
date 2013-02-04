@@ -44,8 +44,7 @@ from pandas import Series, DataFrame, DatetimeIndex
 import pandas as pd
 
 try:
-    import numba
-    from numba import autojit, NumbaError, void
+    from numba import autojit, NumbaError
 except ImportError:
     NumbaError = Exception
 
@@ -88,9 +87,7 @@ def _get_first_match(pattern, string):
 
 
 try:
-    C, I, F = map(numba.template, ('C', 'I', 'F'))
-
-    @autojit(void(C, I[:, :], I, F[:, :]))
+    @autojit
     def _read_tev_numba(filename, grouped, block_size, spikes):
         nblocks, nchannels = grouped.shape
 
