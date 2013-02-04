@@ -29,17 +29,13 @@ from span.xcorr._mult_mat_xcorr import (_mult_mat_xcorr_parallel,
 import warnings
 
 try:
-    import numba
-    from numba import autojit, NumbaError, void
+    from numba import autojit, NumbaError
 except ImportError:
     NumbaError = Exception
 
 
 try:
-    T = numba.template("T")
-    S = numba.template("S")
-
-    @autojit(void(T[:, :], T[:, :], T[:, :], S, S))
+    @autojit
     def mult_mat_xcorr_numba(X, Xc, c, n, nx):
         """Perform the necessary matrix-vector multiplication and fill
         the cross- correlation array. Slightly faster than pure
@@ -59,13 +55,14 @@ try:
             r = 0
 
             for j in xrange(i * n, (i + 1) * n):
-                for k in xrange(nx):
-                    c[j, k] = X[i, k] * Xc[r, k]
+                c[j] = X[i] * Xc[r]
+                # for k in xrange(nx):
+                    # c[j, k] = X[i, k] * Xc[r, k]
 
                 r += 1
 
-    @autojit(void(T[:, :], T[:, :], T[:, :], S, S))
-    def mult_mat_xcorr_numba_slow(X, Xc, c, n, nx):
+    @autojit
+    def mult_mat_xcorr_numba_sliced(X, Xc, c, n, nx):
         """Perform the necessary matrix-vector multiplication and fill
         the cross- correlation array. Slightly faster than pure
         Python.
@@ -138,7 +135,7 @@ def mult_mat_xcorr(X, Xc):
     c = np.empty((n * n, nx), X.dtype)
 
     try:
-        mult_mat_xcorr_numba(X, Xc, c, n, nx)
+        mult_mat_xcorr_numba_sliced(X, Xc, c, n, nx)
     except (NameError, NumbaError):
         mult_mat_xcorr_cython_parallel(X, Xc, c, n, nx)
 
