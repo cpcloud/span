@@ -21,7 +21,7 @@ from libc.stdio cimport fopen, fclose, fread, fseek, SEEK_SET, FILE
 from libc.stdlib cimport malloc, free
 
 cimport cython
-from cython cimport floating, integral
+from cython cimport floating, integral, view
 from cython.parallel cimport prange, parallel
 
 from numpy cimport npy_intp as ip, ndarray, int64_t as i8, float32_t as f4
@@ -141,21 +141,25 @@ cpdef _read_tev_parallel_specialized_unsafe(char* filename, i8[:, :] grouped,
         ip c, b, k, r, nchannels, nblocks
 
         Py_ssize_t f_bytes = sizeof(f4)
+        Py_ssize_t num_bytes = f_bytes * blocksize
+
         f4* chunk = NULL
+        # f4[:] _c
         FILE* f = NULL
 
     nchannels = grouped.shape[1]
     nblocks = grouped.shape[0]
 
     with nogil, parallel():
-        chunk = <float*> malloc(f_bytes * blocksize)
+        chunk = <f4*> malloc(num_bytes)
+
         f = fopen(filename, "rb")
 
         for c in prange(nchannels, schedule='static'):
             for b in range(nblocks):
 
                 fseek(f, grouped[b, c], SEEK_SET)
-                fread(chunk, f_bytes, blocksize, f)
+                fread(chunk, num_bytes, 1, f)
 
                 for k, r in enumerate(range(b * blocksize,
                                             (b + 1) * blocksize)):
@@ -163,3 +167,54 @@ cpdef _read_tev_parallel_specialized_unsafe(char* filename, i8[:, :] grouped,
 
         free(chunk)
         fclose(f)
+
+
+@cython.boundscheck(False)
+@cython.wraparound(False)
+cdef void _read_tev_parallel_specialized_unsafe_pointers(char* filename,
+                                                         ndarray[i8, ndim=2] _grouped,
+                                                         Py_ssize_t blocksize,
+                                                         ndarray[f4, ndim=2] _spikes):
+
+    cdef:
+        ip c, b, k, r
+        ip nchannels = _grouped.shape[1], nblocks = _grouped.shape[0]
+
+        Py_ssize_t f_bytes = sizeof(f4)
+        Py_ssize_t num_bytes = f_bytes * blocksize
+
+        f4* spikes = NULL, *chunk = NULL
+        i8* grouped = NULL
+
+        FILE* f = NULL
+
+    with nogil, parallel():
+        spikes = <f4*> _spikes.data
+        grouped = <i8*> _grouped.data
+
+        chunk = <f4*> malloc(num_bytes)
+
+        f = fopen(filename, "rb")
+
+        for c in prange(nchannels, schedule='static'):
+            for b in range(nblocks):
+
+                fseek(f, grouped[b * nchannels + c], SEEK_SET)
+                fread(chunk, num_bytes, 1, f)
+
+                for k, r in enumerate(range(b * blocksize,
+                                            (b + 1) * blocksize)):
+                    spikes[r * nchannels + c] = chunk[k]
+
+        free(chunk)
+        fclose(f)
+
+
+@cython.boundscheck(False)
+@cython.wraparound(False)
+cpdef _read_tev_parallel_specialized_unsafe_pointers_python(char* filename,
+                                                            ndarray[i8, ndim=2] grouped,
+                                                            Py_ssize_t blocksize,
+                                                            ndarray[f4, ndim=2] spikes):
+    _read_tev_parallel_specialized_unsafe_pointers(filename, grouped,
+                                                   blocksize, spikes)

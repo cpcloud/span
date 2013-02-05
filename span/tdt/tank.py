@@ -52,7 +52,8 @@ from span.tdt.spikeglobals import Indexer, EventTypes, DataTypes
 from span.tdt.spikedataframe import SpikeDataFrame
 from span.tdt._read_tev import (_read_tev_parallel as __read_tev_parallel,
                                 _read_tev_serial as __read_tev_serial,
-                                _read_tev_parallel_specialized_unsafe)
+                                _read_tev_parallel_specialized_unsafe,
+                                _read_tev_parallel_specialized_unsafe_pointers_python)
 
 
 from span.utils import (name2num, thunkify, cached_property, fromtimestamp,
@@ -192,8 +193,24 @@ def _read_tev_cython_parallel_specialized_unsafe(filename, grouped, block_size,
                                           spikes)
 
 
+def _read_tev_cython_parallel_specialized_unsafe_pointers_python(filename,
+                                                                 grouped,
+                                                                 block_size,
+                                                                 spikes):
+    assert filename, 'filename (1st argument) cannot be empty'
+    assert isinstance(filename, basestring), 'filename must be a string'
+    assert isinstance(block_size, numbers.Integral)
+    assert isinstance(spikes, np.ndarray)
+    assert spikes.dtype == np.float32
+    assert grouped.dtype == np.int64
+    _read_tev_parallel_specialized_unsafe_pointers_python(filename, grouped,
+                                                          block_size, spikes)
+
+
 def _read_tev(*args, **kwargs):
-    _read_tev_cython_parallel_specialized_unsafe(*args, **kwargs)
+    _read_tev_cython_parallel_specialized_unsafe_pointers_python(*args,
+                                                                  **kwargs)
+    # _read_tev_cython_parallel_specialized_unsafe(*args, **kwargs)
 
 
 def _match_int(pattern, string, get_exc=False, excs=(AttributeError,
