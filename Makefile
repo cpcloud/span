@@ -1,17 +1,17 @@
-build:
-	python setup.py build
+inplace:
 	python setup.py build_ext --inplace
 
-install:
+build: inplace
+	python setup.py build
+
+install: build
 	python setup.py install
 
 clean:
 	python setup.py clean --all
 
-check:
-	python setup.py build_ext --inplace
+check: build
 	./test.sh c
 
-checkfast:
-	python setup.py build_ext --inplace
+checkfast: build
 	./test_fast.sh

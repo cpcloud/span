@@ -37,7 +37,8 @@ import pandas as pd
 from pandas import DataFrame, datetime, MultiIndex
 
 try:
-    from numba import autojit, NumbaError
+    import numba
+    from numba import autojit, NumbaError, void
 except ImportError:
     NumbaError = Exception
 
@@ -397,16 +398,18 @@ def assert_nonzero_existing_file(f):
                                       "bytes" % f)
 
 try:
-    @autojit
+    B, I = map(numba.template, ('B', 'I'))
+
+    @autojit(void(B[:, :], I))
     def _clear_refrac_numba(a, window):
         nsamples, nchannels = a.shape
 
-        for channel in xrange(nchannels):
+        for channel in range(nchannels):
             sample = 0
 
             while sample + window < nsamples:
                 if a[sample, channel]:
-                    for i in xrange(sample + 1, sample + 1 + window):
+                    for i in range(sample + 1, sample + 1 + window):
                         a[i, channel] = False
 
                     sample += window
