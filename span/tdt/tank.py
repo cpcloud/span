@@ -44,8 +44,7 @@ from pandas import Series, DataFrame, DatetimeIndex
 import pandas as pd
 
 try:
-    import numba
-    from numba import autojit, NumbaError, void
+    from numba import autojit, NumbaError
 except ImportError:
     NumbaError = Exception
 
@@ -88,9 +87,7 @@ def _get_first_match(pattern, string):
 
 
 try:
-    C, L, I, S = map(numba.template, ('C', 'L', 'I', 'S'))
-
-    @autojit(void(C, L[:, :], I, S[:, :]))
+    @autojit
     def _read_tev_numba(filename, grouped, block_size, spikes):
         nblocks, nchannels = grouped.shape
 
@@ -183,10 +180,10 @@ def _read_tev_python(filename, grouped, block_size, spikes):
 
 
 def _read_tev(*args, **kwargs):
-    try:
-        _read_tev_numba(*args, **kwargs)
-    except (NameError, NumbaError):
-        _read_tev_parallel(*args, **kwargs)
+    # try:
+        # _read_tev_numba(*args, **kwargs)
+    # except (NameError, NumbaError):
+    _read_tev_parallel(*args, **kwargs)
 
 
 def _match_int(pattern, string, get_exc=False, excs=(AttributeError,
