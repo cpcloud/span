@@ -24,7 +24,7 @@ cimport cython
 from cython cimport floating, integral
 from cython.parallel cimport prange, parallel
 
-from numpy cimport npy_intp as ip, ndarray
+from numpy cimport npy_intp as ip, ndarray, int64_t as i8, float32_t as f4
 
 
 @cython.boundscheck(False)
@@ -126,6 +126,40 @@ cpdef _read_tev_parallel(char* filename, integral[:, :] grouped, ip blocksize,
 
                 for k, byte in enumerate(xrange(low, high)):
                     spikes[byte, c] = chunk[k]
+
+        free(chunk)
+        fclose(f)
+
+
+@cython.boundscheck(False)
+@cython.wraparound(False)
+cpdef _read_tev_parallel_specialized_unsafe(char* filename, i8[:, :] grouped,
+                                            Py_ssize_t blocksize,
+                                            f4[:, :] spikes):
+
+    cdef:
+        ip c, b, k, r, nchannels, nblocks
+
+        Py_ssize_t f_bytes = sizeof(f4)
+        f4* chunk = NULL
+        FILE* f = NULL
+
+    nchannels = grouped.shape[1]
+    nblocks = grouped.shape[0]
+
+    with nogil, parallel():
+        chunk = <float*> malloc(f_bytes * blocksize)
+        f = fopen(filename, "rb")
+
+        for c in prange(nchannels, schedule='static'):
+            for b in range(nblocks):
+
+                fseek(f, grouped[b, c], SEEK_SET)
+                fread(chunk, f_bytes, blocksize, f)
+
+                for k, r in enumerate(range(b * blocksize,
+                                            (b + 1) * blocksize)):
+                    spikes[r, c] = chunk[k]
 
         free(chunk)
         fclose(f)

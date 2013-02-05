@@ -51,7 +51,8 @@ except ImportError:
 from span.tdt.spikeglobals import Indexer, EventTypes, DataTypes
 from span.tdt.spikedataframe import SpikeDataFrame
 from span.tdt._read_tev import (_read_tev_parallel as __read_tev_parallel,
-                                _read_tev_serial as __read_tev_serial)
+                                _read_tev_serial as __read_tev_serial,
+                                _read_tev_parallel_specialized_unsafe)
 
 
 from span.utils import (name2num, thunkify, cached_property, fromtimestamp,
@@ -179,11 +180,20 @@ def _read_tev_python(filename, grouped, block_size, spikes):
             spikes[b * block_size:(b + 1) * block_size, c] = v
 
 
+def _read_tev_cython_parallel_specialized_unsafe(filename, grouped, block_size,
+                                                 spikes):
+    assert filename, 'filename (1st argument) cannot be empty'
+    assert isinstance(filename, basestring), 'filename must be a string'
+    assert isinstance(block_size, numbers.Integral)
+    assert isinstance(spikes, np.ndarray)
+    assert spikes.dtype == np.float32
+    assert grouped.dtype == np.int64
+    _read_tev_parallel_specialized_unsafe(filename, grouped, block_size,
+                                          spikes)
+
+
 def _read_tev(*args, **kwargs):
-    # try:
-        # _read_tev_numba(*args, **kwargs)
-    # except (NameError, NumbaError):
-    _read_tev_parallel(*args, **kwargs)
+    _read_tev_cython_parallel_specialized_unsafe(*args, **kwargs)
 
 
 def _match_int(pattern, string, get_exc=False, excs=(AttributeError,
