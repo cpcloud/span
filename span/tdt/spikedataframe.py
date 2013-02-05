@@ -297,12 +297,12 @@ class SpikeDataFrame(SpikeDataFrameBase):
                 sl = int(sortlevel)
                 nlevels = cols.nlevels
                 assert 0 <= sl < nlevels, fmt_str.format(sl, range(nlevels))
-            except (ValueError, AssertionError):
+            except ValueError:
                 try:
                     sl = str(sortlevel)
                     names = cols.names
                     assert sl in names, fmt_str.format(sl, names)
-                except (ValueError, AssertionError):
+                except ValueError:
                     raise ValueError('sortlevel must be an int or a string')
 
             xc = xc.sortlevel(level=sl, axis=1)

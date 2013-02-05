@@ -1,5 +1,4 @@
 from unittest import TestCase
-import numbers
 import itertools as itools
 
 import numpy as np
@@ -7,14 +6,14 @@ from numpy.random import rand, randint
 from numpy.testing.decorators import slow
 
 import pandas as pd
-from pandas import Series
+from pandas import Series, MultiIndex
 from pandas.util.testing import assert_frame_equal
 
 
 from span.tdt.spikedataframe import SpikeDataFrame, _create_xcorr_inds
 from span.utils import detrend_mean, detrend_linear
 from span.testing import assert_all_dtypes, create_spike_df, assert_array_equal
-from span.testing import skip
+from span.testing import knownfailure
 
 
 class TestSpikeDataFrameBase(TestCase):
@@ -144,7 +143,7 @@ class TestSpikeDataFrame(TestCase):
         maxlags = None, 2, binned.shape[0] + 1
         detrends = detrend_mean, detrend_linear
         scale_types = 'normalize', 'unbiased', 'biased'
-        sortlevels = 'channel i', 'channel j', 'shank i', 'shank j'
+        sortlevels = 'shank i', 'channel i', 'shank j', 'channel j'
         sortlevels += tuple(range(len(sortlevels)))
         nan_autos = True, False
         lag_names = 'a',
@@ -162,20 +161,22 @@ class TestSpikeDataFrame(TestCase):
                                        level, nan_auto, lag_name)
                 self.assertIsInstance(xc, pd.DataFrame)
 
-            self.assertRaises(AssertionError, self.spikes.xcorr, binned,
-                              maxlag, detrend, scale_type, 'asdfalsdj',
-                              nan_auto, lag_name)
-            self.assertRaises(AssertionError, self.spikes.xcorr, binned,
-                              maxlag, detrend, scale_type, 2342,
-                              nan_auto, lag_name)
+            for level in ('asdfalsdj', 2342):
+                self.assertRaises(AssertionError, self.spikes.xcorr, binned,
+                                  maxlag, detrend, scale_type, level, nan_auto,
+                                  lag_name)
 
 
 class TestCreateXCorrInds(TestCase):
+    def setUp(self):
+        self.spikes = create_spike_df()
+
+    def tearDown(self):
+        del self.spikes
+
     def test_create_xcorr_inds(self):
-        nchannels = xrange(2, 33, 2)
-        names = 'shank i', 'shank j', 'channel i', 'channel j'
-        for nchannel in nchannels:
-            inds = _create_xcorr_inds(nchannel)
-            self.assertIsInstance(inds, pd.MultiIndex)
-            self.assertEqual(tuple(inds.names), names)
-            self.assertEqual(len(inds), nchannel ** 2)
+        thr = self.spikes.threshold(self.spikes.std())
+        clr = self.spikes.clear_refrac(thr)
+        binned = clr.resample('L', how='sum')
+        inds = _create_xcorr_inds(binned.columns)
+        self.assertIsInstance(inds, MultiIndex)
