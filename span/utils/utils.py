@@ -444,3 +444,9 @@ def clear_refrac(a, window):
         _clear_refrac_numba(a, window)
     except (NameError, NumbaError):
         _clear_refrac_cython(a.view(np.uint8), window)
+
+
+def ispower2(x):
+    b = np.log2(x)
+    e, m = np.modf(b)
+    return 0 if e else m

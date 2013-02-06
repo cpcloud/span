@@ -33,7 +33,6 @@ from future_builtins import zip
 import os
 import abc
 import re
-import numbers
 import itertools
 
 import numpy as np
@@ -50,14 +49,11 @@ except ImportError:
 
 from span.tdt.spikeglobals import Indexer, EventTypes, DataTypes
 from span.tdt.spikedataframe import SpikeDataFrame
-from span.tdt._read_tev import (_read_tev_parallel as __read_tev_parallel,
-                                _read_tev_serial as __read_tev_serial,
-                                _read_tev_parallel_specialized_unsafe,
-                                _read_tev_parallel_specialized_unsafe_pointers_python)
+from span.tdt._read_tev import _read_tev_parallel, _read_tev_serial
 
 
 from span.utils import (name2num, thunkify, cached_property, fromtimestamp,
-                        assert_nonzero_existing_file)
+                        assert_nonzero_existing_file, ispower2)
 
 
 _TsqFields = ('size', 'type', 'name', 'channel', 'sort_code', 'timestamp',
@@ -90,7 +86,7 @@ def _get_first_match(pattern, string):
 
 try:
     @autojit
-    def _read_tev_numba(filename, grouped, block_size, spikes):
+    def _numba_read_tev_serial(filename, grouped, block_size, spikes):
         nblocks, nchannels = grouped.shape
 
         dt = spikes.dtype
@@ -117,7 +113,7 @@ except NameError:
     pass
 
 
-def _read_tev_parallel(filename, grouped, block_size, spikes):
+def _cython_read_tev_parallel(filename, grouped, block_size, spikes):
     """Read a TDT tev file into a numpy array. Slightly faster than
     the pure Python version.
 
@@ -135,16 +131,10 @@ def _read_tev_parallel(filename, grouped, block_size, spikes):
     spikes : floating[:, :]
         Output array
     """
-    assert filename, 'filename (1st argument) cannot be empty'
-    assert block_size > 0, '"block_size" must be greater than 0'
-    assert isinstance(filename, basestring), 'filename must be a string'
-    assert isinstance(block_size, numbers.Integral)
-    assert isinstance(spikes, np.ndarray)
-
-    __read_tev_parallel(filename, grouped, block_size, spikes)
+    _read_tev_parallel(filename, grouped, block_size, spikes)
 
 
-def _read_tev_serial(filename, grouped, block_size, spikes):
+def _cython_read_tev_serial(filename, grouped, block_size, spikes):
     """Read a TDT tev file into a numpy array. Slightly faster than
     the pure Python version.
 
@@ -162,15 +152,10 @@ def _read_tev_serial(filename, grouped, block_size, spikes):
     spikes : floating[:, :]
         Output array
     """
-    assert filename, 'filename (1st argument) cannot be empty'
-    assert isinstance(filename, basestring), 'filename must be a string'
-    assert isinstance(block_size, numbers.Integral)
-    assert isinstance(spikes, np.ndarray)
-
-    __read_tev_serial(filename, grouped, block_size, spikes)
+    _read_tev_serial(filename, grouped, block_size, spikes)
 
 
-def _read_tev_python(filename, grouped, block_size, spikes):
+def _python_read_tev_serial(filename, grouped, block_size, spikes):
     dt = spikes.dtype
     nblocks, nchannels = grouped.shape
 
@@ -181,36 +166,27 @@ def _read_tev_python(filename, grouped, block_size, spikes):
             spikes[b * block_size:(b + 1) * block_size, c] = v
 
 
-def _read_tev_cython_parallel_specialized_unsafe(filename, grouped, block_size,
-                                                 spikes):
+def _read_tev(filename, grouped, block_size, spikes):
+    # this is so we can fail gracefully in python
     assert filename, 'filename (1st argument) cannot be empty'
+    assert grouped is not None, 'grouped cannot be None'
+    assert block_size, 'block_size cannot test false'
+    assert spikes is not None, 'spikes cannot be None'
+
     assert isinstance(filename, basestring), 'filename must be a string'
-    assert isinstance(block_size, numbers.Integral)
-    assert isinstance(spikes, np.ndarray)
-    assert spikes.dtype == np.float32
-    assert grouped.dtype == np.int64
-    _read_tev_parallel_specialized_unsafe(filename, grouped, block_size,
-                                          spikes)
 
+    assert isinstance(grouped, np.ndarray), 'grouped must be an ndarray'
+    assert np.issubdtype(grouped.dtype, np.integer), \
+        "grouped's dtype must be a subdtype of integral'"
+    assert isinstance(block_size, np.integer), 'block_size must be an integer'
+    assert block_size > 0, 'block_size must be a positive integer'
+    assert ispower2(block_size), 'block_size must be a power of 2'
 
-def _read_tev_cython_parallel_specialized_unsafe_pointers_python(filename,
-                                                                 grouped,
-                                                                 block_size,
-                                                                 spikes):
-    assert filename, 'filename (1st argument) cannot be empty'
-    assert isinstance(filename, basestring), 'filename must be a string'
-    assert isinstance(block_size, numbers.Integral)
-    assert isinstance(spikes, np.ndarray)
-    assert spikes.dtype == np.float32
-    assert grouped.dtype == np.int64
-    _read_tev_parallel_specialized_unsafe_pointers_python(filename, grouped,
-                                                          block_size, spikes)
+    assert isinstance(spikes, np.ndarray), 'spikes must be an ndarray'
+    assert np.issubdtype(spikes.dtype, np.floating), \
+        "spikes's dtype must be a subdtype of floating'"
 
-
-def _read_tev(*args, **kwargs):
-    _read_tev_cython_parallel_specialized_unsafe_pointers_python(*args,
-                                                                  **kwargs)
-    # _read_tev_cython_parallel_specialized_unsafe(*args, **kwargs)
+    _cython_read_tev_parallel(filename, grouped, block_size, spikes)
 
 
 def _match_int(pattern, string, get_exc=False, excs=(AttributeError,
