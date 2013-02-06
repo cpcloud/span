@@ -62,25 +62,6 @@ try:
 
                 r += 1
 
-    @autojit
-    def mult_mat_xcorr_numba_sliced(X, Xc, c, n):
-        """Perform the necessary matrix-vector multiplication and fill
-        the cross- correlation array. Slightly faster than pure
-        Python.
-
-        Parameters
-        ----------
-        X, Xc, c : c16[:, :]
-        n, nx : ip
-
-        Raises
-        ------
-        AssertionError
-           If n <= 0 or nx <= 0
-        """
-        for i in xrange(n):
-            c[i * n:(i + 1) * n] = X[i] * Xc
-
 except NameError:
     pass
 
@@ -124,6 +105,12 @@ def mult_mat_xcorr_cython_serial(X, Xc, c, n):
 def mult_mat_xcorr_python(X, Xc, c, n):
     for i in xrange(n):
         c[i * n:(i + 1) * n] = X[i] * Xc
+
+
+try:
+    mult_mat_xcorr_numba_sliced = autojit(mult_mat_xcorr_python)
+except NameError:
+    pass
 
 
 def mult_mat_xcorr(X, Xc):
