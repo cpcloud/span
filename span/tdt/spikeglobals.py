@@ -51,10 +51,11 @@ EventTypes = pd.Series({
     0x0: 'unknown',
     0x101: 'strobe_on',
     0x102: 'strobe_off',
-    0x201: 'scaler',
+    0x201: 'scalar',
     0x8101: 'stream',
     0x8201: 'snip',
-    0x8801: 'mark'
+    0x8801: 'mark',
+    0x8000: 'hasdata'
 }, name='TDT Event Types')
 
 DistanceMap = partial(distance_map, NShanks, ElectrodesPerShank)
