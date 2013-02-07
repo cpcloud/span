@@ -44,7 +44,7 @@ try:
         Parameters
         ----------
         X, Xc, c : c16[:, :]
-        n, nx : ip
+        n : ip
 
         Raises
         ------
@@ -73,7 +73,7 @@ def mult_mat_xcorr_cython_parallel(X, Xc, c, n):
     Parameters
     ----------
     X, Xc, c : c16[:, :]
-    n, nx : ip
+    n : ip
 
     Raises
     ------
@@ -91,7 +91,7 @@ def mult_mat_xcorr_cython_serial(X, Xc, c, n):
     Parameters
     ----------
     X, Xc, c : c16[:, :]
-    n, nx : ip
+    n : ip
 
     Raises
     ------
@@ -118,7 +118,7 @@ def mult_mat_xcorr(X, Xc):
     assert Xc is not None, '2nd argument "Xc" must not be None'
 
     n, nx = X.shape
-    c = np.empty((n * n, nx), X.dtype)
+    c = np.empty((n * n, nx), dtype=X.dtype)
 
     try:
         mult_mat_xcorr_numba_sliced(X, Xc, c, n)
@@ -348,8 +348,7 @@ _SCALE_FUNCTIONS = {
 _SCALE_KEYS = tuple(_SCALE_FUNCTIONS.keys())
 
 
-def xcorr(x, y=None, maxlags=None, detrend=detrend_mean,
-          scale_type='normalize'):
+def xcorr(x, y=None, maxlags=None, detrend=None, scale_type=None):
     """Compute the cross correlation of `x` and `y`.
 
     This function computes the cross correlation of `x` and `y`. It uses the
@@ -402,13 +401,15 @@ def xcorr(x, y=None, maxlags=None, detrend=detrend_mean,
         and `y` if both `x` and `y` are vectors.
     """
     assert x.ndim in (1, 2), 'x must be a 1D or 2D array'
-    assert callable(detrend), 'detrend must be a callable object'
+    assert callable(detrend) or detrend is None, \
+        'detrend must be a callable object or None'
     assert isinstance(scale_type, basestring) or scale_type is None, \
         '"scale_type" must be a string or None'
     assert scale_type in _SCALE_KEYS, ('"scale_type" must be one of '
                                        '{0}'.format(_SCALE_KEYS))
 
-    x = detrend(x)
+    if detrend:
+        x = detrend(x)
 
     if x.ndim == 2 and np.greater(x.shape, 1).all():
         assert y is None, 'y argument not allowed when x is a 2D array'
