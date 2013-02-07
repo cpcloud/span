@@ -28,8 +28,6 @@ Examples
 >>> tank = span.tdt.PandasTank(path)
 """
 
-from future_builtins import zip
-
 import os
 import abc
 import re
@@ -39,7 +37,7 @@ import numpy as np
 from numpy import nan as NA
 from numpy import (float32 as f4, int32 as i4, uint32 as u4, uint16 as u2,
                    float64 as f8, int64 as i8)
-from pandas import Series, DataFrame, DatetimeIndex
+from pandas import DataFrame, DatetimeIndex
 import pandas as pd
 
 try:
@@ -56,12 +54,10 @@ from span.utils import (name2num, thunkify, cached_property, fromtimestamp,
                         assert_nonzero_existing_file, ispower2)
 
 
-_TsqFields = ('size', 'type', 'name', 'channel', 'sort_code', 'timestamp',
-              'fp_loc', 'format', 'fs')
-
-_TsqNumpyTypes = i4, i4, u4, u2, u2, f8, i8, i4, f4
-
-_TsqTypeDict = dict(zip(_TsqFields, _TsqNumpyTypes))
+_names = ('size', 'type', 'name', 'channel', 'sort_code', 'timestamp',
+          'fp_loc', 'strobe', 'format', 'fs')
+_formats = 'i4', 'i4', 'u4', 'u2', 'u2', 'f8', 'i8', 'f8', 'i4', 'f4'
+_offsets = 0, 4, 8, 12, 14, 16, 24, 24, 32, 36
 
 
 def _get_first_match(pattern, string):
@@ -256,7 +252,8 @@ class TdtTankAbstractBase(object):
 
         # read in the raw data as a numpy rec array and convert to
         # DataFrame
-        tsq = DataFrame.from_records(np.fromfile(tsq_name, self.tsq_dtype))
+        tsq = DataFrame.from_records(np.fromfile(tsq_name, self.dtype))
+        tsq.strobe[tsq.strobe <= np.finfo(np.float64).eps] = NA
 
         # zero based indexing
         tsq.channel -= 1.0
@@ -286,8 +283,9 @@ class TdtTankAbstractBase(object):
         row = tsq.name == name
 
         # make sure there's at least one event
-        assert row.any(), 'no event named %s in tank: %s' % (event_name,
-                                                             self.path)
+        p = self.path
+        assert row.any(), 'no event named %s in tank: %s' % (event_name, p)
+        self.raw = tsq
 
         # get all the metadata for those events
         tsq = tsq[row]
@@ -339,9 +337,7 @@ class TdtTankBase(TdtTankAbstractBase):
 
     Attributes
     ----------
-    fields
-    np_types
-    tsq_dtype
+    dtype
 
     path (``str``) : Full path of the tank sans extensions
     name (``str``) : basename of self.path
@@ -355,11 +351,8 @@ class TdtTankBase(TdtTankAbstractBase):
     end (``Timestamp``) : End time of the recording
     duration (``timedelta64[us]``) : Duration of the recording
     """
-
-    fields = _TsqFields
-    np_types = _TsqNumpyTypes
-    tsq_dtype = np.dtype(list(zip(fields, np_types)))
-    types = Series(list(map(np.dtype, np_types)), index=fields)
+    dtype = np.dtype({'names': _names, 'formats': _formats,
+                      'offsets': _offsets}, align=True)
 
     _site_re = re.compile(r'(?:.*s(?:ite)?(?:|_)?(\d+))?')
     _age_re = re.compile(r'.*[pP](\d+).*')
