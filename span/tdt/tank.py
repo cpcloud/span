@@ -52,8 +52,6 @@ from span.utils import (name2num, thunkify, cached_property, fromtimestamp,
                         assert_nonzero_existing_file, ispower2)
 
 
-
-
 def _get_first_match(pattern, string):
     """Helper function for getting the first match of a pattern within a
     string.
