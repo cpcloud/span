@@ -35,8 +35,6 @@ import itertools
 
 import numpy as np
 from numpy import nan as NA
-from numpy import (float32 as f4, int32 as i4, uint32 as u4, uint16 as u2,
-                   float64 as f8, int64 as i8)
 from pandas import DataFrame, DatetimeIndex
 import pandas as pd
 
@@ -54,10 +52,6 @@ from span.utils import (name2num, thunkify, cached_property, fromtimestamp,
                         assert_nonzero_existing_file, ispower2)
 
 
-_names = ('size', 'type', 'name', 'channel', 'sort_code', 'timestamp',
-          'fp_loc', 'strobe', 'format', 'fs')
-_formats = 'i4', 'i4', 'u4', 'u2', 'u2', 'f8', 'i8', 'f8', 'i4', 'f4'
-_offsets = 0, 4, 8, 12, 14, 16, 24, 24, 32, 36
 
 
 def _get_first_match(pattern, string):
@@ -351,6 +345,11 @@ class TdtTankBase(TdtTankAbstractBase):
     end (``Timestamp``) : End time of the recording
     duration (``timedelta64[us]``) : Duration of the recording
     """
+    _names = ('size', 'type', 'name', 'channel', 'sort_code', 'timestamp',
+              'fp_loc', 'strobe', 'format', 'fs')
+    _formats = 'i4', 'i4', 'u4', 'u2', 'u2', 'f8', 'i8', 'f8', 'i4', 'f4'
+    _offsets = 0, 4, 8, 12, 14, 16, 24, 24, 32, 36
+
     dtype = np.dtype({'names': _names, 'formats': _formats,
                       'offsets': _offsets}, align=True)
 
