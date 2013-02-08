@@ -13,7 +13,6 @@ from pandas.util.testing import assert_frame_equal
 from span.tdt.spikedataframe import SpikeDataFrame, _create_xcorr_inds
 from span.utils import detrend_mean, detrend_linear
 from span.testing import assert_all_dtypes, create_spike_df, assert_array_equal
-from span.testing import knownfailure
 
 
 class TestSpikeDataFrameBase(TestCase):
@@ -161,7 +160,7 @@ class TestSpikeDataFrame(TestCase):
                                        level, nan_auto, lag_name)
                 self.assertIsInstance(xc, pd.DataFrame)
 
-            for level in ('asdfalsdj', 2342):
+            for level in ('asdfalsdj', 2342, object()):
                 self.assertRaises(AssertionError, self.spikes.xcorr, binned,
                                   maxlag, detrend, scale_type, level, nan_auto,
                                   lag_name)
