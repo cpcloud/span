@@ -408,8 +408,10 @@ def xcorr(x, y=None, maxlags=None, detrend=None, scale_type=None):
     assert scale_type in _SCALE_KEYS, ('"scale_type" must be one of '
                                        '{0}'.format(_SCALE_KEYS))
 
-    if detrend:
+    try:
         x = detrend(x)
+    except TypeError:
+        pass
 
     if x.ndim == 2 and np.greater(x.shape, 1).all():
         assert y is None, 'y argument not allowed when x is a 2D array'
