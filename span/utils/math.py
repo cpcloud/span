@@ -135,10 +135,6 @@ def detrend_none(x):
     return x
 
 
-def isvector(x):
-    return np.prod(x.shape) == np.max(x.shape)
-
-
 def detrend_mean(x, axis=0):
     """Subtract the mean of `x` from itself.
 
@@ -162,7 +158,12 @@ def detrend_mean(x, axis=0):
         raise NotImplementedError('Detrending not implemented for Panel and '
                                   'Panel4D')
     elif np.isscalar(x):
-        return 0.0
+        try:
+            r = x.dtype.type(0)
+        except AttributeError:
+            r = type(x)(0)
+
+        return r
     else:
         ma = np.ma.masked_where(np.isnan(x), x)
         means = np.atleast_1d(ma.mean(axis=axis))
