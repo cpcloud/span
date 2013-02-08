@@ -18,19 +18,6 @@
 # along with this program. If not, see <http://www.gnu.org/licenses/>.
 
 
-class Error(Exception):
-    def __init__(self, *args, **kwargs):
-        super(Error, self).__init__(*args, **kwargs)
-
-    def __repr__(self):
-        return '%s()' % type(self).__name__
-
-
-class NumbaError(Error):
-    def __init__(self, *args, **kwargs):
-        super(NumbaError, self).__init__(*args, **kwargs)
-
-
 import span.tdt
 import span.utils
 import span.xcorr
