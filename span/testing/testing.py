@@ -1,5 +1,4 @@
-import functools
-import copy
+from functools import wraps
 
 import numpy as np
 from numpy.testing import *
@@ -9,14 +8,9 @@ from nose.tools import nottest
 from nose import SkipTest
 
 from pandas import Series, DataFrame, Int64Index, DatetimeIndex
-from pandas.util.testing import *
+from pandas.util.testing import rands
 import pandas as pd
 
-try:
-    _rands = copy.deepcopy(rands)
-    del rands
-except NameError:
-    pass
 
 from numpy.random import uniform as randrange, randint
 
@@ -30,7 +24,7 @@ def assert_all_dtypes(df, dtype, msg='dtypes not all the same'):
 
 
 def skip(test):
-    @functools.wraps(test)
+    @wraps(test)
     def wrapper():
         if mock:
             return test()
@@ -96,11 +90,6 @@ def create_spike_df(size=None, typ='stream', name=span.utils.name2num('Spik'),
                           tz='US/Eastern')
     cols, _ = columns.swaplevel(1, 0).sortlevel('shank')
     return SpikeDataFrame(spikes, index=index, columns=cols, dtype=float)
-
-
-def rands(size, shape):
-    n = np.prod(shape)
-    return np.asarray([_rands(size) for _ in xrange(n)]).reshape(shape)
 
 
 def knownfailure(test):
