@@ -169,9 +169,10 @@ def detrend_mean(x, axis=0):
 
         indexer = [slice(None)] * x.ndim
         indexer[axis] = np.newaxis
-        mind = means[indexer]
+        m_ind = means[indexer]
 
-        return np.squeeze(x - mind)
+        s = np.squeeze(x - m_ind)
+        return s.item() if not s.ndim else s
 
 
 def detrend_linear(y):
