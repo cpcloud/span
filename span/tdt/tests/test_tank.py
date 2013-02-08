@@ -9,14 +9,13 @@ import numpy as np
 import pandas as pd
 
 from span.tdt.tank import (TdtTankBase, PandasTank, _read_tev,
-                           _read_tev_parallel, _read_tev_python,
-                           _read_tev_serial)
+                           _read_tev_parallel, _read_tev_serial,
+                           _numba_read_tev_serial)
 from span.tdt import SpikeDataFrame
 from span.tdt.tank import _get_first_match, _match_int
-from span.testing import slow, assert_array_almost_equal
+from span.testing import slow
 
 
-@slow
 class TestReadTev(object):
     def setUp(self):
         path = os.getenv('SPAN_DATA_PATH')
@@ -59,11 +58,13 @@ class TestReadTev(object):
             mag = np.log10(np.abs(spikes).mean())
             assert mag <= -3.0
 
-
     def test_read_tev(self):
-        for reader in set((_read_tev, _read_tev_serial, _read_tev_python,
-                           _read_tev_parallel)):
+        for reader in {_read_tev, _read_tev_serial, _read_tev_parallel}:
             yield self._reader_builder, reader
+
+    @slow
+    def test_numba_read_tev(self):
+        self._reader_builder(_numba_read_tev_serial)
 
 
 class TestGetFirstMatch(unittest.TestCase):
