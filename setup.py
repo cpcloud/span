@@ -54,8 +54,8 @@ mod_pkgs = 'span.utils', 'span.xcorr', 'span.tdt'
 underscore = '_'
 
 # name of python module as if one was going to import it
-base_names = tuple(map(lambda x, y: os.extsep.join((x, underscore + y)), mod_pkgs,
-                       names))
+und_join = lambda x, y: os.extsep.join((x, underscore + y))
+base_names = tuple(map(und_join, mod_pkgs, names))
 
 # directory of the modules/files
 dirs = map(lambda x: x.replace(os.extsep, os.sep), mod_pkgs)
