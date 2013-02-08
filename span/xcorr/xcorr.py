@@ -109,7 +109,7 @@ def mult_mat_xcorr_python(X, Xc, c, n):
 
 try:
     mult_mat_xcorr_numba_sliced = autojit(mult_mat_xcorr_python)
-except NameError:
+except NameError:  # pragma: no cover
     pass
 
 
@@ -122,7 +122,7 @@ def mult_mat_xcorr(X, Xc):
 
     try:
         mult_mat_xcorr_numba_sliced(X, Xc, c, n)
-    except (NameError, NumbaError):
+    except (NameError, NumbaError):  # pragma: no cover
         mult_mat_xcorr_cython_parallel(X, Xc, c, n)
 
     return c
