@@ -10,7 +10,8 @@ import pandas as pd
 
 from span.tdt.tank import (TdtTankBase, PandasTank, _read_tev,
                            _read_tev_parallel, _read_tev_serial,
-                           _numba_read_tev_serial)
+                           _numba_read_tev_serial, _cython_read_tev_serial,
+                           _python_read_tev_serial)
 from span.tdt import SpikeDataFrame
 from span.tdt.tank import _get_first_match, _match_int
 from span.testing import slow
@@ -59,10 +60,10 @@ class TestReadTev(object):
             assert mag <= -3.0
 
     def test_read_tev(self):
-        for reader in {_read_tev, _read_tev_serial, _read_tev_parallel}:
+        for reader in {_read_tev, _read_tev_serial, _read_tev_parallel,
+                       _cython_read_tev_serial, _python_read_tev_serial}:
             yield self._reader_builder, reader
 
-    @slow
     def test_numba_read_tev(self):
         self._reader_builder(_numba_read_tev_serial)
 
