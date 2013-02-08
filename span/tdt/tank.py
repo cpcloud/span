@@ -83,20 +83,15 @@ try:
 
         f = open(filename, 'rb')
 
-        for c in range(nchannels):
-            for b in range(nblocks):
+        for c in xrange(nchannels):
+            for b in xrange(nblocks):
 
                 f.seek(grouped[b, c])
 
                 low = b * block_size
                 high = (b + 1) * block_size
 
-                chunk = np.fromfile(f, dt, block_size)
-
-                k = 0
-                for row in range(low, high):
-                    spikes[row, c] = chunk[k]
-                    k += 1
+                spikes[low:high, c] = np.fromfile(f, dt, block_size)
 
         f.close()
 except NameError:
