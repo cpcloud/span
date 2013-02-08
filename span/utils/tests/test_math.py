@@ -5,7 +5,7 @@ import numpy as np
 from numpy.random import randn, randint, rand
 from numpy.testing import assert_allclose, assert_array_equal
 
-from pandas import Series, DataFrame, Panel
+from pandas import Series, DataFrame, Panel, Panel4D
 
 from span.utils import ndtuples
 from span.utils.math import (trimmean, sem, detrend_none, detrend_mean,
@@ -222,7 +222,7 @@ class TestDetrend(TestCase):
     def test_detrend_mean(self):
         x = np.random.randn(3, 2)
 
-        axes = 0, 1
+        axes = xrange(x.ndim)
         for axis in axes:
             dtx = detrend_mean(x, axis)
             zs = np.zeros(dtx.shape[1 - axis])
@@ -231,11 +231,31 @@ class TestDetrend(TestCase):
     def test_detrend_mean_dataframe(self):
         x = DataFrame(np.random.randn(3, 4))
 
-        axes = 0, 1
+        axes = xrange(x.ndim)
         for axis in axes:
             dtx = detrend_mean(x, axis)
             zs = np.zeros(dtx.shape[1 - axis])
             assert_allclose(dtx.mean(axis), zs, atol=self.eps)
+
+    def test_detrend_mean_panel(self):
+        x = Panel(np.random.randn(3, 4, 3))
+
+        axes = xrange(x.ndim)
+        for axis in axes:
+            self.assertRaises(NotImplementedError, detrend_mean, x, axis)
+            # dtx = detrend_mean(x, axis)
+            # zs = np.zeros(dtx.shape[1 - axis])
+            # assert_allclose(dtx.mean(axis), zs, atol=self.eps)
+
+    def test_detrend_mean_panel4d(self):
+        x = Panel4D(np.random.randn(3, 4, 3, 2))
+
+        axes = xrange(x.ndim)
+        for axis in axes:
+            self.assertRaises(NotImplementedError, detrend_mean, x, axis)
+            # dtx = detrend_mean(x, axis)
+            # zs = np.zeros(dtx.shape[1 - axis])
+            # assert_allclose(dtx.mean(axis), zs, atol=self.eps)
 
     def test_detrend_linear(self):
         n = 3
