@@ -62,7 +62,7 @@ try:
 
                 r += 1
 
-except NameError:
+except NameError:  # pragma: no cover
     pass
 
 

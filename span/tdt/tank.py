@@ -92,7 +92,7 @@ try:
                 spikes[low:high, c] = np.fromfile(f, dt, block_size)
 
         f.close()
-except NameError:
+except NameError:  # pragma: no cover
     pass
 
 
