@@ -9,7 +9,11 @@ from numpy import sum, abs
 from pandas import DataFrame, Int64Index, Series
 
 from span.xcorr import mult_mat_xcorr
-from span.xcorr.xcorr import xcorr
+from span.xcorr.xcorr import (xcorr, mult_mat_xcorr_numba,
+                              mult_mat_xcorr_cython_parallel,
+                              mult_mat_xcorr_cython_serial,
+                              mult_mat_xcorr_numba_sliced,
+                              mult_mat_xcorr_python)
 from span.utils import (nextpow2, get_fft_funcs, detrend_none,
                         detrend_mean, detrend_linear, cartesian)
 
@@ -150,54 +154,31 @@ class TestXCorr(unittest.TestCase):
                 self.assertIsInstance(xcnn3, np.ndarray)
 
 
-def test_mult_mat_xcorr():
-    x = randn(randint(2, 4), randint(4, 5))
-    m, n = x.shape
-    ifft, fft = get_fft_funcs(x)
-    nfft = int(2 ** nextpow2(m))
-    X = fft(x.T, nfft)
-    Xc = X.conj()
-    mx, nx = X.shape
-
-    c = np.empty((mx ** 2, nx), dtype=X.dtype)
-
-    oc = mult_mat_xcorr(X, Xc)
-
-    for i in xrange(n):
-        c[i * n:(i + 1) * n] = X[i] * Xc
-
-    assert_allclose(c, oc)
-
-    cc, occ = map(lambda x: ifft(x, nfft).T, (c, oc))
-
-    assert_allclose(cc, occ)
-
-
-def profile_mat_mult_xcorr():
-    def gen_data(m, n):
-        x = randn(m, n)
+class TestMultMatXcorr(unittest.TestCase):
+    def setUp(self):
+        x = randn(randint(2, 4), randint(2, 4))
+        m, n = x.shape
         ifft, fft = get_fft_funcs(x)
         nfft = int(2 ** nextpow2(m))
         X = fft(x.T, nfft)
         Xc = X.conj()
-        return X, Xc, ifft, fft, nfft
+        self.n, nx = X.shape
+        self.c = np.empty((n * n, nx), X.dtype)
+        self.ground_truth = self.c.copy()
 
-    def pure_py(X, Xc):
-        n, nx = X.shape
-        c = np.empty((n * n, nx), dtype=X.dtype)
+        self.X, self.Xc = X, Xc
+        mult_mat_xcorr_python(X, Xc, self.ground_truth, n)
 
-        for i in xrange(n):
-            c[i * n:(i + 1) * n] = X[i] * Xc
+    def tearDown(self):
+        del self.ground_truth, self.X, self.Xc, self.c, self.n
 
-        return c
+    def test_mult_mat_xcorrs(self):
+        funcs = {mult_mat_xcorr_numba, mult_mat_xcorr_cython_parallel,
+                 mult_mat_xcorr_cython_serial, mult_mat_xcorr_numba_sliced}
 
-    X, Xc, ifft, fft, nfft = gen_data(randint(2, 4), randint(4, 5))
+        for func in funcs:
+            func(self.X, self.Xc, self.c, self.n)
+            assert_allclose(self.c, self.ground_truth)
 
-    c = pure_py(X, Xc)
-    oc = mult_mat_xcorr(X, Xc)
-
-    assert_allclose(c, oc)
-
-    cc, occ = map(lambda x: ifft(x, nfft).T, (c, oc))
-
-    assert_allclose(cc, occ)
+    def test_mult_mat_xcorr_high_level(self):
+        assert_allclose(mult_mat_xcorr(self.X, self.Xc), self.ground_truth)
