@@ -228,6 +228,15 @@ class TestDetrend(TestCase):
             zs = np.zeros(dtx.shape[1 - axis])
             assert_allclose(dtx.mean(axis).ravel(), zs, atol=self.eps)
 
+    def test_detrend_mean_series(self):
+        x = Series(np.random.randn(3))
+
+        axes = xrange(x.ndim)
+        for axis in axes:
+            dtx = detrend_mean(x, axis)
+            zs = 0
+            assert_allclose(dtx.mean(axis).ravel(), zs, atol=self.eps)
+
     def test_detrend_mean_dataframe(self):
         x = DataFrame(np.random.randn(3, 4))
 
@@ -257,6 +266,19 @@ class TestDetrend(TestCase):
             # zs = np.zeros(dtx.shape[1 - axis])
             # assert_allclose(dtx.mean(axis), zs, atol=self.eps)
 
+    def test_detrend_mean_scalar(self):
+        x = np.random.randn()
+        y = 1.0
+        z = 1j + np.random.randn()
+        i = 1
+
+        for val in {x, y, z, i}:
+            dt = detrend_mean(val)
+            isnp = hasattr(dt, 'dtype')
+            expec = val.dtype.type(0) if isnp else type(val)(0)
+
+            self.assertEqual(expec, dt)
+
     def test_detrend_linear(self):
         n = 3
         x = np.arange(n)
@@ -273,7 +295,6 @@ class TestDetrend(TestCase):
         m = dtx.mean()
         s = dtx.std()
         ord_mag = int(np.floor(np.log10(n)))
-        rtol = 10.0 ** ((1 - ord_mag) + (ord_mag - 1))
         assert_allclose(m, 0.0, atol=self.eps * 5)
         assert_allclose(s, 0.0, atol=self.eps * 5)
 
