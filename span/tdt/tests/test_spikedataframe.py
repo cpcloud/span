@@ -140,7 +140,7 @@ class TestSpikeDataFrame(TestCase):
         binned = clr.resample('L', how='sum')
 
         maxlags = None, 2, binned.shape[0] + 1
-        detrends = detrend_mean, detrend_linear
+        detrends = detrend_mean, detrend_linear, None
         scale_types = 'normalize', 'unbiased', 'biased'
         sortlevels = 'shank i', 'channel i', 'shank j', 'channel j'
         sortlevels += tuple(range(len(sortlevels)))

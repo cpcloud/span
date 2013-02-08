@@ -25,7 +25,7 @@ class TestXCorr(unittest.TestCase):
 
         rng = xrange(n)
 
-        detrends = detrend_mean, detrend_none, detrend_linear
+        detrends = detrend_mean, detrend_none, detrend_linear, None
         scale_types = 'normalize', None, 'unbiased', 'biased'
         maxlags = None, 2, 20
 
@@ -112,7 +112,7 @@ class TestXCorr(unittest.TestCase):
 
     def test_numpy_matrix_input(self):
         x = randn(10, 15)
-        detrends = detrend_mean, detrend_none, detrend_linear
+        detrends = detrend_mean, detrend_none, detrend_linear, None
         scale_types = 'normalize', None, 'unbiased', 'biased'
         maxlags = 8, None, 100
 
@@ -128,7 +128,7 @@ class TestXCorr(unittest.TestCase):
 
     def test_numpy_vector_input(self):
         x = randn(3)
-        detrends = detrend_mean, detrend_none, detrend_linear
+        detrends = detrend_mean, detrend_none, detrend_linear, None
         scale_types = 'normalize', 'none', 'unbiased', 'biased', None
         maxlags = 2, None, 100
 
