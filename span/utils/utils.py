@@ -27,7 +27,7 @@ from future_builtins import map, zip
 import os
 import operator
 import itertools as itools
-import functools
+from functools import reduce
 import numbers
 
 import numpy as np
@@ -80,7 +80,7 @@ def cast(a, dtype, copy=False):
     assert hasattr(a, 'dtype'), ('argument "a" of type {0} has no "dtype" '
                                  'attribute'.format(a.__class__))
     assert hasattr(a, 'astype'), ('argument "a" of type {0} has no "astype" '
-                                 'method'.format(a.__class__))
+                                  'method'.format(a.__class__))
 
     if a.dtype == dtype:
         return a
@@ -120,7 +120,8 @@ def ndtuples(*dims):
     assert dims, 'no arguments given'
     assert all(map(lambda x: isinstance(x, (numbers.Integral)), dims)), \
         'all arguments must be integers'
-    assert all(map(lambda x: x > 0, dims)), 'all arguments must be greater than 0'
+    assert all(map(lambda x: x > 0, dims)), \
+        'all arguments must be greater than 0'
 
     dims = list(dims)
     n = dims.pop()
@@ -341,7 +342,10 @@ def isvector(x):
     -------
     b : bool
     """
-    return functools.reduce(operator.mul, x.shape) == max(x.shape)
+    try:
+        return reduce(operator.mul, x.shape) == max(x.shape)
+    except AttributeError:
+        return np.iscalar(x)
 
 
 def mi2df(mi):

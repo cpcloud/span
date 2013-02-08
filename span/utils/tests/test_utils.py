@@ -285,6 +285,21 @@ class TestNonzeroExistingFile(unittest.TestCase):
         self.assertRaises(AssertionError, assert_nonzero_existing_file, name)
 
 
+class TestIsVector2(unittest.TestCase):
+    def setUp(self):
+        self.matrix = np.random.randn(2, 3)
+        self.vector = np.random.randn(3)
+        self.scalar = np.random.randn()
+
+    def tearDown(self):
+        del self.scalar, self.vector, self.matrix
+
+    def test_isvector(self):
+        self.assertFalse(isvector(self.matrix))
+        self.assertRaises(AttributeError, isvector, self.scalar)
+        self.assert_(isvector(self.vector))
+
+
 class TestMi2Df(unittest.TestCase):
     def test_mi2df(self):
 
@@ -295,15 +310,16 @@ class TestMi2Df(unittest.TestCase):
 
         n = 2
         for dtype in dtypes:
-            s = np.array(list(rands(n, (1,))[0]))
+            s = np.array(list(rands(n)))
             i = randint(10, size=n)
             f = rand(n)
             o = rand(n).astype(object)
             bo = np.array(list(itools.repeat(_BlobJect(), n)))
             x = s, i, f, o, bo
-            names = rands(len(x), len(x))
+            names = [rands(len(x)) for _ in xrange(len(x))]
             mi = MultiIndex.from_arrays(x, names=names)
+            print mi
             df = mi2df(mi)
             self.assertIsInstance(df, DataFrame)
-            self.assertListEqual(names.tolist(), df.columns.tolist())
+            self.assertListEqual(names, df.columns.tolist())
             self.assertRaises(AssertionError, mi2df, Index([1, 2, 3]))
