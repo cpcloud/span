@@ -19,34 +19,53 @@
 
 
 cimport cython
-from cython.parallel cimport parallel, prange
-from numpy cimport uint8_t as u1, npy_intp as ip
+from numpy cimport (npy_intp as ip, uint8_t as u1, uint16_t as u2,
+                    uint32_t as u4, uint64_t as u8, int8_t as i1,
+                    int16_t as i2, int32_t as i4, int64_t as i8)
+
+ctypedef fused integral:
+    u1
+    u2
+    u4
+    u8
+
+    i1
+    i2
+    i4
+    i8
+
+    size_t
+    Py_ssize_t
+    bint
+
+    ip
 
 
 @cython.wraparound(False)
 @cython.boundscheck(False)
-cdef void __clear_refrac(u1[:, :] a, ip window) nogil:
-    cdef:
-        ip channel, i, sample, sp1
-        ip nsamples = a.shape[0], nchannels = a.shape[1]
+cdef void clear_refrac_impl(integral[:, :] a, ip window) nogil:
+    cdef ip channel, i, sample, sp1, nsamples, nchannels
 
+    nsamples = a.shape[0]
+    nchannels = a.shape[1]
 
-    for channel in xrange(nchannels):
-        sample = 0
+    with nogil:
+        for channel in range(nchannels):
+            sample = 0
 
-        while sample + window < nsamples:
-            if a[sample, channel]:
-                sp1 = sample + 1
+            while sample + window < nsamples:
+                if a[sample, channel]:
+                    sp1 = sample + 1
 
-                for i in xrange(sp1, sp1 + window):
-                    a[i, channel] = 0
+                    for i in range(sp1, sp1 + window):
+                        a[i, channel] = 0  # False
 
-                sample += window
+                    sample += window
 
-            sample += 1
+                sample += 1
 
 
 @cython.wraparound(False)
 @cython.boundscheck(False)
-cpdef _clear_refrac(u1[:, :] a, ip window):
-    __clear_refrac(a, window)
+cpdef _clear_refrac(integral[:, :] a, ip window):
+    clear_refrac_impl(a, window)

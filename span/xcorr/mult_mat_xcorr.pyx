@@ -43,8 +43,8 @@ cpdef _mult_mat_xcorr_parallel(floating[:, :] X, floating[:, :] Xc,
 
     with nogil, parallel():
         for i in prange(n, schedule='static'):
-            for r, j in enumerate(xrange(i * n, (i + 1) * n)):
-                for k in xrange(nx):
+            for r, j in enumerate(range(i * n, (i + 1) * n)):
+                for k in range(nx):
                     c[j, k] = X[i, k] * Xc[r, k]
 
 
@@ -55,7 +55,8 @@ cpdef _mult_mat_xcorr_serial(floating[:, :] X, floating[:, :] Xc,
 
     cdef ip i, j, k, r
 
-    for i in xrange(n):
-        for r, j in enumerate(xrange(i * n, (i + 1) * n)):
-            for k in xrange(nx):
-                c[j, k] = X[i, k] * Xc[r, k]
+    with nogil:
+        for i in range(n):
+            for r, j in enumerate(range(i * n, (i + 1) * n)):
+                for k in range(nx):
+                    c[j, k] = X[i, k] * Xc[r, k]
