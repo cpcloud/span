@@ -132,8 +132,9 @@ class TestPandasTank(unittest.TestCase):
     def test_properties(self):
         names = ('fs', 'name', 'age', 'site', 'date', 'time', 'datetime',
                  'duration')
-        typs = (numbers.Real, basestring, numbers.Integral,
-                numbers.Integral, datetime.date, datetime.time,
+        typs = ((numbers.Real, np.floating), basestring,
+                (numbers.Integral, np.integer),
+                (numbers.Integral, np.integer), datetime.date, datetime.time,
                 pd.datetime, np.timedelta64)
 
         for name, typ in zip(names, typs):

@@ -1,5 +1,8 @@
+
 import unittest
 from itertools import product as cartprod
+
+import ipdb
 
 import numpy as np
 from numpy.random import randn, randint
@@ -25,7 +28,7 @@ class TestXCorr(unittest.TestCase):
 
         rng = xrange(n)
 
-        detrends = detrend_mean, detrend_none, detrend_linear, None
+        detrends = detrend_mean, detrend_none, detrend_linear
         scale_types = 'normalize', None, 'unbiased', 'biased'
         maxlags = None, 2, 20
 
@@ -71,6 +74,7 @@ class TestXCorr(unittest.TestCase):
 
                 # funky pandas df indexing must subtract one because endpoints
                 # are inclusive
+                ipdb.set_trace()
                 assert_allclose(dd.ix[1 - mml:mml - 1].values, xcc)
 
                 self.assertIsInstance(xcc, np.ndarray)
@@ -111,10 +115,10 @@ class TestXCorr(unittest.TestCase):
                 assert_allclose(xc_s2, xc_s2_np)
 
     def test_numpy_matrix_input(self):
-        x = randn(10, 15)
-        detrends = detrend_mean, detrend_none, detrend_linear, None
+        x = randn(2, 3)
+        detrends = detrend_mean, detrend_none, detrend_linear
         scale_types = 'normalize', None, 'unbiased', 'biased'
-        maxlags = 8, None, 100
+        maxlags = 2, None, 100
 
         args = cartprod(maxlags, detrends, scale_types)
 
