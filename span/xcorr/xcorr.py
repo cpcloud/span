@@ -21,8 +21,7 @@
 
 import numpy as np
 from pandas import Series, DataFrame
-from span.utils import (detrend_mean, get_fft_funcs, isvector, nextpow2,
-                        pad_larger)
+from span.utils import get_fft_funcs, isvector, nextpow2, pad_larger
 from span.xcorr._mult_mat_xcorr import (_mult_mat_xcorr_parallel,
                                         _mult_mat_xcorr_serial)
 
@@ -408,10 +407,8 @@ def xcorr(x, y=None, maxlags=None, detrend=None, scale_type=None):
     assert scale_type in _SCALE_KEYS, ('"scale_type" must be one of '
                                        '{0}'.format(_SCALE_KEYS))
 
-    try:
-        x = detrend(x)
-    except TypeError:
-        pass
+    if detrend is None:
+        detrend = lambda x: x
 
     if x.ndim == 2 and np.greater(x.shape, 1).all():
         assert y is None, 'y argument not allowed when x is a 2D array'
@@ -425,6 +422,7 @@ def xcorr(x, y=None, maxlags=None, detrend=None, scale_type=None):
         corrfunc = autocorr
     else:
         x, y, lsize = pad_larger(x, detrend(y))
+
         inputs = x, y
         corrfunc = crosscorr
 
