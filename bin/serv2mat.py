@@ -64,6 +64,10 @@ def parse_args():
 
 def main():
     dn = parse_args().dirname.rstrip(os.sep)
+
+    if not os.path.exists(dn):
+        raise OSError('%s does NOT exist, make sure you typed the name of '
+                      'the directory correctly' % dn)
     tev, = glob.glob(os.path.join(dn, '*.tev'))
     tev_name, _ = os.path.splitext(tev)
     mat_filename = os.path.join(tev_name + os.extsep + 'mat')
