@@ -64,6 +64,9 @@ def parse_args():
 
 def main():
     dn = parse_args().dirname.rstrip(os.sep)
+    print
+    print dn
+    print
     tev, = glob.glob(os.path.join(dn, '*.tev'))
     tev_name, _ = os.path.splitext(tev)
     mat_filename = os.path.join(tev_name + os.extsep + 'mat')
