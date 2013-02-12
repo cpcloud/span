@@ -57,7 +57,7 @@ def parse_args():
     try:
         _, args = parser.parse_args()
         args = args[0]
-    except ValueError:
+    except (TypeError, ValueError):
         args = parser.parse_args()
     return args
 
