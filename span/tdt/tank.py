@@ -482,5 +482,6 @@ class PandasTank(TdtTankBase):
         dt = dtstart + np.arange(nsamples) * np.timedelta64(ns, 'ns')
         index = DatetimeIndex(dt, freq=ns * pd.datetools.Nano(), name='time',
                               tz='US/Eastern')
-        cols, _ = columns.swaplevel(1, 0).sortlevel('shank')
-        return SpikeDataFrame(spikes, index=index, columns=cols, dtype=float)
+        df = DataFrame(spikes, index, columns, np.float64)
+        df = df.reorder_levels((1, 0), axis=1).sortlevel('shank', axis=1)
+        return SpikeDataFrame(df)
