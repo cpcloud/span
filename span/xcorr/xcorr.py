@@ -52,11 +52,11 @@ try:
         """
         nx = c.shape[1]
 
-        for i in xrange(n):
+        for i in range(n):
             r = 0
 
-            for j in xrange(i * n, (i + 1) * n):
-                for k in xrange(nx):
+            for j in range(i * n, (i + 1) * n):
+                for k in range(nx):
                     c[j, k] = X[i, k] * Xc[r, k]
 
                 r += 1
@@ -102,7 +102,7 @@ def mult_mat_xcorr_cython_serial(X, Xc, c, n):
 
 
 def mult_mat_xcorr_python(X, Xc, c, n):
-    for i in xrange(n):
+    for i in range(n):
         c[i * n:(i + 1) * n] = X[i] * Xc
 
 
@@ -419,12 +419,11 @@ def xcorr(x, y=None, maxlags=None, detrend=None, scale_type=None):
         corrfunc = matrixcorr
     elif y is None or y is x or np.array_equal(x, y):
         assert isvector(x), 'x must be 1D'
-        lsize = max(x.shape)
+        lsize = x.shape[0]
         inputs = x,
         corrfunc = autocorr
     else:
-        x, y, lsize = pad_larger(x, detrend(y))
-
+        lsize = max(x.size, y.size)
         inputs = x, y
         corrfunc = crosscorr
 
