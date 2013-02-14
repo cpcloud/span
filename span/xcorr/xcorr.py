@@ -410,6 +410,8 @@ def xcorr(x, y=None, maxlags=None, detrend=None, scale_type=None):
     if detrend is None:
         detrend = lambda x: x
 
+    x = detrend(x)
+
     if x.ndim == 2 and np.greater(x.shape, 1).all():
         assert y is None, 'y argument not allowed when x is a 2D array'
         lsize = x.shape[0]
