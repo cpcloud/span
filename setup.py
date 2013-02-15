@@ -48,7 +48,7 @@ define_macros = []
 names = 'clear_refrac', 'mult_mat_xcorr', 'read_tev'
 
 # module packages
-mod_pkgs = 'span.utils', 'span.xcorr', 'span.tdt'
+mod_pkgs = 'span.utils', 'span.xcorr', 'span.tdt', 'span.stats'
 
 # prefix for *.so files
 underscore = '_'
@@ -92,7 +92,8 @@ if __name__ == '__main__':
           version='0.1',
           author='Phillip Cloud',
           author_email='cpcloud@gmail.com',
-          packages=['span', 'span.tdt', 'span.utils', 'span.xcorr'],
+          packages=['span', 'span.tdt', 'span.utils', 'span.xcorr',
+                    'span.stats'],
           scripts=[os.path.join('bin', 'serv2mat.py')],
           ext_modules=ext_modules,
           license='LICENSE.txt',
