@@ -311,6 +311,17 @@ class SpikeDataFrame(SpikeDataFrameBase):
 
         return xc
 
+    def jitter(self, window=100, unit='ms'):
+        index = self.index.values
+        dt = index.dtype
+        beg = np.floor(index.astype(np.int64) / window)
+        start = (window * beg).astype(dt, copy=False)
+        unit = 'timedelta64[%s]' % unit
+        shifted = start + (np.random.rand(self.nsamples) *
+                           window).astype(unit, copy=False)
+        return self._constructor(self.values, shifted,
+                                 self.columns).sort_index()
+
 
 # TODO: hack to make it so nans are allowed when creating indices
 def _create_xcorr_inds(columns):
