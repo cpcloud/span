@@ -31,6 +31,8 @@ Examples
 
 import numbers
 import types
+import abc
+
 from functools import partial
 from itertools import product as iproduct
 
@@ -43,7 +45,38 @@ from span.xcorr import xcorr
 from span.utils import sem, samples_per_ms, clear_refrac
 
 
-class SpikeDataFrame(DataFrame):
+class SpikeDataFrameBase(DataFrame):
+    __metaclass__ = abc.ABCMeta
+
+    def __init__(self, *args, **kwargs):
+        super(SpikeDataFrameBase, self).__init__(*args, **kwargs)
+
+    @abc.abstractproperty
+    def nchannels(self):
+        pass
+
+    @abc.abstractproperty
+    def nsamples(self):
+        pass
+
+    @abc.abstractproperty
+    def fs(self):
+        pass
+
+    @abc.abstractmethod
+    def threshold(self, thresh):
+        pass
+
+    @abc.abstractmethod
+    def clear_refrac(self, threshed, ms=2):
+        pass
+
+    @abc.abstractmethod
+    def xcorr(self, *args, **kwargs):
+        pass
+
+
+class SpikeDataFrame(SpikeDataFrameBase):
     """Class encapsulting a Pandas DataFrame with extensions for analyzing
     spike train data.
 
@@ -52,7 +85,7 @@ class SpikeDataFrame(DataFrame):
     def __init__(self, *args, **kwargs):
         super(SpikeDataFrame, self).__init__(*args, **kwargs)
 
-    def sem(self, axis=0, ddof=1):
+    def sem(self, *args, **kwargs):
         r"""Return the standard error of the mean of array along `axis`.
 
         Parameters
@@ -82,7 +115,7 @@ class SpikeDataFrame(DataFrame):
 
         where :math:`n` is the number of elements along the axis `axis`.
         """
-        return self.apply(sem, axis=axis, ddof=ddof)
+        return self.apply(sem, *args, **kwargs)
 
     @property
     def nchannels(self):
