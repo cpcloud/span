@@ -290,24 +290,7 @@ class SpikeDataFrame(SpikeDataFrameBase):
             select_func = lambda x: x[chi_ind] == x[chj_ind]
             xc.ix[0, xc0.select(select_func).index] = np.nan
 
-        if sortlevel is not None:
-            fmt_str = 'sortlevel {0} not in {1}'
-            cols = xc.columns
-
-            try:
-                sl = int(sortlevel)
-                nlevels = cols.nlevels
-                assert 0 <= sl < nlevels, fmt_str.format(sl, range(nlevels))
-            except ValueError:
-                try:
-                    sl = str(sortlevel)
-                    names = cols.names
-                    assert sl in names, fmt_str.format(sl, names)
-                except ValueError:
-                    raise ValueError('sortlevel must be an int or a string')
-
-            xc = xc.sortlevel(level=sl, axis=1)
-
+        xc = xc.sortlevel(level=sortlevel, axis=1)
         xc.index.name = lag_name
 
         return xc
