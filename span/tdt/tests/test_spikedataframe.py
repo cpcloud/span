@@ -140,16 +140,17 @@ class TestSpikeDataFrame(TestCase):
         binned = clr.resample('L', how='sum')
 
         maxlags = None, 2, binned.shape[0] + 1
-        detrends = detrend_mean, detrend_linear, None
+        detrends = detrend_mean, detrend_linear
         scale_types = 'normalize', 'unbiased', 'biased'
         sortlevels = 'shank i', 'channel i', 'shank j', 'channel j'
-        sortlevels += tuple(range(len(sortlevels)))
+        sortlevels += tuple(xrange(len(sortlevels)))
         nan_autos = True, False
         lag_names = 'a',
 
         args = itools.product(maxlags, detrends, scale_types, sortlevels,
                               nan_autos, lag_names)
 
+        weird_levels = 'asdfalsdj', 2342
         for maxlag, detrend, scale_type, level, nan_auto, lag_name in args:
             if maxlag > binned.shape[0]:
                 self.assertRaises(AssertionError, self.spikes.xcorr, binned,
@@ -159,14 +160,14 @@ class TestSpikeDataFrame(TestCase):
                 xc = self.spikes.xcorr(binned, maxlag, detrend, scale_type,
                                        level, nan_auto, lag_name)
                 self.assertIsInstance(xc, pd.DataFrame)
-
-            for level in ('asdfalsdj', 2342):
-                self.assertRaises(AssertionError, self.spikes.xcorr, binned,
-                                  maxlag, detrend, scale_type, level, nan_auto,
+                self.assertRaises(TypeError, self.spikes.xcorr, binned, maxlag,
+                                  detrend, scale_type, object(), nan_auto,
                                   lag_name)
-            self.assertRaises(TypeError, self.spikes.xcorr, binned, maxlag,
-                              detrend, scale_type, object(), nan_auto,
-                              lag_name)
+
+                for level in weird_levels:
+                    self.assertRaises(AssertionError, self.spikes.xcorr,
+                                      binned, maxlag, detrend, scale_type,
+                                      level, nan_auto, lag_name)
 
 
 class TestCreateXCorrInds(TestCase):
