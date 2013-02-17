@@ -43,7 +43,7 @@ ctypedef fused integral:
 
 @cython.wraparound(False)
 @cython.boundscheck(False)
-cdef void clear_refrac_impl(integral[:, :] a, ip window) nogil:
+cdef int clear_refrac_impl(integral[:, :] a, ip window) nogil except -1:
     cdef ip channel, i, sample, sp1, nsamples, nchannels
 
     nsamples = a.shape[0]
@@ -63,9 +63,10 @@ cdef void clear_refrac_impl(integral[:, :] a, ip window) nogil:
                     sample += window
 
                 sample += 1
+    return 0
 
 
 @cython.wraparound(False)
 @cython.boundscheck(False)
-cpdef _clear_refrac(integral[:, :] a, ip window):
-    clear_refrac_impl(a, window)
+cpdef int _clear_refrac(integral[:, :] a, ip window) nogil:
+    return clear_refrac_impl(a, window)
