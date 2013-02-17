@@ -11,7 +11,6 @@ from pandas.util.testing import assert_frame_equal
 from span.xcorr import mult_mat_xcorr, xcorr
 from span.xcorr.xcorr import (mult_mat_xcorr_numba,
                               mult_mat_xcorr_cython_parallel,
-                              mult_mat_xcorr_cython_serial,
                               mult_mat_xcorr_numba_sliced,
                               mult_mat_xcorr_python, crosscorr, autocorr,
                               matrixcorr)
@@ -109,7 +108,7 @@ class TestMultMatXcorr(unittest.TestCase):
 
     def test_mult_mat_xcorrs(self):
         funcs = {mult_mat_xcorr_numba, mult_mat_xcorr_cython_parallel,
-                 mult_mat_xcorr_cython_serial, mult_mat_xcorr_numba_sliced}
+                 mult_mat_xcorr_numba_sliced}
 
         for func in funcs:
             func(self.X, self.Xc, self.c, self.n)

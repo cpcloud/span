@@ -22,8 +22,7 @@
 import numpy as np
 from pandas import Series, DataFrame
 from span.utils import get_fft_funcs, isvector, nextpow2, pad_larger
-from span.xcorr._mult_mat_xcorr import (_mult_mat_xcorr_parallel,
-                                        _mult_mat_xcorr_serial)
+from span.xcorr._mult_mat_xcorr import _mult_mat_xcorr_parallel
 
 import warnings
 
@@ -81,24 +80,6 @@ def mult_mat_xcorr_cython_parallel(X, Xc, c, n):
     """
     nx = c.shape[1]
     _mult_mat_xcorr_parallel(X, Xc, c, n, nx)
-
-
-def mult_mat_xcorr_cython_serial(X, Xc, c, n):
-    """Perform the necessary matrix-vector multiplication and fill the cross-
-    correlation array. Slightly faster than pure Python.
-
-    Parameters
-    ----------
-    X, Xc, c : c16[:, :]
-    n : ip
-
-    Raises
-    ------
-    AssertionError
-       If n <= 0 or nx <= 0
-    """
-    nx = c.shape[1]
-    _mult_mat_xcorr_serial(X, Xc, c, n, nx)
 
 
 def mult_mat_xcorr_python(X, Xc, c, n):
