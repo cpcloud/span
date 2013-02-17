@@ -160,10 +160,13 @@ class TestSpikeDataFrame(TestCase):
                                        level, nan_auto, lag_name)
                 self.assertIsInstance(xc, pd.DataFrame)
 
-            for level in ('asdfalsdj', 2342, object()):
+            for level in ('asdfalsdj', 2342):
                 self.assertRaises(AssertionError, self.spikes.xcorr, binned,
                                   maxlag, detrend, scale_type, level, nan_auto,
                                   lag_name)
+            self.assertRaises(TypeError, self.spikes.xcorr, binned, maxlag,
+                              detrend, scale_type, object(), nan_auto,
+                              lag_name)
 
 
 class TestCreateXCorrInds(TestCase):
