@@ -43,38 +43,14 @@ from span.xcorr import xcorr
 from span.utils import sem, samples_per_ms, clear_refrac
 
 
-class SpikeDataFrameBase(DataFrame):
-    """Base class implementing basic spike data set properties and methods.
+class SpikeDataFrame(DataFrame):
+    """Class encapsulting a Pandas DataFrame with extensions for analyzing
+    spike train data.
 
-    Parameters
-    ----------
-    data : array_like
-        The raw spike data.
-
-    meta : array_like
-        The DataFrame of TSQ header file metadata.
-
-    args : tuple
-        Arguments to base class constructor.
-
-    kwargs : dict
-        Arguments to base class constructor.
-
-    Attributes
-    ----------
-    fs (float) : Sampling rate
-    nchannels (int) : Number of channels
-    nsamples (int) : Number of samples per channel
-
-    See Also
-    --------
-    span.tdt.spikedataframe.SpikeDataFrame
+    See the :class:`SpikeDataFrameBase` documentation for constructor details.
     """
-
-    __slots__ = 'meta', 'date'
-
     def __init__(self, *args, **kwargs):
-        super(SpikeDataFrameBase, self).__init__(*args, **kwargs)
+        super(SpikeDataFrame, self).__init__(*args, **kwargs)
 
     def sem(self, axis=0, ddof=1):
         r"""Return the standard error of the mean of array along `axis`.
@@ -154,17 +130,6 @@ class SpikeDataFrameBase(DataFrame):
 
         return f(threshes)
 
-
-class SpikeDataFrame(SpikeDataFrameBase):
-    """Class encapsulting a Pandas DataFrame with extensions for analyzing
-    spike train data.
-
-    See the :class:`SpikeDataFrameBase` documentation for constructor details.
-    """
-
-    def __init__(self, *args, **kwargs):
-        super(SpikeDataFrame, self).__init__(*args, **kwargs)
-
     @property
     def _constructor(self):
         return type(self)
@@ -201,7 +166,7 @@ class SpikeDataFrame(SpikeDataFrameBase):
 
         if ms:
             # copy so we don't write over the values of threshed
-            clr = threshed.copy()
+            clr = clr.copy()
 
             # get the number of samples in ms milliseconds
             ms_fs = samples_per_ms(self.fs, ms)
