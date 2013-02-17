@@ -45,7 +45,7 @@ except ImportError:
 
 from span.tdt.spikeglobals import Indexer, EventTypes, DataTypes
 from span.tdt.spikedataframe import SpikeDataFrame
-from span.tdt._read_tev import _read_tev_parallel, _read_tev_serial
+from span.tdt._read_tev import _read_tev_parallel
 
 
 from span.utils import (name2num, thunkify, cached_property, fromtimestamp,
@@ -115,27 +115,6 @@ def _cython_read_tev_parallel(filename, grouped, block_size, spikes):
         Output array
     """
     _read_tev_parallel(filename, grouped, block_size, spikes)
-
-
-def _cython_read_tev_serial(filename, grouped, block_size, spikes):
-    """Read a TDT tev file into a numpy array. Slightly faster than
-    the pure Python version.
-
-    Parameters
-    ----------
-    filename : char *
-        Name of the TDT file to load.
-
-    nsamples : i8
-        The number of samples per chunk of data.
-
-    fp_locs : i8[:]
-        The array of locations of each chunk in the TEV file.
-
-    spikes : floating[:, :]
-        Output array
-    """
-    _read_tev_serial(filename, grouped, block_size, spikes)
 
 
 def _python_read_tev_serial(filename, grouped, block_size, spikes):
