@@ -21,7 +21,7 @@
 
 import numpy as np
 from pandas import Series, DataFrame
-from span.utils import get_fft_funcs, isvector, nextpow2, pad_larger
+from span.utils import get_fft_funcs, isvector, nextpow2
 from span.xcorr._mult_mat_xcorr import _mult_mat_xcorr_parallel
 
 import warnings
@@ -177,20 +177,21 @@ def matrixcorr(x, nfft):
 
 
 def unbiased(c, x, y, lags, lsize):
-    """Compute the unbiased estimate of `c`.
+    r"""Compute an unbiased estimate of `c`.
 
-    This function returns `c` scaled by number of data points available at
-    each lag.
+    This function returns `c` scaled by the number of data points
+    available at each lag.
 
     Parameters
     ----------
     c : array_like
         The cross correlation array
 
-    x : array_like
-    y : array_like
+    x, y : array_like
 
     lags : array_like
+        The lags array, e.g., :math:`\left[\ldots, -2, -1, 0, 1, 2,
+        \ldots\right]`
 
     lsize : int
         The size of the largest of the inputs to the cross correlation
@@ -201,21 +202,27 @@ def unbiased(c, x, y, lags, lsize):
     c : array_like
         The unbiased estimate of the cross correlation.
     """
+    # max number of observations minus observations at each lag
     d = lsize - np.abs(lags)
+
+    # protect divison by zero
     d[np.logical_not(d)] = 1.0
+
+    # make the denominator repeat over the correct dimension
     denom = np.tile(d[:, np.newaxis], (1, c.shape[1])) if c.ndim == 2 else d
     return c / denom
 
 
 def biased(c, x, y, lags, lsize):
-    """Compute the biased estimate of `c`.
+    """Compute a biased estimate of `c`.
 
     Parameters
     ----------
     c : array_like
-        The cross correlation array
+        The unscaled cross correlation array
 
-    x, y, lags : array_like, array_like, array_like
+    x, y, lags : array_like
+        Unused; here to keep the API sane
 
     lsize : int
         The size of the largest of the inputs to the cross correlation
@@ -229,10 +236,10 @@ def biased(c, x, y, lags, lsize):
     Notes
     -----
     Conceptually, when you choose this scaling procedure you are
-    ignoring the fact that there is a different amount of data at each of the
-    different lags, thus this procedure is called biased. Only the lag
-    0 cross/auto-correlation is a **true** estimate of the actual
-    cross/auto-correlation function.
+    ignoring the fact that there is a different amount of data at each
+    of the different lags, thus this procedure is called "biased".
+    Only the lag 0 cross-correlation is an unbiased estimate of
+    thecross-correlation function.
 
     See Also
     --------
@@ -270,13 +277,18 @@ def normalize(c, x, y, lags, lsize):
         The normalized cross correlation.
 
     """
-    assert c.ndim in (1, 2), 'invalid size of cross correlation array'
+    assert c.ndim in (1, 2), ('invalid number of dimensions of cross '
+                              'correlation array, INPUT: %d, EXPECTED: 1 or 2'
+                              ', i.e., vector or matrix' % c.ndim)
 
+    # vector
     if c.ndim == 1:
+        # need this for either cross or auto
         ax2 = np.abs(x)
         ax2 *= ax2
         d = np.sum(ax2)
 
+        # y is given so we computed a cross correlation
         if y is not None:
             ay2 = np.abs(y)
             ay2 *= ay2
@@ -287,18 +299,25 @@ def normalize(c, x, y, lags, lsize):
 
         cdiv = np.sqrt(d)
     else:
+        # matrix
         _, nc = c.shape
         ncsqrt = int(np.sqrt(nc))
+
+        # need diagonal elements of array
         jkl = np.diag(np.r_[:nc].reshape(ncsqrt, ncsqrt))
 
+        # ignore annoying numpy warnings
         with warnings.catch_warnings():
             warnings.simplefilter('ignore', category=FutureWarning)
 
             try:
+                # pandas lag 0 jklth column pair
                 vals = c.ix[0, jkl]
             except AttributeError:
+                # not pandas so assume it's a numpy array
                 vals = c[lags.max(), jkl]
 
+        # scale by lag 0 of each column pair
         tmp = np.sqrt(vals)
         cdiv = np.outer(tmp, tmp).ravel()
 
