@@ -298,11 +298,11 @@ class SpikeDataFrame(SpikeDataFrameBase):
     def jitter(self, window=100, unit='ms'):
         index = self.index.values
         dt = index.dtype
-        beg = np.floor(index.astype(np.int64) / window)
+        beg = np.floor(index.astype(int) / window)
         start = (window * beg).astype(dt, copy=False)
-        unit = 'timedelta64[%s]' % unit
+        td_unit = 'timedelta64[%s]' % unit
         shifted = start + (np.random.rand(self.nsamples) *
-                           window).astype(unit, copy=False)
+                           window).astype(td_unit, copy=False)
         return self._constructor(self.values, shifted,
                                  self.columns).sort_index()
 
