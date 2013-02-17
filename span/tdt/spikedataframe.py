@@ -40,9 +40,8 @@ import numpy as np
 
 from pandas import Series, DataFrame, MultiIndex
 
-import span
 from span.xcorr import xcorr
-from span.utils import sem, samples_per_ms, clear_refrac
+from span.utils import samples_per_ms, clear_refrac
 
 
 class SpikeDataFrameBase(DataFrame):
@@ -84,38 +83,6 @@ class SpikeDataFrame(SpikeDataFrameBase):
     """
     def __init__(self, *args, **kwargs):
         super(SpikeDataFrame, self).__init__(*args, **kwargs)
-
-    def sem(self, *args, **kwargs):
-        r"""Return the standard error of the mean of array along `axis`.
-
-        Parameters
-        ----------
-        axis : int, optional
-            The axis along which to compute the standard error of the mean.
-
-        ddof : int, optional
-            Delta degrees of freedom. 0 computes the sem using the population
-            standard deviation, 1 computes the sem using the sample standard
-            deviation.
-
-        Returns
-        -------
-        sem : Series
-            The standard error of the mean of the object along `axis`.
-
-        Notes
-        -----
-        The standard error of the mean is defined as:
-
-        .. math::
-
-           \operatorname{sem}\left(\mathbf{x}\right)=\sqrt{\frac{\frac{1}{n -
-           \textrm{ddof}}\sum_{i=1}^{n}\left(x_{i} -
-           \bar{\mathbf{x}}\right)^{2}}{n}}
-
-        where :math:`n` is the number of elements along the axis `axis`.
-        """
-        return self.apply(sem, *args, **kwargs)
 
     @property
     def nchannels(self):
