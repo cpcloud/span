@@ -5,17 +5,16 @@ import numpy as np
 from numpy.random import randn, randint
 from numpy.testing import assert_allclose
 
-from pandas import DataFrame, Series
+from pandas import DataFrame
 from pandas.util.testing import assert_frame_equal
 
-from span.xcorr import mult_mat_xcorr, xcorr
-from span.xcorr.xcorr import (mult_mat_xcorr_numba,
-                              mult_mat_xcorr_cython_parallel,
-                              mult_mat_xcorr_numba_sliced,
-                              mult_mat_xcorr_python, crosscorr, autocorr,
-                              matrixcorr)
-from span.utils import (nextpow2, get_fft_funcs, detrend_none,
-                        detrend_mean, detrend_linear, cartesian)
+from span.xcorr import xcorr
+from span.xcorr.xcorr import (_mult_mat_xcorr,
+                              _mult_mat_xcorr_numba,
+                              _mult_mat_xcorr_cython_parallel,
+                              _mult_mat_xcorr_numba_sliced,
+                              _mult_mat_xcorr_python)
+from span.utils import nextpow2, get_fft_funcs, detrend_mean
 from span.testing import assert_array_equal, knownfailure
 
 
@@ -101,18 +100,18 @@ class TestMultMatXcorr(unittest.TestCase):
         self.ground_truth = self.c.copy()
 
         self.X, self.Xc = X, Xc
-        mult_mat_xcorr_python(X, Xc, self.ground_truth, n)
+        _mult_mat_xcorr_python(X, Xc, self.ground_truth, n)
 
     def tearDown(self):
         del self.ground_truth, self.X, self.Xc, self.c, self.n
 
     def test_mult_mat_xcorrs(self):
-        funcs = {mult_mat_xcorr_numba, mult_mat_xcorr_cython_parallel,
-                 mult_mat_xcorr_numba_sliced}
+        funcs = {_mult_mat_xcorr_numba, _mult_mat_xcorr_cython_parallel,
+                 _mult_mat_xcorr_numba_sliced}
 
         for func in funcs:
             func(self.X, self.Xc, self.c, self.n)
             assert_allclose(self.c, self.ground_truth)
 
     def test_mult_mat_xcorr_high_level(self):
-        assert_allclose(mult_mat_xcorr(self.X, self.Xc), self.ground_truth)
+        assert_allclose(_mult_mat_xcorr(self.X, self.Xc), self.ground_truth)

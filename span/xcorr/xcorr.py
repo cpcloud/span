@@ -33,8 +33,14 @@ except ImportError:
 
 
 try:
+    range = xrange
+except NameError:
+    pass
+
+
+try:
     @autojit
-    def mult_mat_xcorr_numba(X, Xc, c, n):
+    def _mult_mat_xcorr_numba(X, Xc, c, n):
         """Perform the necessary matrix-vector multiplication and fill
         the cross- correlation array. Slightly faster than pure
         Python.
@@ -64,7 +70,7 @@ except NameError:  # pragma: no cover
     pass
 
 
-def mult_mat_xcorr_cython_parallel(X, Xc, c, n):
+def _mult_mat_xcorr_cython_parallel(X, Xc, c, n):
     """Perform the necessary matrix-vector multiplication and fill the cross-
     correlation array. Slightly faster than pure Python.
 
@@ -82,18 +88,18 @@ def mult_mat_xcorr_cython_parallel(X, Xc, c, n):
     _mult_mat_xcorr_parallel(X, Xc, c, n, nx)
 
 
-def mult_mat_xcorr_python(X, Xc, c, n):
+def _mult_mat_xcorr_python(X, Xc, c, n):
     for i in range(n):
         c[i * n:(i + 1) * n] = X[i] * Xc
 
 
 try:
-    mult_mat_xcorr_numba_sliced = autojit(mult_mat_xcorr_python)
+    _mult_mat_xcorr_numba_sliced = autojit(_mult_mat_xcorr_python)
 except NameError:  # pragma: no cover
     pass
 
 
-def mult_mat_xcorr(X, Xc):
+def _mult_mat_xcorr(X, Xc):
     assert X is not None, '1st argument "X" must not be None'
     assert Xc is not None, '2nd argument "Xc" must not be None'
 
@@ -101,14 +107,14 @@ def mult_mat_xcorr(X, Xc):
     c = np.empty((n * n, nx), dtype=X.dtype)
 
     try:
-        mult_mat_xcorr_numba_sliced(X, Xc, c, n)
+        _mult_mat_xcorr_numba_sliced(X, Xc, c, n)
     except (NameError, NumbaError):  # pragma: no cover
-        mult_mat_xcorr_cython_parallel(X, Xc, c, n)
+        _mult_mat_xcorr_cython_parallel(X, Xc, c, n)
 
     return c
 
 
-def autocorr(x, nfft):
+def _autocorr(x, nfft):
     """Compute the autocorrelation of `x` using a FFT.
 
     Parameters
@@ -130,7 +136,7 @@ def autocorr(x, nfft):
     return ifft(a, nfft)
 
 
-def crosscorr(x, y, nfft):
+def _crosscorr(x, y, nfft):
     """Compute the cross correlation of `x` and `y` using an FFT.
 
     Parameters
@@ -150,7 +156,7 @@ def crosscorr(x, y, nfft):
     return ifft(fft(x, nfft) * fft(y, nfft).conj(), nfft)
 
 
-def matrixcorr(x, nfft):
+def _matrixcorr(x, nfft):
     """Cross-correlation of the columns of a matrix.
 
     Parameters
@@ -172,11 +178,11 @@ def matrixcorr(x, nfft):
     ifft, fft = get_fft_funcs(x)
     X = fft(x.T, nfft)
     Xc = X.conj()
-    c = mult_mat_xcorr(X, Xc)
+    c = _mult_mat_xcorr(X, Xc)
     return ifft(c, nfft).T
 
 
-def unbiased(c, x, y, lags, lsize):
+def _unbiased(c, x, y, lags, lsize):
     r"""Compute an unbiased estimate of `c`.
 
     This function returns `c` scaled by the number of data points
@@ -213,7 +219,7 @@ def unbiased(c, x, y, lags, lsize):
     return c / denom
 
 
-def biased(c, x, y, lags, lsize):
+def _biased(c, x, y, lags, lsize):
     """Compute a biased estimate of `c`.
 
     Parameters
@@ -249,7 +255,7 @@ def biased(c, x, y, lags, lsize):
     return c / lsize
 
 
-def normalize(c, x, y, lags, lsize):
+def _normalize(c, x, y, lags, lsize):
     """Normalize `c` by the lag 0 cross correlation
 
     Parameters
@@ -324,7 +330,7 @@ def normalize(c, x, y, lags, lsize):
     return c / cdiv
 
 
-def none(c, x, y, lags, lsize):
+def _none(c, x, y, lags, lsize):
     """Do nothing with the input and return `c`.
 
     Parameters
@@ -336,11 +342,11 @@ def none(c, x, y, lags, lsize):
 
 
 _SCALE_FUNCTIONS = {
-    None: none,
-    'none': none,
-    'unbiased': unbiased,
-    'biased': biased,
-    'normalize': normalize
+    None: _none,
+    'none': _none,
+    'unbiased': _unbiased,
+    'biased': _biased,
+    'normalize': _normalize
 }
 
 
@@ -416,16 +422,16 @@ def xcorr(x, y=None, maxlags=None, detrend=None, scale_type=None):
         assert y is None, 'y argument not allowed when x is a 2D array'
         lsize = x.shape[0]
         inputs = x,
-        corrfunc = matrixcorr
+        corrfunc = _matrixcorr
     elif y is None or y is x or np.array_equal(x, y):
         assert isvector(x), 'x must be 1D'
         lsize = x.shape[0]
         inputs = x,
-        corrfunc = autocorr
+        corrfunc = _autocorr
     else:
         lsize = max(x.size, y.size)
         inputs = x, y
-        corrfunc = crosscorr
+        corrfunc = _crosscorr
 
     nfft = 2 ** nextpow2(2 * lsize - 1)
     ctmp = corrfunc(*inputs, nfft=nfft)
