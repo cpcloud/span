@@ -32,9 +32,9 @@ Examples
 import numbers
 import types
 import abc
+import itertools
+import functools
 
-from functools import partial
-from itertools import product as iproduct
 
 import numpy as np
 
@@ -79,7 +79,7 @@ class SpikeDataFrame(SpikeDataFrameBase):
     """Class encapsulting a Pandas DataFrame with extensions for analyzing
     spike train data.
 
-    See the :class:`SpikeDataFrameBase` documentation for constructor details.
+    See the pandas DataFrame documentation for constructor details.
     """
     def __init__(self, *args, **kwargs):
         super(SpikeDataFrame, self).__init__(*args, **kwargs)
@@ -126,7 +126,7 @@ class SpikeDataFrame(SpikeDataFrameBase):
         thr = threshes.item() if threshes.size == 1 else threshes
         threshes = Series(thr, index=self.columns)
 
-        f = partial(cmpf, axis=1)
+        f = functools.partial(cmpf, axis=1)
 
         return f(threshes)
 
@@ -219,16 +219,14 @@ class SpikeDataFrame(SpikeDataFrameBase):
 
         Returns
         -------
-        xc : DataFrame or Series
-            The cross correlation of all the columns of the data.
+        xc : DataFrame
+            The cross correlation of all the columns of the data, indexed by
+            lags and columned by channel pair.
 
         See Also
         --------
         span.xcorr.xcorr
             General cross correlation function.
-
-        SpikeDataFrame.bin
-            Binning function.
 
         SpikeDataFrame.clear_refrac
             Clear the refractory period of a channel or array of channels.
@@ -275,7 +273,6 @@ class SpikeDataFrame(SpikeDataFrameBase):
 def _create_xcorr_inds(columns):
     ncols = len(columns)
     xr = xrange(ncols)
-    prod = iproduct(xr, xr)
-    inds = [columns[i] + columns[j] for i, j in prod]
+    inds = (columns[i] + columns[j] for i, j in itertools.product(xr, xr))
     names = 'shank i', 'channel i', 'shank j', 'channel j'
-    return MultiIndex.from_tuples(inds, names=names)
+    return MultiIndex.from_tuples(list(inds), names=names)
