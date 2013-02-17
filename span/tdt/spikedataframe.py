@@ -64,11 +64,11 @@ class SpikeDataFrameBase(DataFrame):
         pass
 
     @abc.abstractmethod
-    def threshold(self, thresh):
+    def threshold(self, *args, **kwargs):
         pass
 
     @abc.abstractmethod
-    def clear_refrac(self, threshed, ms=2):
+    def clear_refrac(self, *args, **kwargs):
         pass
 
     @abc.abstractmethod
@@ -207,9 +207,8 @@ class SpikeDataFrame(SpikeDataFrameBase):
 
         return clr
 
-    def xcorr(self, binned, maxlags=None, detrend=span.utils.detrend_mean,
-              scale_type='normalize', sortlevel='shank i', nan_auto=False,
-              lag_name='lag'):
+    def xcorr(self, binned, maxlags=None, detrend=None, scale_type=None,
+              sortlevel='shank i', nan_auto=False, lag_name='lag'):
         """Compute the cross correlation of binned data.
 
         Parameters
