@@ -98,6 +98,6 @@ cdef int read_tev_parallel_impl(char* filename, integral[:, :] grouped,
 
 @cython.boundscheck(False)
 @cython.wraparound(False)
-cpdef _read_tev_parallel(char* filename, integral[:, :] grouped, ip blocksize,
-                         floating[:, :] spikes):
-    read_tev_parallel_impl(filename, grouped, blocksize, spikes)
+cpdef int _read_tev_parallel(char* filename, integral[:, :] grouped,
+                             ip blocksize, floating[:, :] spikes) nogil:
+    return read_tev_parallel_impl(filename, grouped, blocksize, spikes)
