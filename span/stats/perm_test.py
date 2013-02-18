@@ -1,5 +1,8 @@
 from pandas import Panel, Series, DataFrame
 import numpy as np
+import numpy.random as npr
+
+from six.moves import xrange
 
 try:
     import matplotlib.pyplot as plt
@@ -7,12 +10,8 @@ except (RuntimeError, ImportError):
     pass
 
 
-from numba import jit
-
-
-def _permute_axis(values, axis=0):
-    return values.take(np.random.permutation(values.shape[axis]),
-                       axis=axis)
+def _permute_axis(values, axis):
+    return values.take(np.random.permutation(values.shape[axis]), axis=axis)
 
 
 def _shuffle_frame(self, m=1, axis=0):
@@ -29,20 +28,19 @@ def _shuffle_frame(self, m=1, axis=0):
 
     return Panel(res, major_axis=self.index, minor_axis=self.columns)
 
+
 DataFrame.shuffle = _shuffle_frame
 
 
 def _series_shuffle(self, m=1):
-    construct = self._constructor
+    cons = self._constructor
 
     if m == 1:
         inds = np.random.permutation(self.size)
-        return construct(self.values.take(inds), self.index,
-                         self.dtype, self.name)
+        return cons(self.values.take(inds), self.index, self.dtype, self.name)
 
-    res = dict((i, construct(
-                self.values.take(np.random.permutation(self.size)),
-                self.index, self.dtype, self.name))
+    res = dict((i, cons(self.values.take(npr.permutation(self.size)),
+                        self.index, self.dtype, self.name))
                for i in xrange(m))
     return DataFrame(res)
 
@@ -50,23 +48,26 @@ def _series_shuffle(self, m=1):
 Series.shuffle = _series_shuffle
 
 
-def pointwise_acceptance_cch(xc, M=1000, alpha=0.05, plot=False, ax=None):
+def cch_perm(xci, M=1000, alpha=0.05, plot=False, ax=None):
     # lower and upper alphas and N's
     a_lower = alpha / 2
     a_upper = 1 - a_lower
     n_lower, n_upper = M * a_lower, M * a_upper
 
     # create M surrogates
-    xcs = xc.shuffle(m=M)
+    xcs = xci.shuffle(m=M)
 
     # empirical mean
     xcm = xcs.mean(1)
 
     # add in the original for sorting
     xcs.columns = np.arange(1, M + 1)
-    xcs = xcs.join(Series(xc.values, xc.index, name=0)).sort_index(axis=1)
+    xcs[0] = Series(xci.values, xci.index)
 
-    # sort the surrogates
+    # compute a p-value for the lag 0 distribution
+    p = (xcs.ix[0] >= xci.ix[0]).mean()
+
+    # sort the surrogates (remember this includes the ORIGINAL ccg)
     srt_xcs = xcs.copy()
     srt_xcs.values.sort(axis=1)
 
@@ -79,18 +80,22 @@ def pointwise_acceptance_cch(xc, M=1000, alpha=0.05, plot=False, ax=None):
     nu = rsm.mean(1)
     s = rsm.std(1)
 
-    # some sort of t-like statistic
+    # a t-like statistic
     c_star = xcs.sub(nu, axis=0).div(s, axis=0)
 
     # compute the max/min and sort them
     c_max = c_star.max()
     c_max.values.sort()
+
     c_min = c_star.min()
     c_min.values.sort()
 
     # a_star and b_star for simultaneous acceptance bands
     at = c_min[n_lower]
     bt = c_max[n_upper]
+
+    c_star_0 = c_star.ix[0]
+    sig = (c_star_0 < at) | (c_star_0 > bt)
 
     # put them back in original units
     a_star = at * s + nu
@@ -100,25 +105,30 @@ def pointwise_acceptance_cch(xc, M=1000, alpha=0.05, plot=False, ax=None):
     try:
         if plot:
             if ax is None:
-                fig, ax = plt.subplots(1, 1, sharex=True, sharey=True)
+                fig, (ax1, ax2) = plt.subplots(1, 2)
+
+            lw = 2
+            xcv = xci - xcm
+            lag0 = xcv.ix[0]
 
             ind = a.index.values
-            # ax.fill_between(ind, a_star.values - xcm.values,
-            #                 b_star.values - xcm.values, alpha=0.6, color='k')
-            ax.fill_between(ind, a.values - xcm.values,
-                            b.values - xcm.values, alpha=0.3, color='k')
+            ax1.fill_between(ind, a_star - xcm, b_star - xcm, alpha=0.3,
+                             color='k')
+            ax1.fill_between(ind, a - xcm, b - xcm, alpha=0.4, color='k')
 
-            bigxc = xc[(xc <= a) | (xc >= b)]
-            smallxc = xc[(xc > a) & (xc < b)]
-            lw = 2
-            ax.vlines(bigxc.index.values, 0, bigxc.values, color='r', lw=lw)
-            ax.vlines(smallxc.index.values, 0, smallxc.values, lw=lw)
-            # ax.legend([r'Sig at $\alpha=%g$' % alpha])
-            ax.set_xlabel(r'$\ell$')
-            ax.set_ylabel(r'$\gamma(\ell)$')
+            ax1.vlines(ind, 0, xcv, lw=lw)
+            ax1.vlines([0], [0], [lag0], lw=lw, color='r')
+            ax1.set_xlabel(r'$\ell$')
+            ax1.set_ylabel(r'$\gamma(\ell)$')
+
+            xcs.ix[0].hist(ax=ax2, bins=20)
+            ax2.axvline(xci.ix[0], c='r', lw=lw)
+            ax2.set_xlabel(r'$\gamma(0)$')
+            ax2.set_ylabel('Count')
+            fig.tight_layout()
     except (RuntimeError, NameError):
         pass
 
     d = {'a': a, 'mu': xcm, 'b': b, 'nu': nu, 's': s, 'a_star': a_star,
          'b_star': b_star}
-    return DataFrame(d)
+    return DataFrame(d), c_star, sig, p
