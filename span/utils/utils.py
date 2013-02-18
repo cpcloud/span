@@ -22,25 +22,18 @@
 
 """A collection of utility functions."""
 
-from future_builtins import map, zip
-
 import os
 import operator
-import itertools as itools
-from functools import reduce
+import itertools
+import functools
 import numbers
 
 import numpy as np
 from numpy.fft import fft, ifft, rfft, irfft
+
 import pandas as pd
-
 from pandas import DataFrame, datetime, MultiIndex
-
-try:
-    import numba
-    from numba import autojit, NumbaError, void
-except ImportError:
-    NumbaError = Exception
+from six.moves import zip, map
 
 from span.utils._clear_refrac import _clear_refrac as _clear_refrac_cython
 
@@ -205,73 +198,6 @@ def name2num(name, base=256):
     return (base ** np.r_[:len(name)]).dot(tuple(map(ord, name)))
 
 
-def pad_larger2(x, y):
-    """Pad the larger of two arrays and the return the arrays and the size of
-    the larger array.
-
-    Parameters
-    ----------
-    x, y : array_like
-
-    Returns
-    -------
-    x, y : array_like
-    lsize : int
-        The size of the larger of `x` and `y`.
-    """
-    xsize, ysize = x.size, y.size
-    lsize = max(xsize, ysize)
-    if xsize != ysize:
-        size_diff = lsize - min(xsize, ysize)
-
-        def _pad_func(a):
-            return np.pad(a, (0, size_diff), mode='constant',
-                          constant_values=(0,))
-
-        if xsize > ysize:
-            y = _pad_func(y)
-        else:
-            x = _pad_func(x)
-
-    return x, y, lsize
-
-
-def pad_larger(*arrays):
-    """Pad the smallest of `n` arrays.
-
-    Parameters
-    ----------
-    arrays : tuple of array_like
-
-    Raises
-    ------
-    AssertionError
-
-    Returns
-    -------
-    ret : tuple
-        Tuple of zero padded arrays.
-    """
-    assert all(map(isinstance, arrays, itools.repeat(np.ndarray))), \
-        ("all arguments must be instances of ndarray or implement the ndarray"
-         " interface")
-    if len(arrays) == 2:
-        return pad_larger2(*arrays)
-
-    sizes = np.fromiter(map(operator.attrgetter('size'), arrays), int)
-    lsize = sizes.max()
-
-    ret = []
-
-    for array, size in zip(arrays, sizes):
-        size_diff = lsize - size
-        ret.append(np.pad(array, (0, size_diff), 'constant',
-                          constant_values=(0,)))
-    ret.append(lsize)
-
-    return ret
-
-
 def iscomplex(x):
     """Test whether `x` is any type of complex array.
 
@@ -288,7 +214,7 @@ def iscomplex(x):
         return np.issubdtype(x.dtype, np.complexfloating)
     except AttributeError:
         cfloat = np.complexfloating
-        return any(map(np.issubdtype, x.dtypes, itools.repeat(cfloat)))
+        return any(map(np.issubdtype, x.dtypes, itertools.repeat(cfloat)))
 
 
 def hascomplex(x):
@@ -343,9 +269,10 @@ def isvector(x):
     b : bool
     """
     try:
-        return reduce(operator.mul, x.shape) == max(x.shape)
-    except AttributeError:
-        return np.iscalar(x)
+        newx = np.asanyarray(x)
+        return functools.reduce(operator.mul, newx.shape) == max(newx.shape)
+    except:
+        return False
 
 
 def mi2df(mi):
@@ -401,27 +328,6 @@ def assert_nonzero_existing_file(f):
     assert nonzero_existing_file(f), ("%s does not exist or has a size of 0 "
                                       "bytes" % f)
 
-try:
-    B, I = map(numba.template, ('B', 'I'))
-
-    @autojit(void(B[:, :], I))
-    def _clear_refrac_numba(a, window):
-        nsamples, nchannels = a.shape
-
-        for channel in range(nchannels):
-            sample = 0
-
-            while sample + window < nsamples:
-                if a[sample, channel]:
-                    for i in range(sample + 1, sample + 1 + window):
-                        a[i, channel] = False
-
-                    sample += window
-
-                sample += 1
-except NameError:
-    pass
-
 
 def clear_refrac(a, window):
     """Clear the refractory period of a boolean array.
@@ -441,13 +347,10 @@ def clear_refrac(a, window):
     AssertionError
     If `window` is less than or equal to 0
     """
-    assert a is not None
+    assert isinstance(a, np.ndarray), 'a must be a numpy array'
     assert window > 0, '"window" must be greater than 0'
-
-    try:
-        _clear_refrac_numba(a, window)
-    except (NameError, NumbaError):
-        _clear_refrac_cython(a.view(np.uint8), window)
+    assert isinstance(window, (numbers.Integral, np.integer))
+    _clear_refrac_cython(a.view(np.uint8), window)
 
 
 def ispower2(x):
