@@ -1,6 +1,13 @@
 Getting Started
 ===============
 
+**Caveat Emptor**
+-----------------
+I developed this code with the bleeding edge versions of everything
+listed below, so don't be surprised if you try this out on an older
+version of NumPy (for example) and it doesn't work. When in doubt set
+up a virtualenv and install the git versions of all the dependencies.
+
 Dependencies
 ------------
 1. `Python <http://www.python.org>`_ >= 2.6
@@ -11,13 +18,24 @@ Dependencies
 
 Optional Dependencies
 ---------------------
-1. `nose <http://nose.readthedocs.org>`_
+1. `nose <http://nose.readthedocs.org>`_ if you want to run the tests
+2. `numba <http://numba.pydata.org>`_ if you want to use the ``numba``
+ized functions
 
 Installation
 ------------
-
-**Disclaimer:** I have not tested the installation of this code so be careful when installing. When in doubt set up a virtualenv to be safe.
+You should set up a virtualenv when using this code, so that you don't
+break anything. Then you can do the usual
 
 .. code-block:: python
 
-   sudo python setup.py install
+    python setup.py install
+
+
+or if you don't want to install it and you want to
+use ``span`` from its directory then you can do
+
+.. code-block:: python
+
+    python setup.py build_ext --inplace
+    python setup.py build
