@@ -7,6 +7,9 @@ I developed this code with the bleeding edge versions of everything
 listed below, so don't be surprised if you try this out on an older
 version of NumPy (for example) and it doesn't work. When in doubt set
 up a virtualenv and install the git versions of all the dependencies.
+This code has only been used and tested on `Arch Linux
+<http://archlinux.org>`_ and `Red Hat Enterprise Linux 5
+<http://www.redhat.com/products/enterprise-linux/>`_.
 
 Dependencies
 ------------
