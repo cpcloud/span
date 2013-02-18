@@ -25,7 +25,7 @@
 electrode array(s) used in an experiment.
 """
 
-from future_builtins import map, zip
+from six.moves import zip, map
 
 import numbers
 import operator

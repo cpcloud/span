@@ -20,8 +20,6 @@
 # along with this program. If not, see <http://www.gnu.org/licenses/>.
 
 
-from future_builtins import map
-
 import numbers
 import operator
 import re
@@ -31,12 +29,12 @@ import functools as fntools
 
 import numpy as np
 from pandas import Series, DataFrame, Panel, Panel4D
+from six.moves import map
 
 
 try:
     # weird bug in latest scipy
     from scipy.stats.mstats import trimboth
-    from scipy.stats import nanmean
 
     def trimmean(x, alpha=0.05, inclusive=(False, False), axis=None):
         """Compute the `alpha`-trimmed mean of an array `x`.

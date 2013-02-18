@@ -1,10 +1,10 @@
-from functools import wraps
+import functools
 
 import numpy as np
 from numpy.testing import *
 from numpy.testing.decorators import slow
 
-from nose.tools import nottest
+from nose.tools import nottest, assert_raises
 from nose import SkipTest
 
 from pandas import Series, DataFrame, Int64Index, DatetimeIndex
@@ -24,7 +24,7 @@ def assert_all_dtypes(df, dtype, msg='dtypes not all the same'):
 
 
 def skip(test):
-    @wraps(test)
+    @functools.wraps(test)
     def wrapper():
         if mock:
             return test()
@@ -35,7 +35,7 @@ def skip(test):
 def create_stsq(size=None, typ='stream',
                 name=span.utils.name2num('Spik'), nchannels=16, sort_code=0,
                 fmt=np.float32, fs=4882.8125,
-                samples_per_channel=None):
+                samples_per_channel=None, strobe=None):
     if size is None:
         size = randint(2 ** 3, 2 ** 4)
 
@@ -88,8 +88,8 @@ def create_spike_df(size=None, typ='stream', name=span.utils.name2num('Spik'),
     dt = dtstart + np.arange(spikes.shape[0]) * np.timedelta64(ns, 'ns')
     index = DatetimeIndex(dt, freq=ns * pd.datetools.Nano(), name='time',
                           tz='US/Eastern')
-    cols, _ = columns.swaplevel(1, 0).sortlevel('shank')
-    return SpikeDataFrame(spikes, index=index, columns=cols, dtype=float)
+    columns = columns.swaplevel(1, 0)
+    return SpikeDataFrame(DataFrame(spikes, index, columns).sort_index(axis=1))
 
 
 def knownfailure(test):

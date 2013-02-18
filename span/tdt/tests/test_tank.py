@@ -3,14 +3,16 @@ import types
 import numbers
 import unittest
 import datetime
-from glob import glob
+import warnings
+import glob
 
 import numpy as np
 import pandas as pd
 
+from six.moves import zip
+
 from span.tdt.tank import (TdtTankBase, PandasTank, _read_tev,
-                           _read_tev_parallel, _numba_read_tev_serial,
-                           _python_read_tev_serial)
+                           _read_tev_parallel, _python_read_tev_serial)
 from span.tdt import SpikeDataFrame
 from span.tdt.tank import _get_first_match, _match_int
 from span.testing import slow
@@ -22,7 +24,7 @@ class TestReadTev(object):
 
         assert os.path.isdir(path)
 
-        gettev = glob(os.path.join(path, '*%stev' % os.extsep))
+        gettev = glob.glob(os.path.join(path, '*%stev' % os.extsep))
 
         if len(gettev) == 1:
             self.path, = gettev
@@ -40,7 +42,9 @@ class TestReadTev(object):
         for name in self.names:
             tsq, _ = self.tank.tsq(name)
 
-            tsq.reset_index(drop=True, inplace=True)
+            with warnings.catch_warnings():
+                warnings.simplefilter('ignore', FutureWarning)
+                tsq.reset_index(drop=True, inplace=True)
             fp_locs = tsq.fp_loc
 
             assert np.dtype(np.int64) == fp_locs.dtype
@@ -61,9 +65,6 @@ class TestReadTev(object):
     def test_read_tev(self):
         for reader in {_read_tev, _read_tev_parallel, _python_read_tev_serial}:
             yield self._reader_builder, reader
-
-    def test_numba_read_tev(self):
-        self._reader_builder(_numba_read_tev_serial)
 
 
 class TestGetFirstMatch(unittest.TestCase):

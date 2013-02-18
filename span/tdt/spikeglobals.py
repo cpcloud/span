@@ -24,6 +24,7 @@ from functools import partial
 
 import numpy as np
 import pandas as pd
+from six.moves import zip
 
 from span.tdt.recording import distance_map
 

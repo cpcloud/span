@@ -13,6 +13,7 @@ from span.utils.math import (trimmean, sem, detrend_none, detrend_mean,
                              samples_per_ms, compose, composemap, compose2)
 
 from span.utils.tests.test_utils import rand_int_tuple
+from six.moves import map
 
 
 class TestTrimmean(TestCase):
@@ -303,7 +304,7 @@ class TestCartesian(TestCase):
     def test_cartesian(self):
         ncols = randint(2, 3)
         sizes = [randint(2, 4) for _ in xrange(ncols)]
-        prod_arrays = map(randn, sizes)
+        prod_arrays = list(map(randn, sizes))
         c = cartesian(prod_arrays)
         self.assertEqual(c.size, np.prod(sizes) * ncols)
 
