@@ -32,16 +32,13 @@ import os
 import abc
 import re
 import itertools
+import warnings
 
 import numpy as np
 from numpy import nan as NA
 from pandas import DataFrame, DatetimeIndex
 import pandas as pd
-
-try:
-    from numba import autojit, NumbaError
-except ImportError:
-    NumbaError = Exception
+from six.moves import xrange
 
 from span.tdt.spikeglobals import Indexer, EventTypes, DataTypes
 from span.tdt.spikedataframe import SpikeDataFrame
@@ -72,30 +69,6 @@ def _get_first_match(pattern, string):
     return r.group(1)
 
 
-try:
-    @autojit
-    def _numba_read_tev_serial(filename, grouped, block_size, spikes):
-        nblocks, nchannels = grouped.shape
-
-        dt = spikes.dtype
-
-        f = open(filename, 'rb')
-
-        for c in xrange(nchannels):
-            for b in xrange(nblocks):
-
-                f.seek(grouped[b, c])
-
-                low = b * block_size
-                high = (b + 1) * block_size
-
-                spikes[low:high, c] = np.fromfile(f, dt, block_size)
-
-        f.close()
-except NameError:  # pragma: no cover
-    pass
-
-
 def _cython_read_tev_parallel(filename, grouped, block_size, spikes):
     """Read a TDT tev file into a numpy array. Slightly faster than
     the pure Python version.
@@ -120,12 +93,15 @@ def _cython_read_tev_parallel(filename, grouped, block_size, spikes):
 def _python_read_tev_serial(filename, grouped, block_size, spikes):
     dt = spikes.dtype
     nblocks, nchannels = grouped.shape
+    iprod = itertools.product
+    izip = itertools.izip
 
     with open(filename, 'rb') as f:
-        for c, b in itertools.product(xrange(nchannels), xrange(nblocks)):
-            f.seek(grouped[b, c])
-            v = np.fromfile(f, dt, block_size)
-            spikes[b * block_size:(b + 1) * block_size, c] = v
+        for (c, b), gbc in izip(iprod(xrange(nchannels), xrange(nblocks)),
+                                grouped.flat):
+            f.seek(gbc)
+            ks = slice(b * block_size, (b + 1) * block_size)
+            spikes[ks, c] = np.fromfile(f, dt, block_size)
 
 
 def _read_tev(filename, grouped, block_size, spikes):
@@ -233,8 +209,8 @@ class TdtTankAbstractBase(object):
         tsq.timestamp[np.logical_not(tsq.timestamp)] = NA
         tsq.fs[np.logical_not(tsq.fs)] = NA
 
-        # fragile subtraction (i.e., what if TDT changes this value?)
-        tsq.size -= 10
+        # trim the fat
+        tsq.size.ix[2:] -= self.dtype.itemsize / tsq.size.dtype.itemsize
 
         # create some new indices based on the electrode array
         srt = Indexer.sort('channel').reset_index(drop=True)
@@ -362,10 +338,6 @@ class TdtTankBase(TdtTankAbstractBase):
         params = dict(age=self.age, name=self.name, site=self.site, obj=objr,
                       fs=self.fs, datetime=str(self.datetime),
                       duration=self.duration / np.timedelta64(1, 'm'))
-        # max_str_len = max(map(len, params.values()))
-        # names = params.keys()
-        # values = map(lambda x: x.rjust(max_str_len), params.values())
-
         fmt = ('{obj}\nname:     {name}\ndatetime: {datetime}\nage:      '
                'P{age}\nsite:     {site}\nfs:       {fs}\n'
                'duration: {duration:.2f} min')
@@ -442,10 +414,12 @@ class PandasTank(TdtTankBase):
         # tev filename
         tev_name = self.path + os.extsep + self._raw_ext
 
-        meta.reset_index(drop=True, inplace=True)
+        with warnings.catch_warnings():
+            warnings.simplefilter('ignore', FutureWarning)
+            meta.reset_index(drop=True, inplace=True)
 
-        grouped = DataFrame(meta.groupby('channel').indices)
-        grouped_locs = meta.fp_loc.values.take(grouped.values)
+        grouped = np.column_stack(meta.groupby('channel').indices.values())
+        grouped_locs = meta.fp_loc.values.take(grouped)
 
         # read in the TEV data to spikes
         _read_tev(tev_name, grouped_locs, block_size, spikes)
