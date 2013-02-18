@@ -185,10 +185,10 @@ class SpikeDataFrame(SpikeDataFrameBase):
             Defaults to None and computes the full cross correlation.
 
         detrend : callable or None, optional
-            Callable used to detrend. Defaults to :code:`None`
+            Callable used to detrend. Defaults to ``None``
 
         scale_type : str, optional
-            Method of scaling. Defaults to :code:`None`.
+            Method of scaling. Defaults to ``None``.
 
         sortlevel : str, optional
             How to sort the index of the returned cross-correlation.
@@ -291,14 +291,16 @@ def _create_xcorr_inds(columns, index_start_string='i'):
 
     The reduce etc code is equivalent to the following loop-based code:
 
-    red = []
-    for inds in xrs:
-        s = ()
+    .. code-block:: python
 
-        for i in inds:
-            s += columns[i]
+        red = []
+        for inds in xrs:
+            s = ()
 
-        red.append(s)
+            for i in inds:
+                s += columns[i]
+
+            red.append(s)
     """
     from string import ascii_letters as letters
     from itertools import product, repeat, cycle, islice, imap
