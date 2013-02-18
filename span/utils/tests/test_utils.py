@@ -2,19 +2,18 @@ import unittest
 import string
 import random
 import itertools as itools
-import operator
 import os
 
 import numpy as np
 from numpy.random import randint, rand, randn
 
 from pandas import Series, DataFrame, Panel, MultiIndex, Index
+from six.moves import zip, map
 
-from span.utils import (nextpow2, nans, nans_like, name2num,
-                        pad_larger, pad_larger2, isvector, iscomplex,
-                        hascomplex, get_fft_funcs, cast, ndtuples,
-                        nonzero_existing_file, assert_nonzero_existing_file,
-                        mi2df)
+from span.utils import (nextpow2, nans, nans_like, name2num, isvector,
+                        iscomplex, hascomplex, get_fft_funcs, cast,
+                        ndtuples, nonzero_existing_file,
+                        assert_nonzero_existing_file, mi2df)
 
 from span.testing import assert_allclose, assert_array_equal, rands
 
@@ -61,47 +60,6 @@ class TestNansLike(unittest.TestCase):
         for array in arrays:
             nas = nans_like(array)
             self.assert_(np.isnan(nas).all())
-
-
-class TestPadLarger(unittest.TestCase):
-    def setUp(self):
-        nbig = 10
-        nsmall = 2
-        ndims = 1
-        self.xbig = randn_array(n=nbig, ndims=ndims)
-        self.ysmall = randn_array(n=nsmall, ndims=ndims)
-        self.xsmall = randn_array(n=nsmall, ndims=ndims)
-        self.ybig = randn_array(n=nbig, ndims=ndims)
-        self.bigs = randint(nsmall, nbig)
-        self.smalls = randint(nsmall)
-
-    def tearDown(self):
-        del self.smalls, self.bigs, self.ybig, self.xsmall, self.ysmall
-        del self.xbig
-
-    def test_pad_larger2(self):
-        x, y, lsize = pad_larger2(self.xbig, self.ysmall)
-        self.assertEqual(lsize, max(x.shape + y.shape))
-
-        x, y, lsize = pad_larger2(self.xsmall, self.ybig)
-        self.assertEqual(lsize, max(x.shape + y.shape))
-
-    def test_pad_larger(self):
-        x, y, lsize = pad_larger(self.xbig, self.ysmall)
-        self.assertEqual(lsize, max(x.shape + y.shape))
-
-        x, y, lsize = pad_larger(self.xsmall, self.ybig)
-        self.assertEqual(lsize, max(x.shape + y.shape))
-
-        x, y, z, w, lsize = pad_larger(self.xsmall, self.xbig, self.ysmall,
-                                       self.ybig)
-        self.assertEqual(lsize, max(x.shape + y.shape + z.shape + w.shape))
-
-        arrays = randn(4), randn(5), randn(7), randn(2)
-        out = pad_larger(*arrays)
-        lsize = out.pop(-1)
-        shapes = map(operator.attrgetter('shape'), out)
-        self.assertEqual(max(reduce(operator.add, shapes)), lsize)
 
 
 class TestIsComplex(unittest.TestCase):
@@ -210,22 +168,25 @@ class TestCast(unittest.TestCase):
 
 
 class TestIsVector(unittest.TestCase):
-    def test_not_vector(self):
-        x = np.random.rand(2)
-        self.assertRaises(AttributeError, isvector, list(x))
-        self.assertRaises(AttributeError, isvector, tuple(x))
+    def setUp(self):
+        self.matrix = np.random.randn(2, 3)
+        self.vector = np.random.randn(3)
+        self.scalar = np.random.randn()
 
-        x = np.random.rand(3, 2)
-        self.assertFalse(isvector(x))
+    def tearDown(self):
+        del self.scalar, self.vector, self.matrix
 
     def test_isvector(self):
-        x = np.random.rand(2)
-        self.assert_(isvector(x))
+        self.assertFalse(isvector(self.matrix))
+        self.assertFalse(isvector(self.scalar))
 
-        x = np.random.rand(2, 1)
-        self.assert_(isvector(x))
+        self.assert_(isvector(self.vector))
+        self.assert_(isvector(self.vector[np.newaxis]))
+        self.assert_(isvector(self.vector[:, np.newaxis]))
+        self.assert_(isvector(list(self.vector)))
+        self.assert_(isvector(tuple(self.vector)))
 
-        dims = (2,) + tuple(itools.repeat(1, 31))
+        dims = [2] + [1] * 31
         x = np.random.rand(*dims)
         self.assert_(isvector(x))
 
@@ -285,21 +246,6 @@ class TestNonzeroExistingFile(unittest.TestCase):
         self.assertRaises(AssertionError, assert_nonzero_existing_file, name)
 
 
-class TestIsVector2(unittest.TestCase):
-    def setUp(self):
-        self.matrix = np.random.randn(2, 3)
-        self.vector = np.random.randn(3)
-        self.scalar = np.random.randn()
-
-    def tearDown(self):
-        del self.scalar, self.vector, self.matrix
-
-    def test_isvector(self):
-        self.assertFalse(isvector(self.matrix))
-        self.assertRaises(AttributeError, isvector, self.scalar)
-        self.assert_(isvector(self.vector))
-
-
 class TestMi2Df(unittest.TestCase):
     def test_mi2df(self):
 
@@ -318,7 +264,6 @@ class TestMi2Df(unittest.TestCase):
             x = s, i, f, o, bo
             names = [rands(len(x)) for _ in xrange(len(x))]
             mi = MultiIndex.from_arrays(x, names=names)
-            print mi
             df = mi2df(mi)
             self.assertIsInstance(df, DataFrame)
             self.assertListEqual(names, df.columns.tolist())
