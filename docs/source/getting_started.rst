@@ -19,8 +19,6 @@ Dependencies
 Optional Dependencies
 ---------------------
 1. `nose <http://nose.readthedocs.org>`_ if you want to run the tests
-2. `numba <http://numba.pydata.org>`_ if you want to use the ``numba``
-ized functions
 
 Installation
 ------------

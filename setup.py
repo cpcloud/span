@@ -20,7 +20,7 @@
 # along with this program. If not, see <http://www.gnu.org/licenses/>.
 
 
-from future_builtins import zip, map
+from six.moves import zip, map
 
 import os
 import glob
