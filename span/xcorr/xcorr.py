@@ -19,55 +19,14 @@
 # You should have received a copy of the GNU General Public License
 # along with this program. If not, see <http://www.gnu.org/licenses/>.
 
-import numpy as np
-from pandas import Series, DataFrame
-from span.utils import get_fft_funcs, isvector, nextpow2
-from span.xcorr._mult_mat_xcorr import _mult_mat_xcorr_parallel
-
 import warnings
 
-try:
-    from numba import autojit, NumbaError
-except ImportError:
-    NumbaError = Exception
+import numpy as np
+from pandas import Series, DataFrame
+from six.moves import xrange
 
-
-try:
-    range = xrange
-except NameError:
-    pass
-
-
-try:
-    @autojit
-    def _mult_mat_xcorr_numba(X, Xc, c, n):
-        """Perform the necessary matrix-vector multiplication and fill
-        the cross- correlation array. Slightly faster than pure
-        Python.
-
-        Parameters
-        ----------
-        X, Xc, c : c16[:, :]
-        n : ip
-
-        Raises
-        ------
-        AssertionError
-           If n <= 0 or nx <= 0
-        """
-        nx = c.shape[1]
-
-        for i in range(n):
-            r = 0
-
-            for j in range(i * n, (i + 1) * n):
-                for k in range(nx):
-                    c[j, k] = X[i, k] * Xc[r, k]
-
-                r += 1
-
-except NameError:  # pragma: no cover
-    pass
+from span.utils import get_fft_funcs, isvector, nextpow2
+from span.xcorr._mult_mat_xcorr import _mult_mat_xcorr_parallel
 
 
 def _mult_mat_xcorr_cython_parallel(X, Xc, c, n):
@@ -89,14 +48,8 @@ def _mult_mat_xcorr_cython_parallel(X, Xc, c, n):
 
 
 def _mult_mat_xcorr_python(X, Xc, c, n):
-    for i in range(n):
+    for i in xrange(n):
         c[i * n:(i + 1) * n] = X[i] * Xc
-
-
-try:
-    _mult_mat_xcorr_numba_sliced = autojit(_mult_mat_xcorr_python)
-except NameError:  # pragma: no cover
-    pass
 
 
 def _mult_mat_xcorr(X, Xc):
@@ -105,12 +58,7 @@ def _mult_mat_xcorr(X, Xc):
 
     n, nx = X.shape
     c = np.empty((n * n, nx), dtype=X.dtype)
-
-    try:
-        _mult_mat_xcorr_numba_sliced(X, Xc, c, n)
-    except (NameError, NumbaError):  # pragma: no cover
-        _mult_mat_xcorr_cython_parallel(X, Xc, c, n)
-
+    _mult_mat_xcorr_cython_parallel(X, Xc, c, n)
     return c
 
 
@@ -300,10 +248,9 @@ def _normalize(c, x, y, lags, lsize):
             ay2 *= ay2
             cy00 = np.sum(ay2)
             d *= cy00
+            cdiv = np.sqrt(d)
         else:
-            d *= d
-
-        cdiv = np.sqrt(d)
+            cdiv = d
     else:
         # matrix
         _, nc = c.shape
