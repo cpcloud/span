@@ -23,7 +23,9 @@ TSQ Event Headers
 The TSQ file is fundamentally a C ``struct`` making it almost trivial
 to work with in `NumPy`_ using a compound `dtype`_.
 
-According to `Jaewon Hwang <http://jaewon.mine.nu/jaewon/2010/10/04/how-to-import-tdt-tank-into-matlab/>`_, the C struct is
+According to `Jaewon Hwang
+<http://jaewon.mine.nu/jaewon/2010/10/04/how-to-import-tdt-tank-into-matlab/>`_,
+the C struct is
 
 .. code-block:: c
 
@@ -149,69 +151,68 @@ Reading the TSQ file into `NumPy`_ is, fortunately, **much** easier than this.
 .. code-block:: python
 
     import numpy as np
-    import pandas as pd
+    from pandas import DataFrame
     from numpy import int32, uint32, uint16, float64, int64, int32, float32
 
-    fields = 'size', 'type', 'name', 'channel', 'sort_code', 'timestamp', 'fp_loc', 'format', 'fs'
-    np_types = int32, int32, uint32, uint16, uint16, float64, int64, int32, float32
-    tsq_dtype = np.dtype(zip(fields, np_types))
+    names = ('size', 'type', 'name', 'channel', 'sort_code', 'timestamp',
+             'fp_loc', 'strobe', 'format', 'fs')
+    formats = (int32, int32, uint32, uint16, uint16, float64, int64,
+               float64, int32, float32)
+    offsets = 0, 4, 8, 12, 14, 16, 24, 24, 32, 36
+    tsq_dtype = np.dtype({'names': names, 'formats': formats,
+                          'offsets': offsets}, align=True)
     tsq_name = 'name/of/file.tsq'
     tsq = np.fromfile(tsq_name, dtype=tsq_dtype)
-    df_tsq = pd.DataFrame(tsq)
+    df = DataFrame.from_records(tsq)
 
 
 ``tsq`` is a `NumPy record array
 <http://docs.scipy.org/doc/numpy/user/basics.rec.html>`_. I personally
-find them very annoying. Luckily, `Wes McKinney
+find these very annoying. Luckily, `Wes McKinney
 <http://www.wesmckinney.com>`_ created the wonderful `pandas`_ library
-which automagically converts `NumPy`_ record arrays into a pandas `DataFrame`_ where
-each field from the record array is now a column in the `DataFrame`_.
-Great.
-
-
-The caveat here is that most operating systems from about 4 years ago
-onward define ``long`` as a 64-bit integer, but as you see in the above
-code block ``size`` is mapped to a signed 32-bit integer. A better way
-to define the C ``struct`` above is to use the ``typedef`` s in
-``stdint.h`` for maximum portability, but I digress.
-
-The reason why ``long`` is 32-bit is because these data were recorded on a machine
-running Windows XP which has ``INT_MAX`` as :math:`2^{31} - 1` because
-of `2's complement <http://en.wikipedia.org/wiki/Two's_complement>`_.
-
-After this the data are thrown into a `DataFrame`_ for easier
-processing.
-
+which automatically converts `NumPy`_ record arrays into a pandas
+`DataFrame`_ where each field from the record array is now a column in
+the `DataFrame`_ ``df``.
 
 Reading in the Raw Data
 -----------------------
 Now that we've got the header data we can get what we're really
-interested in: raw voltage traces.
+interested in: raw voltage traces. There are some indexing acrobatics
+here that require a little bit of detail about the tsq file and little
+bit of knowledge of "group by" style operations.
 
-To do this, we really only need two of the attributes of ``tsq``:
-``fp_loc`` and ``chan``.
+First off, there is a Cython function that does all of the heavy
+lifting in terms of reading raw bytes into a NumPy array. What is
+passed in to that function is important.
 
-The ``fp_loc`` attribute provides an array of integers with the
-location of a chunk of data in the TEV file. So if we were to loop
-through ``fp_loc`` we can read each chunk of data into a NumPy array.
-This exactly what is done in the code.
+The first argument is of course the filename, no surprise there. The
+second argument is important. This is the numpy array of file
+locations grouped by channel number. This is an array that contains
+the file pointer location of each consective chunk of data in the TEV
+file. That means that if, for example, I want to read all of the data
+from channel 1 then I would loop over the first column of this array.
+Since each element is a file pointer location I would seek to that
+location and read ``blocksize`` bytes. The Cython function does this
+automatically for every channel. The third argument is ``blocksize``
+and the fourth argument is the output array that contains the raw
+voltage data.
+
 
 Here is the inner loop that does the work of reading in the raw data
-from the TEV file.
+from the tev file.
 
-.. literalinclude:: ../span/tdt/read_tev.pyx
+.. literalinclude:: ../../span/tdt/read_tev.pyx
    :language: cython
    :lines: 21-
 
 
-You can see here that this part of the :py:func:`span.tdt._read_tev._read_tev`
-function skips to the point in the file where the next chunk lies and
-placing it in the array ``spikes``. A possible improvement on the
-`Cython`_ code here is to use `fused types`_ to allow for floating
-arrays that use either 32 or 64-bit representations.
+You can see here that this part of the
+:py:func:`span.tdt._read_tev._read_tev` function skips to the point in
+the file where the next chunk lies and placing it in the array
+``spikes``.
 
-As usual the best way to understand what's going on is to `read the
-source`!
+As usual, the best way to understand what's going on is to read the
+source.
 
 -------------------
 Organizing the Data
@@ -241,7 +242,8 @@ Electrode Configuration
 -----------------------
 I'm currently working on a flexible implementation to allow for
 arbitrary, but within physical reason, electrode array configuration.
-Stay tuned! What's currently available is in the :mod:`span.tdt.recording` module.
+Stay tuned! What's currently available is in the
+:mod:`span.tdt.recording` module.
 
 
 -----------------
