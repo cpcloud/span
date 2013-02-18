@@ -105,9 +105,9 @@ class TestXCorr(object):
         inputs = ((self.x, self.y),
                   (self.matrix,),
                   (self.xsame, self.ysame),
-                  map(Series, (self.x, self.y)),
+                  list(map(Series, (self.x, self.y))),
                   (DataFrame(self.matrix),),
-                  map(Series, (self.xsame, self.ysame)),
+                  list(map(Series, (self.xsame, self.ysame))),
                   [self.x],
                   [Series(self.x)])
 

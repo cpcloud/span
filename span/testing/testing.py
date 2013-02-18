@@ -95,7 +95,7 @@ def create_spike_df(size=None, typ='stream', name=span.utils.name2num('Spik'),
 def knownfailure(test):
     """Let nose know that we know a test fails."""
 
-    @wraps(test)
+    @functools.wraps(test)
     def inner(*args, **kwargs):
         try:
             test(*args, **kwargs)
