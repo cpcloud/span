@@ -10,39 +10,33 @@ except (RuntimeError, ImportError):
     pass
 
 
-def _permute_axis(values, axis):
+def _permute_axis(values, axis=0):
     return values.take(np.random.permutation(values.shape[axis]), axis=axis)
 
 
-def _shuffle_frame(self, m=1, axis=0):
-    values = self.values
+def _shuffle_frame(self, n=1, axis=0):
+    values = self.values.copy()
 
-    if m == 1:
-        return self._constructor(_permute_axis(values, axis),
-                                 index=self.index, columns=self.columns)
+    if n == 1:
+        return self._constructor(_permute_axis(values, axis), self.index,
+                                 self.columns)
 
-    res = {}
-
-    for i in xrange(m):
-        res[i] = _permute_axis(values, axis)
-
+    res = dict((i, _permute_axis(values, axis)) for i in xrange(n))
     return Panel(res, major_axis=self.index, minor_axis=self.columns)
 
 
 DataFrame.shuffle = _shuffle_frame
 
 
-def _series_shuffle(self, m=1):
-    cons = self._constructor
+def _series_shuffle(self, n=1):
+    values = self.values.copy()
 
-    if m == 1:
-        inds = np.random.permutation(self.size)
-        return cons(self.values.take(inds), self.index, self.dtype, self.name)
+    if n == 1:
+        return self._constructor(_permute_axis(values), self.index, self.dtype,
+                                 self.name)
 
-    res = dict((i, cons(self.values.take(npr.permutation(self.size)),
-                        self.index, self.dtype, self.name))
-               for i in xrange(m))
-    return DataFrame(res)
+    res = dict((i, _permute_axis(values)) for i in xrange(n))
+    return DataFrame(res, index=self.index)
 
 
 Series.shuffle = _series_shuffle
@@ -52,10 +46,11 @@ def cch_perm(xci, M=1000, alpha=0.05, plot=False, ax=None):
     # lower and upper alphas and N's
     a_lower = alpha / 2
     a_upper = 1 - a_lower
-    n_lower, n_upper = M * a_lower, M * a_upper
+    n_lower = M * a_lower
+    n_upper = M * a_upper
 
-    # create M surrogates
-    xcs = xci.shuffle(m=M)
+    # create M surrogates by shuffling the lags
+    xcs = xci.shuffle(n=M)
 
     # empirical mean
     xcm = xcs.mean(1)
