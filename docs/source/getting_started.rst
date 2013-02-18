@@ -15,6 +15,7 @@ Dependencies
 3. `SciPy <http://numpy.scipy.org>`_
 4. `Cython <http://www.cython.org>`_
 5. `pandas <http://pandas.pydata.org>`_
+6. `six <http://pythonhosted.org/six>`_
 
 Optional Dependencies
 ---------------------
