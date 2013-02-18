@@ -6,7 +6,7 @@ from numpy.random import rand, randint
 from span.utils import clear_refrac, nextpow2
 
 
-class TestClearRefracModule(unittest.TestCase):
+class TestClearRefrac(unittest.TestCase):
     def setUp(self):
         m, n = randint(20, 101), randint(4, 5)
         ms = randint(2, 11)
