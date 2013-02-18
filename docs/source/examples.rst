@@ -43,8 +43,19 @@ Bin the data
 
 .. code-block:: python
 
-    # binned the data in 1000 millisecond bins
-    binned = sp.bin(clr, binsize=1000)
+    # bin the data in 1000 millisecond bins
+    binned = clr.resample('S', how='sum')
+
+-----------------------------
+Compute the cross correlation
+-----------------------------
+
+.. code-block:: python
+
+    # compute the cross-correlation of all channels
+    # note that there are a lot more options to this method
+    # you should explore the docs
+    xcorr = sp.xcorr(binned)
 
 ---------------
 Full Code Block
@@ -64,5 +75,8 @@ Full Code Block
     # clear the refractory period of any spikes
     clr = sp.clear_refrac(thr)
 
-    # binned the data in 1000 millisecond bins
-    binned = sp.bin(clr, binsize=1000)
+    # binned the data in 1 second bins
+    binned = clr.resample('S', how='sum')
+
+    # compute the cross-correlation of all channels
+    xcorr = sp.xcorr(binned)
