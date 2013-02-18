@@ -275,12 +275,16 @@ def isvector(x):
         return False
 
 
-def mi2df(mi):
+def mi2df(mi, convert=True):
     """Return a pandas MultiIndex as DataFrame.
 
     Parameters
     ----------
     mi : MultiIndex
+
+    Raises
+    ------
+    AssertionError
 
     Returns
     -------
@@ -289,20 +293,9 @@ def mi2df(mi):
     assert isinstance(mi, MultiIndex), ('conversion not implemented for '
                                         'simple indices')
 
-    def _type_converter(x):
-        if not isinstance(x, basestring):
-            return type(x)
-
-        return 'S%i' % len(x)
-
-    v = mi.values
-    n = mi.names
-
-    t = list(map(_type_converter, v[0]))  # strings are empty without this call
-    dt = np.dtype(list(zip(n, t)))
-    r = v.astype(dt)
-
-    return DataFrame(r)
+    zd = zip(mi.names, mi.levels, mi.labels)
+    df = DataFrame(dict((name, level[label]) for name, level, label in zd))
+    return df.convert_objects() if convert else df
 
 
 def nonzero_existing_file(f):
