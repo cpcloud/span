@@ -66,9 +66,15 @@ class TestXCorr(object):
         assert_allclose(npc, spc)
 
     def test_crosscorr_same_lengths(self):
+        import span
         x, y = self.xsame, self.ysame
         npc = np.correlate(x, y, mode='full')
         spc = xcorr(x, y)
+        assert_allclose(npc, spc)
+
+        npc = correlate1d(x, y)
+        spc = xcorr(x, y, scale_type='normalize',
+                    detrend=span.utils.detrend_mean)
         assert_allclose(npc, spc)
 
     @knownfailure

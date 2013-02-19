@@ -370,13 +370,14 @@ def xcorr(x, y=None, maxlags=None, detrend=None, scale_type=None):
         lsize = x.shape[0]
         inputs = x,
         corrfunc = _matrixcorr
-    elif y is None or y is x or np.array_equal(x, y):
+    elif y is None or y is x or np.array_equal(x, y) or np.allclose(x, y):
         assert isvector(x), 'x must be 1D'
         lsize = x.shape[0]
         inputs = x,
         corrfunc = _autocorr
     else:
         lsize = max(x.size, y.size)
+        y = detrend(y)
         inputs = x, y
         corrfunc = _crosscorr
 
@@ -398,5 +399,7 @@ def xcorr(x, y=None, maxlags=None, detrend=None, scale_type=None):
     elif isinstance(x, np.ndarray):
         return_type = lambda x, index: np.asanyarray(x)
 
+    # import ipdb
     sc_func = _SCALE_FUNCTIONS[scale_type]
+    # ipdb.set_trace()
     return sc_func(return_type(ctmp[lags], index=lags), x, y, lags, lsize)
