@@ -29,6 +29,16 @@ from span.utils import get_fft_funcs, isvector, nextpow2
 from span.xcorr._mult_mat_xcorr import _mult_mat_xcorr_parallel
 
 
+def _diag_inds_n(n):
+    return (n + 1) * np.arange(n)
+
+
+def _diag_inds(x):
+    m, n = x
+    assert m == n, 'x is not square, diagonal is not defined'
+    return _diag_inds_n(n)
+
+
 def _mult_mat_xcorr_cython_parallel(X, Xc, c, n):
     """Perform the necessary matrix-vector multiplication and fill the cross-
     correlation array. Slightly faster than pure Python.
@@ -240,39 +250,30 @@ def _normalize(c, x, y, lags, lsize):
         # need this for either cross or auto
         ax2 = np.abs(x)
         ax2 *= ax2
-        d = np.sum(ax2)
+        cdiv = np.sum(ax2)
 
         # y is given so we computed a cross correlation
         if y is not None:
             ay2 = np.abs(y)
             ay2 *= ay2
-            cy00 = np.sum(ay2)
-            d *= cy00
-            cdiv = np.sqrt(d)
-        else:
-            cdiv = d
+            cdiv *= np.sum(ay2)
+            cdiv = np.sqrt(cdiv)
     else:
-        # matrix
-        _, nc = c.shape
-        ncsqrt = int(np.sqrt(nc))
+        ## matrix case
 
         # need diagonal elements of array
-        jkl = np.diag(np.r_[:nc].reshape(ncsqrt, ncsqrt))
+        jkl = _diag_inds_n(int(np.sqrt(c.shape[1])))
 
-        # ignore annoying numpy warnings
-        with warnings.catch_warnings():
-            warnings.simplefilter('ignore', category=FutureWarning)
-
-            try:
-                # pandas lag 0 jklth column pair
-                vals = c.ix[0, jkl]
-            except AttributeError:
-                # not pandas so assume it's a numpy array
-                vals = c[lags.max(), jkl]
+        try:
+            # pandas lag 0 jklth column pair
+            vals = c.ix[0, jkl]
+        except AttributeError:
+            # not pandas so assume it's a numpy array
+            vals = c[lags.max(), jkl]
 
         # scale by lag 0 of each column pair
-        tmp = np.sqrt(vals)
-        cdiv = np.outer(tmp, tmp).ravel()
+        np.sqrt(vals, vals)
+        cdiv = np.outer(vals, vals).ravel()
 
     return c / cdiv
 

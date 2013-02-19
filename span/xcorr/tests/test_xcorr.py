@@ -46,6 +46,24 @@ def correlate1d(x, y):
     return np.correlate(xc, yc, mode='full') / z
 
 
+def correlate2d(x_, normalize=False):
+    if normalize:
+        x = x_ - x_.mean(0)
+    else:
+        x = x_.copy()
+
+    m, n = x.shape
+    c = np.empty((2 * m - 1, n ** 2))
+
+    for k, (i, j) in enumerate(itertools.product(xrange(n), xrange(n))):
+        c[:, k] = np.correlate(x[:, i], x[:, j], mode='full')
+
+    lag0 = np.sqrt(c[m - 1, np.diag(np.arange(n ** 2).reshape(n, n))])
+    lag0 = np.outer(lag0, lag0).ravel()
+
+    return c / lag0 if normalize else c
+
+
 class TestXCorr(object):
     def setUp(self):
         self.m, self.n = 3, 2
@@ -65,16 +83,28 @@ class TestXCorr(object):
         spc = xcorr(Series(x))
         assert_allclose(npc, spc)
 
+        npc = correlate1d(x, x)
+        spc = xcorr(x, scale_type='normalize', detrend=detrend_mean)
+        assert_allclose(npc, spc)
+
     def test_crosscorr_same_lengths(self):
-        import span
         x, y = self.xsame, self.ysame
         npc = np.correlate(x, y, mode='full')
         spc = xcorr(x, y)
         assert_allclose(npc, spc)
 
         npc = correlate1d(x, y)
-        spc = xcorr(x, y, scale_type='normalize',
-                    detrend=span.utils.detrend_mean)
+        spc = xcorr(x, y, scale_type='normalize', detrend=detrend_mean)
+        assert_allclose(npc, spc)
+
+    def test_matrixcorr(self):
+        x = self.matrix
+        npc = correlate2d(x)
+        spc = xcorr(x)
+        assert_allclose(npc, spc)
+
+        npc = correlate2d(x, normalize=True)
+        spc = xcorr(x, scale_type='normalize', detrend=detrend_mean)
         assert_allclose(npc, spc)
 
     @knownfailure
