@@ -1,21 +1,30 @@
 #!/bin/bash
 
-
+numprocs=`nproc`
 function nocoverfast
 {
-    nosetests -w span -A 'not slow' --ignore='make_feature_file.py' \
-        --ignore='.*flymake.*' --detailed-errors --processes=`nproc`
+    nosetests -w span -A 'not slow' \
+        --ignore='.*flymake.*' \
+        --nocapture \
+        --nologcapture \
+        --processes=$numprocs
 }
 
 function nocover
 {
-    nosetests -w span --ignore='make_feature_file.py' --ignore='.*flymake.*' \
-        --detailed-errors --processes=`nproc`
+    nosetests -w span -A 'not slow' \
+        --ignore='.*flymake.*' \
+        --nocapture \
+        --nologcapture \
+        --processes=$numprocs
+
+    nosetests -w span --ignore='.*flymake.*' \
+        --detailed-errors --processes=$numprocs
 }
 
 function cover
 {
-    nosetests -w span --ignore='make_feature_file.py' --ignore='.*flymake.*' \
+    nosetests -w span --ignore='.*flymake.*' \
         --detailed-errors \
         --with-coverage \
         --cover-package=span \
@@ -27,7 +36,7 @@ function cover
 
 function cover_no_tests
 {
-    nosetests -w span --ignore='make_feature_file.py' --ignore='.*flymake.*' \
+    nosetests -w span --ignore='.*flymake.*' \
         --detailed-errors \
         --with-coverage \
         --cover-package=span \
