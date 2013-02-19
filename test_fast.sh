@@ -1,3 +1,4 @@
 #!/bin/bash
-procs=`grep -c 'model name' /proc/cpuinfo`
-nosetests -w span -A "not slow" --nocapture --processes=$procs $*
+procs=`nproc`
+nosetests -w span -A "not slow" \
+    --nologcapture --nocapture --processes=$procs $*
