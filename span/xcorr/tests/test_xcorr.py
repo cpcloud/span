@@ -10,8 +10,8 @@ from pandas.util.testing import assert_frame_equal
 
 from six.moves import map
 
-from span.xcorr import xcorr
-from span.xcorr.xcorr import (_mult_mat_xcorr, _mult_mat_xcorr_cython_parallel,
+from span.xcorr.xcorr import (xcorr, _mult_mat_xcorr,
+                              _mult_mat_xcorr_cython_parallel,
                               _mult_mat_xcorr_python)
 from span.utils import (nextpow2, get_fft_funcs, detrend_mean, detrend_none,
                         detrend_linear)
