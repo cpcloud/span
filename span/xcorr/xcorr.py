@@ -19,8 +19,6 @@
 # You should have received a copy of the GNU General Public License
 # along with this program. If not, see <http://www.gnu.org/licenses/>.
 
-import warnings
-
 import numpy as np
 from pandas import Series, DataFrame
 from six.moves import xrange
@@ -34,7 +32,7 @@ def _diag_inds_n(n):
 
 
 def _diag_inds(x):
-    m, n = x
+    m, n = x.shape
     assert m == n, 'x is not square, diagonal is not defined'
     return _diag_inds_n(n)
 
