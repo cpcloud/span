@@ -107,14 +107,16 @@ def cch_perm(xci, M=1000, alpha=0.05, plot=False, ax=None):
             lag0 = xcv.ix[0]
 
             ind = a.index.values
-            ax1.fill_between(ind, a_star - xcm, b_star - xcm, alpha=0.3,
+            lower, upper = a_star - xcm, b_star - xcm
+            ax1.fill_between(ind, lower, upper, alpha=0.3,
                              color='k')
             ax1.fill_between(ind, a - xcm, b - xcm, alpha=0.4, color='k')
 
             ax1.vlines(ind, 0, xcv, lw=lw)
-            ax1.vlines([0], [0], [lag0], lw=lw, color='r')
+            ax1.vlines(0, 0, lag0, lw=lw, color='r')
             ax1.set_xlabel(r'$\ell$')
             ax1.set_ylabel(r'$\gamma(\ell)$')
+            ax1.set_ylim((lower.min(), upper.max()))
 
             xcs.ix[0].hist(ax=ax2, bins=20)
             ax2.axvline(xci.ix[0], c='r', lw=lw)
