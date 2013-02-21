@@ -11,6 +11,8 @@ except (RuntimeError, ImportError):
 
 
 def _permute_axis(values, axis=0):
+    if not axis:
+        return np.random.permutation(values)
     return values.take(np.random.permutation(values.shape[axis]), axis=axis)
 
 
