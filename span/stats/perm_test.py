@@ -108,8 +108,7 @@ def cch_perm(xci, M=1000, alpha=0.05, plot=False, ax=None):
 
             ind = a.index.values
             lower, upper = a_star - xcm, b_star - xcm
-            ax1.fill_between(ind, lower, upper, alpha=0.3,
-                             color='k')
+            ax1.fill_between(ind, lower, upper, alpha=0.3, color='k')
             ax1.fill_between(ind, a - xcm, b - xcm, alpha=0.4, color='k')
 
             ax1.vlines(ind, 0, xcv, lw=lw)
