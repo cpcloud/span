@@ -113,7 +113,6 @@ def cch_perm(xci, M=1000, alpha=0.05, plot=False, ax=None):
             ax1.fill_between(ind, a - xcm, b - xcm, alpha=0.4, color='k')
 
             ax1.vlines(ind, 0, xcv, lw=lw)
-            # ax1.vlines(0, 0, lag0, lw=lw, color='b')
             ax1.set_xlabel(r'$\ell$')
             ax1.set_ylabel(r'$\gamma(\ell)$')
             ax1.set_ylim((lower.min(), upper.max()))
