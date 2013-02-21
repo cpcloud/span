@@ -59,10 +59,11 @@ def cch_perm(xci, M=1000, alpha=0.05, plot=False, ax=None):
 
     # add in the original for sorting
     xcs.columns = np.arange(1, M + 1)
-    xcs[0] = Series(xci.values, xci.index)
+    xcs[0] = xci.values
+    xcs = xcs.sort_index(axis=1)
 
     # compute a p-value for the lag 0 distribution
-    p = (xcs.ix[0] >= xci.ix[0]).mean()
+    p = np.mean(xcs.ix[0] >= xci.ix[0])
 
     # sort the surrogates (remember this includes the ORIGINAL ccg)
     srt_xcs = xcs.copy()
@@ -73,7 +74,7 @@ def cch_perm(xci, M=1000, alpha=0.05, plot=False, ax=None):
     b = srt_xcs[n_upper]
 
     # compute the 'trimmed' mean and std
-    rsm = srt_xcs.ix[:, :M - 1]
+    rsm = srt_xcs.ix[:, 1:M - 1]
     nu = rsm.mean(1)
     s = rsm.std(1)
 
@@ -91,7 +92,7 @@ def cch_perm(xci, M=1000, alpha=0.05, plot=False, ax=None):
     at = c_min[n_lower]
     bt = c_max[n_upper]
 
-    c_star_0 = c_star.ix[0]
+    c_star_0 = c_star[0]
     sig = (c_star_0 < at) | (c_star_0 > bt)
 
     # put them back in original units
@@ -119,7 +120,7 @@ def cch_perm(xci, M=1000, alpha=0.05, plot=False, ax=None):
             ax1.set_ylim((lower.min(), upper.max()))
 
             xcs.ix[0].hist(ax=ax2, bins=20)
-            ax2.axvline(lag0, c='b', lw=lw)
+            ax2.axvline(lag0, c='r', lw=lw)
             ax2.set_xlabel(r'$\gamma(0)$')
             ax2.set_ylabel('Count')
             fig.tight_layout()
