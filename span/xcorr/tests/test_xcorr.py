@@ -1,5 +1,6 @@
 import itertools
 import unittest
+import operator
 
 import numpy as np
 from numpy.random import randn, randint
@@ -70,8 +71,17 @@ class TestXCorr(object):
         self.x, self.y = randn(self.m), randn(self.n)
         self.xsame, self.ysame = self.x, randn(self.m)
         self.matrix = randn(self.m, self.n)
+        self.inputs = ((self.x, self.y),
+                       (self.matrix,),
+                       (self.xsame, self.ysame),
+                       tuple(map(Series, (self.x, self.y))),
+                       (DataFrame(self.matrix),),
+                       tuple(map(Series, (self.xsame, self.ysame))),
+                       (self.x,),
+                       (Series(self.x),))
 
     def tearDown(self):
+        del self.inputs
         del self.matrix, self.ysame, self.xsame, self.y, self.x, self.m, self.n
 
     def test_autocorr(self):
@@ -109,7 +119,7 @@ class TestXCorr(object):
 
     @knownfailure
     def test_crosscorr_diff_lengths(self):
-        # this fails because np.correlate does something strange to
+        # this fails because np.correlate does something different to
         # the input: it removes the padding that it adds
         # the span.xcorr.xcorr function replicates MATLAB's xcorr's behavior
         x, y = self.x, self.y
@@ -137,25 +147,19 @@ class TestXCorr(object):
         for maxlag, scale_type, detrend in args:
             yield self.xcorr_builder, maxlag, scale_type, detrend
 
-    def xcorr_builder(self, maxlag, scale_type, detrend):
-        inputs = ((self.x, self.y),
-                  (self.matrix,),
-                  (self.xsame, self.ysame),
-                  list(map(Series, (self.x, self.y))),
-                  (DataFrame(self.matrix),),
-                  list(map(Series, (self.xsame, self.ysame))),
-                  [self.x],
-                  [Series(self.x)])
+    def xcorr_builder(self, maxlags, scale_type, detrend):
+        kwargs = dict(maxlags=maxlags, detrend=detrend,
+                      scale_type=scale_type)
 
-        for inp in inputs:
-            lens = reduce(lambda x, y: x + y, map(lambda x: x.shape, inp))
-            kwargs = dict(maxlags=maxlag, detrend=detrend,
-                          scale_type=scale_type)
+        for inp in self.inputs:
+            lens = reduce(operator.add, map(np.shape, inp))
 
-            if maxlag > 2 * max(lens) - 1:
+            if maxlags > 2 * max(lens) - 1:
                 assert_raises(AssertionError, xcorr, *inp, **kwargs)
             else:
                 sp_xc = xcorr(*inp, **kwargs)
+                input_type = type(inp[0])
+                assert isinstance(sp_xc, input_type)
 
 
 class TestMultMatXcorr(unittest.TestCase):
