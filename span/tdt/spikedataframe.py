@@ -37,7 +37,7 @@ import functools
 import numpy as np
 from pandas import Series, DataFrame, MultiIndex
 
-from span.xcorr import xcorr
+from span.xcorr import xcorr as _xcorr
 from span.utils import samples_per_ms, clear_refrac
 
 
@@ -171,7 +171,8 @@ class SpikeDataFrame(SpikeDataFrameBase):
 
         return clr
 
-    def xcorr(self, binned, maxlags=None, detrend=None, scale_type=None,
+    @classmethod
+    def xcorr(cls, binned, maxlags=None, detrend=None, scale_type=None,
               sortlevel='shank i', nan_auto=False, lag_name='lag'):
         """Compute the cross correlation of binned data.
 
@@ -233,8 +234,8 @@ class SpikeDataFrame(SpikeDataFrameBase):
         assert isinstance(scale_type, basestring) or scale_type is None, \
             'scale_type must be a string or None'
 
-        xc = xcorr(binned, maxlags=maxlags, detrend=detrend,
-                   scale_type=scale_type)
+        xc = _xcorr(binned, maxlags=maxlags, detrend=detrend,
+                    scale_type=scale_type)
 
         xc.columns = _create_xcorr_inds(binned.columns)
 
@@ -265,8 +266,10 @@ class SpikeDataFrame(SpikeDataFrameBase):
                                  self.columns).sort_index()
 
 
-# TODO: hack to make it so nans are allowed when creating indices
+spike_xcorr = SpikeDataFrame.xcorr
 
+
+# TODO: hack to make it so nans are allowed when creating indices
 def _create_xcorr_inds(columns, index_start_string='i'):
     """Create an appropriate index for cross correlation.
 
