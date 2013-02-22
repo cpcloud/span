@@ -181,11 +181,8 @@ class TestMultMatXcorr(unittest.TestCase):
         del self.ground_truth, self.X, self.Xc, self.c, self.n
 
     def test_mult_mat_xcorrs(self):
-        funcs = {_mult_mat_xcorr_cython_parallel}
-
-        for func in funcs:
-            func(self.X, self.Xc, self.c, self.n)
-            assert_allclose(self.c, self.ground_truth)
+        _mult_mat_xcorr_cython_parallel(self.X, self.Xc, self.c, self.n)
+        assert_allclose(self.c, self.ground_truth)
 
     def test_mult_mat_xcorr_high_level(self):
         assert_allclose(_mult_mat_xcorr(self.X, self.Xc), self.ground_truth)
