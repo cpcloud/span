@@ -18,7 +18,17 @@
 # along with this program. If not, see <http://www.gnu.org/licenses/>.
 
 
-from utils import *
-from span.utils.math import *
-from span.utils.decorate import *
-from span.utils import clear_refrac
+from span.utils.utils import (name2num, ndtuples, iscomplex,
+                              get_fft_funcs, isvector,
+                              assert_nonzero_existing_file,
+                              clear_refrac, ispower2, fromtimestamp)
+from span.utils.math import (detrend_none, detrend_mean, detrend_linear,
+                             cartesian, nextpow2, samples_per_ms, compose,
+                             compose2, composemap)
+from span.utils.decorate import thunkify, cached_property
+
+__all__ = ('name2num', 'ndtuples', 'iscomplex', 'get_fft_funcs', 'isvector',
+           'assert_nonzero_existing_file', 'clear_refrac', 'ispower2',
+           'thunkify', 'ispower2', 'detrend_none', 'detrend_mean',
+           'detrend_linear', 'cartesian', 'nextpow2', 'samples_per_ms',
+           'compose', 'compose2', 'composemap')
