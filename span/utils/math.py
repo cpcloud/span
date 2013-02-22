@@ -19,8 +19,6 @@
 # You should have received a copy of the GNU General Public License
 # along with this program. If not, see <http://www.gnu.org/licenses/>.
 
-
-import numbers
 import operator
 import re
 import itertools as itools
@@ -30,91 +28,6 @@ import functools as fntools
 import numpy as np
 from pandas import Series, DataFrame, Panel, Panel4D
 from six.moves import map
-
-
-try:
-    # weird bug in latest scipy
-    from scipy.stats.mstats import trimboth
-
-    def trimmean(x, alpha=0.05, inclusive=(False, False), axis=None):
-        """Compute the `alpha`-trimmed mean of an array `x`.
-
-        Parameters
-        ----------
-        x : array_like
-            The array on which to operate.
-
-        alpha : float or int
-            A number between 0 and 100, left inclusive indicating the
-            percentage of values to cut from `x`.
-
-        inclusive : tuple of bools, optional
-            Whether to round (True, True) or truncate the values
-            (False, False). Defaults to truncation. Note that this is different
-            from ``scipy.stats.mstats.trimboth``'s default.
-
-        axis : int or None, optional
-            The axis over which to operate. None flattens the array
-
-        Returns
-        -------
-        m : Series
-            The `alpha`-trimmed mean of `x` along axis `axis`.
-        """
-        assert 0 <= alpha < 100, 'alpha must be in the interval [0, 100)'
-        assert len(inclusive) == 2, 'inclusive must have only 2 elements'
-
-        if isinstance(x, (numbers.Number)) or (hasattr(x, 'size') and
-                                               x.size == 1):
-            return float(x)
-
-        assert axis is None or 0 <= axis < x.ndim, \
-            'axis must be None or less than x.ndim: {0}'.format(x.ndim)
-
-        index = None
-        if isinstance(x, DataFrame):
-            if axis is None:
-                axis = 0
-                index = x.axes[1 - axis]
-
-        trimmed = trimboth(x, alpha / 100.0, inclusive, axis).mean(axis)
-        return Series(trimmed, index=index)
-
-except ImportError:  # pragma: no cover
-    def trimmean(x, alpha, inclusive=(False, False), axis=None):
-        raise NotImplementedError("Unable to import scipy.stats;" +
-                                  " cannot define trimmean")
-
-
-def sem(a, axis=0, ddof=1):
-    """Return the standard error of the mean of an array.
-
-    Parameters
-    ----------
-    a : array_like
-        The array whose standard error to compute.
-
-    axis : int, optional
-        Axis along which to compute the standard error
-
-    ddof : int, optional
-        Delta degrees of freedom.
-
-    Returns
-    -------
-    sem : array_like
-    """
-    if np.isscalar(a):
-        return 0.0
-
-    n = a.shape[axis]
-
-    try:
-        s = a.std(axis=axis, ddof=ddof)
-    except TypeError:
-        s = a.std(axis=axis)
-
-    return s / np.sqrt(n)
 
 
 def detrend_none(x):
@@ -261,23 +174,7 @@ def nextpow2(n):
     ret : array_like
     """
     f = compose(np.ceil, np.log2, np.abs, np.asanyarray)
-    return f(n).astype(np.int_)
-
-
-def fractional(x):
-    """Test whether an array has a fractional part.
-
-    Parameters
-    ----------
-    x : array_like
-
-    Returns
-    -------
-    frac : bool
-        Whether the elements of x have a fractional part.
-    """
-    frac, _ = np.modf(np.asanyarray(x))
-    return frac
+    return f(n).astype(int)
 
 
 def samples_per_ms(fs, millis):

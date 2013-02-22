@@ -31,58 +31,13 @@ import numbers
 import numpy as np
 from numpy.fft import fft, ifft, rfft, irfft
 
-import pandas as pd
-from pandas import DataFrame, datetime, MultiIndex
-from six.moves import zip, map
+from pandas import datetime
+from six.moves import map
 
 from span.utils._clear_refrac import _clear_refrac as _clear_refrac_cython
 
 
 fromtimestamp = np.vectorize(datetime.fromtimestamp)
-
-
-def cast(a, dtype, copy=False):
-    """Cast `a` to dtype `dtype`.
-
-    Attempt to cast `a` to a different dtype `dtype` without copying.
-
-    Parameters
-    ----------
-    a : array_like
-        The array to cast.
-
-    dtype : numpy.dtype
-        The dtype to cast the input array to.
-
-    copy : bool, optional
-        Whether to copy the data given the previous arguments.
-
-    Raises
-    ------
-    AssertionError
-
-    Returns
-    -------
-    r : array_like
-        The array `a` casted to type dtype
-
-    See Also
-    --------
-    numpy.ndarray.astype
-    """
-    assert hasattr(a, 'dtype'), ('argument "a" of type {0} has no "dtype" '
-                                 'attribute'.format(a.__class__))
-    assert hasattr(a, 'astype'), ('argument "a" of type {0} has no "astype" '
-                                  'method'.format(a.__class__))
-
-    if a.dtype == dtype:
-        return a
-
-    try:
-        r = a.astype(dtype, casting='safe', subok=True, copy=copy)
-    except TypeError:
-        r = a.astype(dtype)
-    return r
 
 
 def ndtuples(*dims):
@@ -130,54 +85,6 @@ def ndtuples(*dims):
     return cur.squeeze()
 
 
-def nans(shape):
-    """Create an array of NaNs.
-
-    Parameters
-    ----------
-    shape : tuple
-        The shape tuple of the array of NaNs to create.
-
-    Returns
-    -------
-    a : array_like
-    """
-    a = np.empty(shape, dtype=float)
-    a.fill(np.nan)
-    return a
-
-
-def nans_like(a):
-    """Returns an array of nans in the shape of `x` while preserving `a`'s
-    type.
-
-    This function also attempts to preserve the index and columns of a
-    DataFrame or Series.
-
-    Parameters
-    ----------
-    a : array_like
-        Array whose shape will be used to create an array of nans
-
-    Returns
-    -------
-    r : array_like
-        A view of an array `a` of shape `a.shape` with type `type(a)`.
-    """
-    ns = nans(a.shape)
-
-    if isinstance(a, pd.Series):
-        r = pd.Series(ns, index=a.index)
-    elif isinstance(a, pd.DataFrame):
-        r = pd.DataFrame(ns, index=a.index, columns=a.columns)
-    elif isinstance(a, pd.Panel):
-        r = pd.Panel(ns, items=a.items, major_axis=a.major_axis,
-                     minor_axis=a.minor_axis)
-    else:
-        r = ns.view(type=type(a))
-    return r
-
-
 def name2num(name, base=256):
     """Convert an event name's string representation to a number.
 
@@ -215,26 +122,6 @@ def iscomplex(x):
     except AttributeError:
         cfloat = np.complexfloating
         return any(map(np.issubdtype, x.dtypes, itertools.repeat(cfloat)))
-
-
-def hascomplex(x):
-    """Check whether an array has all complex entries.
-
-    Parameters
-    ----------
-    x : array_like
-
-    Returns
-    -------
-    r : bool
-        Whether xs dtype is complex and not all of the elements are el + 0j
-    """
-    try:
-        v = x.imag
-    except AttributeError:
-        v = x.values.imag
-
-    return iscomplex(x) and not np.logical_not(v).all()
 
 
 def get_fft_funcs(*arrays):
@@ -275,51 +162,11 @@ def isvector(x):
         return False
 
 
-def mi2df(mi, convert=True):
-    """Return a pandas MultiIndex as DataFrame.
-
-    Parameters
-    ----------
-    mi : MultiIndex
-
-    Raises
-    ------
-    AssertionError
-
-    Returns
-    -------
-    df : DataFrame
-    """
-    assert isinstance(mi, MultiIndex), ('conversion not implemented for '
-                                        'simple indices')
-
-    zd = zip(mi.names, mi.levels, mi.labels)
-    df = DataFrame(dict((name, level[label]) for name, level, label in zd))
-    return df.convert_objects() if convert else df
-
-
-def nonzero_existing_file(f):
-    """Return whether a file exists and is not size 0.
-
-    Parameters
-    ----------
-    f : str
-
-    Returns
-    -------
-    nef : bool
-
-    Notes
-    -----
-    This doesn't perform as expected for temporary files. It returns False
-    on ``os.path.getsize(f) > 0`` even if the file has just been written to.
-    """
-    return os.path.exists(f) and os.path.isfile(f) and os.path.getsize(f) > 0
-
-
 def assert_nonzero_existing_file(f):
-    assert nonzero_existing_file(f), ("%s does not exist or has a size of 0 "
-                                      "bytes" % f)
+    assert os.path.exists(f), '%s does not exist'
+    assert os.path.isfile(f), '%s is not a file'
+    assert os.path.getsize(f) > 0, \
+        '%s exists and is a file, but it has a size of 0'
 
 
 def clear_refrac(a, window):
@@ -341,8 +188,9 @@ def clear_refrac(a, window):
     If `window` is less than or equal to 0
     """
     assert isinstance(a, np.ndarray), 'a must be a numpy array'
+    assert isinstance(window, (numbers.Integral, np.integer)), \
+        '"window" must be an integer'
     assert window > 0, '"window" must be greater than 0'
-    assert isinstance(window, (numbers.Integral, np.integer))
     _clear_refrac_cython(a.view(np.uint8), window)
 
 

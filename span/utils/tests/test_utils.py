@@ -1,21 +1,19 @@
 import unittest
 import string
 import random
-import itertools as itools
 import os
 
 import numpy as np
-from numpy.random import randint, rand, randn
+from numpy.random import randint, randn
 
-from pandas import Series, DataFrame, Panel, MultiIndex, Index
+from pandas import Series, DataFrame
 from six.moves import zip, map
 
-from span.utils import (nextpow2, nans, nans_like, name2num, isvector,
-                        iscomplex, hascomplex, get_fft_funcs, cast,
-                        ndtuples, nonzero_existing_file,
-                        assert_nonzero_existing_file, mi2df)
+from span.utils import (nextpow2, name2num, isvector,
+                        iscomplex, get_fft_funcs,
+                        assert_nonzero_existing_file)
 
-from span.testing import assert_allclose, assert_array_equal, rands
+from span.testing import assert_allclose
 
 
 def rand_array_delegate(func, n, ndims):
@@ -28,38 +26,6 @@ def randn_array(n=50, ndims=3):
 
 def rand_int_tuple(high=5, n=10):
     return tuple(randint(1, high, size=n))
-
-
-def test_nans():
-    shape = 6, 3
-    x = nans(shape)
-    assert np.isnan(x).all(), 'not all values are nans'
-    assert x.dtype == np.float64
-
-
-class TestNansLike(unittest.TestCase):
-    def test_series(self):
-        x = Series(randn(7))
-        nas = nans_like(x)
-        self.assert_(np.isnan(nas).all())
-
-    def test_dataframe(self):
-        x = DataFrame(randn(10, 3))
-        nas = nans_like(x)
-        self.assert_(np.isnan(nas.values).all())
-
-    def test_panel(self):
-        x = Panel(randn(5, 4, 3))
-        nas = nans_like(x)
-
-        # panel has no all member for some reason
-        self.assert_(np.isnan(nas.values).all())
-
-    def test_other(self):
-        arrays = randn(2), randn(10, 4), randn(10, 8, 3)
-        for array in arrays:
-            nas = nans_like(array)
-            self.assert_(np.isnan(nas).all())
 
 
 class TestIsComplex(unittest.TestCase):
@@ -87,34 +53,6 @@ class TestIsComplex(unittest.TestCase):
     def test_is_not_complex(self):
         x = self.x.real
         self.assert_(not iscomplex(x))
-
-
-class TestHasComplex(unittest.TestCase):
-    def setUp(self):
-        self.n = 4
-        self.x = randn(self.n, randint(1, self.n)) * 1j
-
-    def tearDown(self):
-        del self.x, self.n
-
-    def test_hascomplex_dataframe(self):
-        x = DataFrame(self.x)
-        self.assert_(hascomplex(x))
-
-    def test_not_hascomplex_dataframe(self):
-        n = self.n
-        x = DataFrame(randn(n, randint(1, n)))
-        self.assertFalse(hascomplex(x))
-
-    def test_hascomplex(self):
-        n = self.n
-        x = randn(n, randint(1, n)) + 1j
-        self.assert_(hascomplex(x))
-
-    def test_not_hascomplex(self):
-        n = self.n
-        x = randn(n, randint(1, n))
-        self.assertFalse(hascomplex(x))
 
 
 def test_get_fft_funcs():
@@ -150,23 +88,6 @@ def test_name2num():
         assert mn <= num <= mx
 
 
-class TestCast(unittest.TestCase):
-    def test_cast(self):
-        dtypes = np.cast.keys()
-        copies = True, False
-        arg_sets = itools.product(dtypes, copies)
-        for arg_set in arg_sets:
-            dtype, copy = arg_set
-            a = rand(10)
-            if dtype == np.void:
-                self.assertRaises(TypeError, cast, a, dtype, copy)
-            else:
-                b = cast(a, dtype, copy)
-
-            if a.dtype != dtype:
-                self.assertNotEqual(a.dtype, b.dtype)
-
-
 class TestIsVector(unittest.TestCase):
     def setUp(self):
         self.matrix = np.random.randn(2, 3)
@@ -191,47 +112,12 @@ class TestIsVector(unittest.TestCase):
         self.assert_(isvector(x))
 
 
-class TestNdtuples(unittest.TestCase):
-    def test_ndtuples_0(self):
-        zdims = 0, False, [], (), {}, np.array([])
-
-        for zdim in zdims:
-            self.assertRaises(AssertionError, ndtuples, zdim)
-
-    def test_ndtuples_1(self):
-        n = randint(1, 3)
-        x = ndtuples(n)
-        assert_array_equal(x, np.arange(n))
-
-    def test_ndtuples_2(self):
-        m, n = randint(2, 5), randint(2, 4)
-        x = ndtuples(m, n)
-        self.assertTupleEqual((m * n, 2), x.shape)
-
-    def test_ndtuples_3(self):
-        m, n, l = randint(2, 3), randint(2, 4), randint(3, 4)
-        x = ndtuples(m, n, l)
-        self.assertTupleEqual((m * n * l, 3), x.shape)
-
-
-class TestNonzeroExistingFile(unittest.TestCase):
+class TestAssertNonzeroExistingFile(unittest.TestCase):
     def setUp(self):
         self.name = 'blah.npy'
 
     def tearDown(self):
         del self.name
-
-    def test_nonzero_existing_file(self):
-        name = self.name
-
-        with open(name, 'wb') as tf:
-            randn(2).tofile(tf)
-
-        self.assert_(nonzero_existing_file(name))
-
-        os.remove(name)
-
-        self.assertFalse(nonzero_existing_file(name))
 
     def test_assert_non_existing_file(self):
         name = self.name
@@ -246,25 +132,9 @@ class TestNonzeroExistingFile(unittest.TestCase):
         self.assertRaises(AssertionError, assert_nonzero_existing_file, name)
 
 
-class TestMi2Df(unittest.TestCase):
-    def test_mi2df(self):
+class TestIsPower2(unittest.TestCase):
+    def setUp(self):
+        pass
 
-        class _BlobJect(object):
-            pass
-
-        dtypes = object, int, long, str, float
-
-        n = 2
-        for dtype in dtypes:
-            s = np.array(list(rands(n)))
-            i = randint(10, size=n)
-            f = rand(n)
-            o = rand(n).astype(object)
-            bo = np.array(list(itools.repeat(_BlobJect(), n)))
-            x = s, i, f, o, bo
-            names = [rands(len(x)) for _ in xrange(len(x))]
-            mi = MultiIndex.from_arrays(x, names=names)
-            df = mi2df(mi)
-            self.assertIsInstance(df, DataFrame)
-            # self.assertListEqual(names, df.columns.tolist())
-            # self.assertRaises(AssertionError, mi2df, Index([1, 2, 3]))
+    def tearDown(self):
+        pass

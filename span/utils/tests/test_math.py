@@ -8,194 +8,35 @@ from numpy.testing import assert_allclose, assert_array_equal
 from pandas import Series, DataFrame, Panel, Panel4D
 
 from span.utils import ndtuples
-from span.utils.math import (trimmean, sem, detrend_none, detrend_mean,
-                             detrend_linear, cartesian, nextpow2, fractional,
+from span.utils.math import (detrend_none, detrend_mean,
+                             detrend_linear, cartesian, nextpow2,
                              samples_per_ms, compose, composemap, compose2)
 
 from span.utils.tests.test_utils import rand_int_tuple
 from six.moves import map
 
 
-class TestTrimmean(TestCase):
-    @classmethod
-    def setUpClass(cls):
-        cls.alphas = np.r_[:100:20].tolist() + [99]
-        cls.includes = tuple(itools.product((True, False), (True, False)))
-        cls.axes = None, 0
+class TestNdtuples(TestCase):
+    def test_ndtuples_0(self):
+        zdims = 0, False, [], (), {}, np.array([])
 
-    def test_number(self):
-        x = float(randn())
-        axes = self.axes
-        arg_sets = itools.product(self.alphas, self.includes, axes)
-        for arg_set in arg_sets:
-            alpha, include, axis = arg_set
-            m = trimmean(x, alpha, include, axis)
-            self.assertIsInstance(m, float)
-            self.assertEqual(x, m)
+        for zdim in zdims:
+            self.assertRaises(AssertionError, ndtuples, zdim)
 
-    def test_0d_array(self):
-        x = np.asanyarray(randn())
-        axes = self.axes
-        arg_sets = itools.product(self.alphas, self.includes, axes)
+    def test_ndtuples_1(self):
+        n = randint(1, 3)
+        x = ndtuples(n)
+        assert_array_equal(x, np.arange(n))
 
-        for alpha, include, axis in arg_sets:
-            m = trimmean(x, alpha, include, axis)
-            self.assertIsInstance(m, float)
-            self.assertEqual(x, m)
+    def test_ndtuples_2(self):
+        m, n = randint(2, 5), randint(2, 4)
+        x = ndtuples(m, n)
+        self.assertTupleEqual((m * n, 2), x.shape)
 
-    def test_1d_array(self):
-        x = randn(5)
-        axes = self.axes
-        arg_sets = itools.product(self.alphas, self.includes, axes)
-        for arg_set in arg_sets:
-            alpha, include, axis = arg_set
-            m = trimmean(x, alpha, include, axis)
-            self.assertIsInstance(m, float)
-
-    def test_2d_array(self):
-        x = randn(5, 4)
-        axes = self.axes + (1,)
-        arg_sets = itools.product(self.alphas, self.includes, axes)
-        for arg_set in arg_sets:
-            alpha, include, axis = arg_set
-            m = trimmean(x, alpha, include, axis)
-            if axis is not None:
-                self.assertEqual(m.ndim, x.ndim - 1)
-            else:
-                self.assertIsInstance(m, float)
-
-    def test_3d_array(self):
-        x = randn(4, 3, 2)
-        axes = self.axes + (1, 2)
-        arg_sets = itools.product(self.alphas, self.includes, axes)
-        for arg_set in arg_sets:
-            alpha, include, axis = arg_set
-            if axis is not None:
-                self.assertRaises(Exception, trimmean, x, alpha, include, axis)
-            else:
-                m = trimmean(x, alpha, include, axis)
-                self.assertIsInstance(m, float)
-
-    def test_series(self):
-        x = Series(randn(2))
-        axes = self.axes + (1,)
-        arg_sets = itools.product(self.alphas, self.includes, axes)
-        for arg_set in arg_sets:
-            alpha, include, axis = arg_set
-
-            if axis == 1:
-                self.assertRaises(AssertionError, trimmean, x, alpha, include,
-                                  axis)
-
-    def test_dataframe(self):
-        x = DataFrame(randn(3, 2))
-        axes = self.axes + (1,)
-        arg_sets = itools.product(self.alphas, self.includes, axes)
-        for arg_set in arg_sets:
-            alpha, include, axis = arg_set
-            m = trimmean(x, alpha, include, axis)
-            if axis is not None:
-                self.assertEqual(m.ndim, x.ndim - 1)
-            else:
-                self.assertIsInstance(m, Series)
-
-
-class TestSem(TestCase):
-    @classmethod
-    def setUpClass(cls):
-        cls.axes, cls.ddof = (0, 1), (0, 1)
-        cls.args = tuple(itools.product(cls.axes, cls.ddof))
-
-    @classmethod
-    def tearDownClass(cls):
-        del cls.args, cls.ddof, cls.axes
-
-    def test_0d(self):
-        x = randn()
-        for axis, ddof in self.args:
-            s = sem(x, axis, ddof)
-            self.assertEqual(s, 0.0)
-
-    def test_1d(self):
-        x = randn(2)
-
-        for axis, ddof in self.args:
-            if axis == 1:
-                self.assertRaises(IndexError, sem, x, axis, ddof)
-            else:
-                s = sem(x, axis, ddof)
-                dtype = s.dtype
-                self.assert_(np.issubdtype(dtype, np.floating))
-
-    def test_2d(self):
-        x = randn(3, 2)
-
-        for axis, ddof in self.args:
-            s = sem(x, axis, ddof)
-
-            try:
-                dtype = s.dtype
-            except AttributeError:
-                dtype = type(s)
-
-            sshape = list(s.shape)
-            not_xshape = list(filter(lambda a: a != x.shape[axis], x.shape))
-            self.assertListEqual(not_xshape, sshape)
-            self.assert_(np.issubdtype(dtype, np.floating))
-            self.assertIsInstance(s, np.ndarray)
-
-    def test_3d(self):
-        x = randn(4, 3, 2)
-        axes = self.axes + (2,)
-        args = itools.product(axes, self.ddof)
-
-        for axis, ddof in args:
-            s = sem(x, axis, ddof)
-
-            try:
-                dtype = s.dtype
-            except AttributeError:
-                dtype = type(s)
-
-            self.assert_(np.issubdtype(dtype, np.floating))
-            sshape = list(s.shape)
-            not_xshape = list(filter(lambda a: a != x.shape[axis], x.shape))
-            self.assertListEqual(not_xshape, sshape)
-            self.assertIsInstance(s, np.ndarray)
-
-    def test_series(self):
-        x = Series(randn(13))
-
-        for axis, ddof in self.args:
-
-            if axis == 1:
-                self.assertRaises(IndexError, sem, x, axis, ddof)
-            else:
-                s = sem(x, axis, ddof)
-
-                try:
-                    dtype = s.dtype
-                    self.assert_(np.issubdtype(dtype, np.floating))
-                except AttributeError:
-                    dtype = type(s)
-                    self.assertIsInstance(s, (np.floating, float))
-
-    def test_dataframe(self):
-        x = DataFrame(randn(2, 3))
-
-        for axis, ddof in self.args:
-            s = sem(x, axis, ddof)
-            self.assert_(np.issubdtype(s.dtype, np.floating))
-            self.assertIsInstance(s, (Series, np.ndarray))
-
-    def test_panel(self):
-        x = Panel(randn(4, 3, 2))
-        axes = self.axes + (2,)
-        args = itools.product(axes, self.ddof)
-
-        for axis, ddof in args:
-            s = sem(x, axis, ddof)
-            self.assertIsInstance(s, DataFrame)
+    def test_ndtuples_3(self):
+        m, n, l = randint(2, 3), randint(2, 4), randint(3, 4)
+        x = ndtuples(m, n, l)
+        self.assertTupleEqual((m * n * l, 3), x.shape)
 
 
 def test_ndtuples():
@@ -319,17 +160,6 @@ class TestNextPow2(TestCase):
         assert_allclose(np2, np.log2(tp2))
 
         self.assertEqual(nextpow2(0), np.iinfo(nextpow2(0).dtype).min)
-
-
-class TestFractional(TestCase):
-    def test_fractional(self):
-        m, n = 100, 1
-        x = randn(n)
-        xi = randint(m)
-        self.assert_(fractional(x))
-        self.assert_(fractional(rand()))
-        self.assertFalse(fractional(xi))
-        self.assertFalse(fractional(randint(1, np.iinfo(int).max)))
 
 
 class TestSamplesPerMs(TestCase):
