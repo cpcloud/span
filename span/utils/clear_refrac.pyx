@@ -19,52 +19,54 @@
 
 
 cimport cython
-cimport numpy as np
-from numpy cimport uint8_t as u1, npy_intp as ip
+from numpy cimport (npy_intp as ip, uint8_t as u1, uint16_t as u2,
+                    uint32_t as u4, uint64_t as u8, int8_t as i1,
+                    int16_t as i2, int32_t as i4, int64_t as i8)
+
+ctypedef fused integral:
+    u1
+    u2
+    u4
+    u8
+
+    i1
+    i2
+    i4
+    i8
+
+    size_t
+    Py_ssize_t
+    bint
+
+    ip
 
 
 @cython.wraparound(False)
 @cython.boundscheck(False)
-cdef void _clear_refrac(u1[:, :] a, ip window) nogil:
+cdef int clear_refrac_impl(integral[:, :] a, ip window) nogil except -1:
     cdef ip channel, i, sample, sp1, nsamples, nchannels
 
     nsamples = a.shape[0]
     nchannels = a.shape[1]
 
-    for channel in xrange(nchannels):
-        sample = 0
+    with nogil:
+        for channel in range(nchannels):
+            sample = 0
 
-        while sample + window < nsamples:
-            if a[sample, channel]:
-                sp1 = sample + 1
+            while sample + window < nsamples:
+                if a[sample, channel]:
+                    sp1 = sample + 1
 
-                for i in xrange(sp1, sp1 + window):
-                    a[i, channel] = 0
+                    for i in range(sp1, sp1 + window):
+                        a[i, channel] = 0  # False
 
-                sample += window
+                    sample += window
 
-            sample += 1
+                sample += 1
+    return 0
 
 
 @cython.wraparound(False)
 @cython.boundscheck(False)
-def clear_refrac(u1[:, :] a not None, ip window):
-    """Clear the refractory period of a boolean array.
-
-    Parameters
-    ----------
-    a : array_like
-    window : npy_intp
-
-    Notes
-    -----
-    If ``a.dtype == np.bool_`` in Python then this function will not work
-    unless ``a.view(uint8)`` is passed.
-
-    Raises
-    ------
-    AssertionError
-        If `window` is less than or equal to 0
-    """
-    assert window > 0, '"window" must be greater than 0'
-    _clear_refrac(a, window)
+cpdef int _clear_refrac(integral[:, :] a, ip window) nogil:
+    return clear_refrac_impl(a, window)

@@ -28,86 +28,83 @@ Examples
 >>> tank = span.tdt.PandasTank(path)
 """
 
-from future_builtins import zip
-
 import os
 import abc
 import re
+import itertools
+import warnings
 
 import numpy as np
-from numpy import (float32 as f4, int32 as i4, uint32 as u4, uint16 as u2,
-                   float64 as f8, int64 as i8)
-from pandas import Series, DataFrame, date_range, datetools
+from numpy import nan as NA
+from pandas import DataFrame, DatetimeIndex
 import pandas as pd
+from six.moves import xrange
 
 from span.tdt.spikeglobals import Indexer, EventTypes, DataTypes
 from span.tdt.spikedataframe import SpikeDataFrame
-from span.tdt._read_tev import read_tev
+from span.tdt._read_tev import _read_tev_parallel
+
 
 from span.utils import (name2num, thunkify, cached_property, fromtimestamp,
-                        assert_nonzero_existing_file)
+                        assert_nonzero_existing_file, ispower2)
 
 
-_TsqFields = ('size', 'type', 'name', 'channel', 'sort_code', 'timestamp',
-              'fp_loc', 'format', 'fs')
-
-_TsqNumpyTypes = i4, i4, u4, u2, u2, f8, i8, i4, f4
-
-
-def _get_first_match(pattern, string):
-    """Helper function for getting the first match of a pattern within a
-    string.
+def _cython_read_tev_parallel(filename, grouped, block_size, spikes):
+    """Read a TDT tev file into a numpy array. Slightly faster than
+    the pure Python version.
 
     Parameters
     ----------
-    pattern, string : str
+    filename : char *
+        Name of the TDT file to load.
 
-    Returns
-    -------
-    rgrp1 : str
+    block_size : int
+        The number of samples per chunk of data.
+
+    fp_locs : integral[:]
+        The array of locations of each chunk in the TEV file.
+
+    spikes : floating[:, :]
+        Output array
     """
-    try:
-        r = pattern.match(string)
-    except AttributeError:
-        r = re.match(pattern, string)
-
-    return r.group(1)
+    _read_tev_parallel(filename, grouped, block_size, spikes)
 
 
-def _match_int(pattern, string, get_exc=False, excs=(AttributeError,
-                                                     ValueError, TypeError)):
-    """Convert a string matched from a regex to an integer or return None.
+def _python_read_tev_serial(filename, grouped, block_size, spikes):
+    dt = spikes.dtype
+    nblocks, nchannels = grouped.shape
+    iprod = itertools.product
+    izip = itertools.izip
 
-    Parameters
-    ----------
-    pattern : str or compiled regex
-        Regular expression to use to match elements of `string`
+    with open(filename, 'rb') as f:
+        for (c, b), gbc in izip(iprod(xrange(nchannels), xrange(nblocks)),
+                                grouped.flat):
+            f.seek(gbc)
+            ks = slice(b * block_size, (b + 1) * block_size)
+            spikes[ks, c] = np.fromfile(f, dt, block_size)
 
-    string : str
-        The string to match
 
-    get_exc : bool, optional, default False
-        Whether to return the exceptions caught
+def _read_tev(filename, grouped, block_size, spikes):
+    # this is so we can fail gracefully in python
+    assert filename, 'filename (1st argument) cannot be empty'
+    assert grouped is not None, 'grouped cannot be None'
+    assert block_size, 'block_size cannot test false'
+    assert spikes is not None, 'spikes cannot be None'
 
-    excs : tuple of Exceptions, optional, default (AttributeError, ValueError,
-                                                     TypeError)
-        The exceptions to catch when trying to match an integer in the regular
-        expression `pattern`
+    assert isinstance(filename, basestring), 'filename must be a string'
 
-    Returns
-    -------
-    r : {int, None, tuple of int, tuple of None and Exception}
-    """
-    try:
-        r = int(_get_first_match(pattern, string))
-        e = None
-    except excs as e:
-        r = None
+    assert isinstance(grouped, np.ndarray), 'grouped must be an ndarray'
+    assert np.issubdtype(grouped.dtype, np.integer), \
+        "grouped's dtype must be a subdtype of integral'"
+    assert isinstance(block_size, np.integer), 'block_size must be an integer'
+    assert block_size > 0, 'block_size must be a positive integer'
+    assert ispower2(block_size), 'block_size must be a power of 2'
 
-    if get_exc:
-        r = r, e
+    assert isinstance(spikes, np.ndarray), 'spikes must be an ndarray'
+    assert np.issubdtype(spikes.dtype, np.floating), \
+        "spikes's dtype must be a subdtype of floating'"
 
-    return r
+    _cython_read_tev_parallel(filename, grouped, block_size, spikes)
 
 
 class TdtTankAbstractBase(object):
@@ -137,33 +134,33 @@ class TdtTankAbstractBase(object):
             Recording metadata
         """
         # create the path name
-        tsq_name = self.path + os.extsep + self.header_ext
+        tsq_name = self.path + os.extsep + self._header_ext
 
-        # read in the raw data as a numpy rec array and convert to DataFrame
-        b = DataFrame(np.fromfile(tsq_name, dtype=self.tsq_dtype))
+        # read in the raw data as a numpy rec array and convert to
+        # DataFrame
+        tsq = DataFrame.from_records(np.fromfile(tsq_name, self.dtype))
+        tsq.strobe[tsq.strobe <= np.finfo(np.float64).eps] = NA
 
         # zero based indexing
-        b.channel -= 1
-        b.channel = b.channel.astype(f8)
+        tsq.channel -= 1.0
 
         # -1s are invalid
-        b.channel[b.channel == -1] = np.nan
+        tsq.channel[tsq.channel == -1.0] = NA
 
-        b.type = EventTypes[b.type].reset_index(drop=True)
-        b.format = DataTypes[b.format].reset_index(drop=True)
+        tsq.type = EventTypes[tsq.type].reset_index(drop=True)
+        tsq.format = DataTypes[tsq.format].reset_index(drop=True)
 
-        b.timestamp[np.logical_not(b.timestamp)] = np.nan
-        b.fs[np.logical_not(b.fs)] = np.nan
+        tsq.timestamp[np.logical_not(tsq.timestamp)] = NA
+        tsq.fs[np.logical_not(tsq.fs)] = NA
 
-        # fragile subtraction (i.e., what if TDT changes this value?)
-        b.size -= 10
+        # trim the fat
+        tsq.size.ix[2:] -= self.dtype.itemsize / tsq.size.dtype.itemsize
 
         # create some new indices based on the electrode array
         srt = Indexer.sort('channel').reset_index(drop=True)
-        shank = srt.shank[b.channel].reset_index(drop=True)
-        side = srt.side[b.channel].reset_index(drop=True)
+        shank = srt.shank[tsq.channel].reset_index(drop=True)
 
-        tsq = b.join(shank).join(side)
+        tsq['shank'] = shank
 
         # convert the event_name to a number
         name = name2num(event_name)
@@ -172,8 +169,9 @@ class TdtTankAbstractBase(object):
         row = tsq.name == name
 
         # make sure there's at least one event
-        assert row.any(), 'no event named %s in tank: %s' % (event_name,
-                                                             self.path)
+        p = self.path
+        assert row.any(), 'no event named %s in tank: %s' % (event_name, p)
+        self.raw = tsq
 
         # get all the metadata for those events
         tsq = tsq[row]
@@ -225,68 +223,85 @@ class TdtTankBase(TdtTankAbstractBase):
 
     Attributes
     ----------
-    fields
-    np_types
-    tsq_dtype
+    dtype
 
-    site_re
-    age_re
-
-    header_ext
-    raw_ext
-
-    path (str) : Full path of the tank sans extensions
-    name (str) : basename of self.path
-    age (int) : The postnatal day age of the animal
-    site (int) : The site number of the recording, can be ``None``
+    path (``str``) : Full path of the tank sans extensions
+    name (``str``) : basename of self.path
+    age (``int``) : The postnatal day age of the animal
+    site (``int``) : The site number of the recording, can be ``None``
+    datetime (``datetime.datetime``) : Date and time of the recording
+    time (``datetime.time``) : Time of the recording
+    date (``datetime.date``) : Date of the recording
+    fs (``float``) : sampling rate
+    start (``Timestamp``) : Start time of the recording
+    end (``Timestamp``) : End time of the recording
+    duration (``timedelta64[us]``) : Duration of the recording
     """
+    _names = ('size', 'type', 'name', 'channel', 'sort_code', 'timestamp',
+              'fp_loc', 'strobe', 'format', 'fs')
+    _formats = 'i4', 'i4', 'u4', 'u2', 'u2', 'f8', 'i8', 'f8', 'i4', 'f4'
+    _offsets = 0, 4, 8, 12, 14, 16, 24, 24, 32, 36
 
-    fields = _TsqFields
-    np_types = _TsqNumpyTypes
-    tsq_dtype = np.dtype(list(zip(fields, np_types)))
-    types = Series(list(map(np.dtype, np_types)), index=fields)
+    dtype = np.dtype({'names': _names, 'formats': _formats,
+                      'offsets': _offsets}, align=True)
 
-    site_re = re.compile(r'(?:.*s(?:ite)?(?:|_)?(\d+))?')
-    age_re = re.compile(r'.*[pP](\d+).*')
+    _site_re = re.compile(r'(?:.*s(?:ite)?(?:|_)?(\d+))?')
+    _age_re = re.compile(r'.*[pP](\d+).*')
 
-    header_ext = 'tsq'
-    raw_ext = 'tev'
+    _header_ext = 'tsq'
+    _raw_ext = 'tev'
 
     def __init__(self, path):
         super(TdtTankBase, self).__init__()
 
         tank_with_ext = path + os.extsep
-        tev_path = tank_with_ext + self.raw_ext
-        tsq_path = tank_with_ext + self.header_ext
+        tev_path = tank_with_ext + self._raw_ext
+        tsq_path = tank_with_ext + self._header_ext
 
         assert_nonzero_existing_file(tev_path)
         assert_nonzero_existing_file(tsq_path)
 
         self.path = path
         self.name = os.path.basename(path)
-        self.age = _match_int(self.age_re, self.name)
-        self.site = _match_int(self.site_re, self.name)
-        i0 = self.stsq.timestamp.index[0]
+
+        try:
+            self.age = self._age_re.search(self.name)
+        except:
+            self.age = None
+
+        try:
+            self.site = self._site_re.search(self.name)
+        except:
+            self.site = None
+
+        istart = self.stsq.timestamp.index[0]
         iend = self.stsq.timestamp.index[-1]
-        tstart = pd.datetime.fromtimestamp(self.stsq.timestamp[i0])
-        self.datetime = pd.Timestamp(tstart)
-        self.time = self.datetime.time()
-        self.date = self.datetime.date()
+        tstart = pd.datetime.fromtimestamp(self.stsq.timestamp[istart])
+
+        self.__datetime = pd.Timestamp(tstart)
+        self.time = self.__datetime.time()
+        self.date = self.__datetime.date()
         self.fs = self.stsq.reset_index(drop=True).fs[0]
-        self.start = self.datetime
+        self.start = self.__datetime
+
         tend = pd.datetime.fromtimestamp(self.stsq.timestamp[iend])
+
         self.end = pd.Timestamp(tend)
         self.duration = np.timedelta64(self.end - self.start)
 
     def __repr__(self):
         objr = repr(self.__class__)
         params = dict(age=self.age, name=self.name, site=self.site, obj=objr,
-                      fs=self.fs, datetime=self.datetime,
+                      fs=self.fs, datetime=str(self.datetime),
                       duration=self.duration / np.timedelta64(1, 'm'))
         fmt = ('{obj}\nname:     {name}\ndatetime: {datetime}\nage:      '
                'P{age}\nsite:     {site}\nfs:       {fs}\n'
                'duration: {duration:.2f} min')
         return fmt.format(**params)
+
+    @property
+    def datetime(self):
+        return self.__datetime.to_pydatetime()
 
     @cached_property
     def spikes(self):
@@ -314,7 +329,7 @@ class PandasTank(TdtTankBase):
         super(PandasTank, self).__init__(path)
 
     @thunkify
-    def _read_tev(self, event_name):
+    def _read_tev(self, event_name, group='channel'):
         """Read an event from a TDT Tank tev file.
 
         Parameters
@@ -334,6 +349,8 @@ class PandasTank(TdtTankBase):
         --------
         span.tdt.SpikeDataFrame
         """
+        from span.tdt.spikeglobals import ChannelIndex as columns
+
         meta, row = self.tsq(event_name)
 
         # first row of event type
@@ -343,57 +360,37 @@ class PandasTank(TdtTankBase):
         dtype = meta.format[first_row]
 
         # number of samples per chunk
-        nsamples = meta.size[first_row] * np.dtype(dtype).itemsize / 4
+        block_size = np.int64(meta.size[first_row])
+        nchannels = meta.channel.dropna().nunique()
+        nsamples = meta.shape[0] * block_size // nchannels
 
         # raw ndarray for data
-        spikes = np.empty((meta.fp_loc.size, nsamples), dtype)
+        spikes = np.empty((nsamples, nchannels), dtype=dtype)
 
         # tev filename
-        tev_name = self.path + os.extsep + self.raw_ext
+        tev_name = self.path + os.extsep + self._raw_ext
+
+        with warnings.catch_warnings():
+            warnings.simplefilter('ignore', FutureWarning)
+            meta.reset_index(drop=True, inplace=True)
+
+        grouped = np.column_stack(meta.groupby('channel').indices.values())
+        grouped_locs = meta.fp_loc.values.take(grouped)
 
         # read in the TEV data to spikes
-        read_tev(tev_name, nsamples, meta.fp_loc, spikes)
+        _read_tev(tev_name, grouped_locs, block_size, spikes)
 
         # convert timestamps to datetime objects
         meta.timestamp = fromtimestamp(meta.timestamp)
 
-        # create the channel groups
         meta = meta.reset_index(drop=True)
-        groups = DataFrame(meta.groupby('channel').groups).values
 
-        # create a thunk to start this computation
-        sdf = _reshape_spikes(spikes, groups, meta, meta.fs.unique().item(),
-                              meta.channel.dropna().nunique(),
-                              meta.timestamp[0])
-        return sdf()
-
-
-@thunkify
-def _reshape_spikes(raw, group_indices, meta, fs, nchans, date):
-    """Reshape the spikes to a :math:`m\times n` ``SpikeDataFrame`` where
-    :math:`m` is the number of samples and :math:`n` is the number of channels.
-
-    Parameters
-    ----------
-    raw : array_like
-    group_indices : array_like
-    meta : DataFrame
-    fs : float
-    nchans : int
-    date : datetime
-
-    Returns
-    -------
-    reshaped_spikes : SpikeDataFrame
-    """
-    from span.tdt.spikeglobals import ChannelIndex as columns
-
-    vals = raw[group_indices]
-    shpsort = np.argsort(vals.shape)[::-1]
-    newshp = int(vals.size // nchans), nchans
-    valsr = vals.transpose(shpsort).reshape(newshp)
-
-    us_per_sample = round(1e6 / fs) * datetools.Micro()
-    index = date_range(date, periods=max(valsr.shape), freq=us_per_sample,
-                       name='time', tz='US/Eastern')
-    return SpikeDataFrame(valsr, meta, index=index, columns=columns)
+        # datetime hack
+        ns = int(1e9 / meta.fs.get_value(0))
+        dtstart = np.datetime64(self.datetime)
+        dt = dtstart + np.arange(nsamples) * np.timedelta64(ns, 'ns')
+        index = DatetimeIndex(dt, freq=ns * pd.datetools.Nano(), name='time',
+                              tz='US/Eastern')
+        df = DataFrame(spikes, index, columns, np.float64)
+        df = df.reorder_levels((1, 0), axis=1).sortlevel('shank', axis=1)
+        return SpikeDataFrame(df)

@@ -18,8 +18,9 @@
 # along with this program. If not, see <http://www.gnu.org/licenses/>.
 
 
-from numpy cimport (complex64_t as c8, complex128_t as c16, npy_intp as ip,
-                    int64_t as i8, float32_t as f4, float64_t as f8)
+from numpy cimport (ndarray, npy_intp as ip, float32_t as f4, float64_t as f8,
+                    complex64_t as c8, complex128_t as c16)
+
 
 from cython.parallel cimport prange, parallel
 
@@ -35,36 +36,15 @@ ctypedef fused floating:
 
 @cython.wraparound(False)
 @cython.boundscheck(False)
-cdef void _mult_mat_xcorr(floating[:, :] X, floating[:, :] Xc,
-                          floating[:, :] c, ip n, ip nx) nogil:
+cpdef int _mult_mat_xcorr_parallel(floating[:, :] X, floating[:, :] Xc,
+                                   floating[:, :] c, ip n,
+                                   ip nx) nogil except -1:
 
     cdef ip i, j, k, r
 
-    with parallel():
+    with nogil, parallel():
         for i in prange(n, schedule='guided'):
-            for r, j in enumerate(xrange(i * n, (i + 1) * n)):
-                for k in xrange(nx):
+            for r, j in enumerate(range(i * n, (i + 1) * n)):
+                for k in range(nx):
                     c[j, k] = X[i, k] * Xc[r, k]
-
-
-@cython.wraparound(False)
-@cython.boundscheck(False)
-def mult_mat_xcorr(floating[:, :] X not None, floating[:, :] Xc not None,
-                   floating[:, :] c not None, ip n, ip nx):
-    """Perform the necessary matrix-vector multiplication and fill the cross-
-    correlation array. Slightly faster than pure Python.
-
-    Parameters
-    ----------
-    X, Xc, c : c16[:, :]
-    n, nx : ip
-
-    Raises
-    ------
-    AssertionError
-       If n <= 0 or nx <= 0
-    """
-    assert n > 0, 'n must be greater than 0'
-    assert nx > 0, 'nx must be greater than 0'
-
-    _mult_mat_xcorr(X, Xc, c, n, nx)
+    return 0

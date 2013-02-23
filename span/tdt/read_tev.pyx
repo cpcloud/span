@@ -17,57 +17,40 @@
 # You should have received a copy of the GNU General Public License
 # along with this program. If not, see <http://www.gnu.org/licenses/>.
 
-cimport numpy as np
-from numpy cimport (npy_intp as ip, float32_t as f4, float64_t as f8,
-                    int64_t as i8, int32_t as i4, int16_t as i2, int8_t as i1)
-from numpy cimport (uint8_t as u1, uint16_t as u2, uint32_t as u4,
-                    uint64_t as u8)
 from libc.stdio cimport fopen, fclose, fread, fseek, SEEK_SET, FILE
 from libc.stdlib cimport malloc, free
 
-from cython.parallel cimport parallel, prange
-
 cimport cython
+from cython cimport floating, integral
+from cython.parallel cimport prange, parallel
 
-ctypedef fused floating:
-    f4
-    f8
-
-ctypedef fused integer:
-    i1
-    i2
-    i4
-    i8
-    ip
-    ssize_t
-
-    u1
-    u2
-    u4
-    u8
-    size_t
+from numpy cimport npy_intp as ip
 
 
 @cython.boundscheck(False)
 @cython.wraparound(False)
-cdef void _read_tev(char* filename, integer nsamples, integer[:] fp_locs,
-                    floating[:, :] spikes):
+cdef int read_tev_parallel_impl(char* filename, integral[:, :] grouped,
+                                ip blocksize,
+                                floating[:, :] spikes) nogil except -1:
+
     cdef:
-        ip i, j
-        ip n = fp_locs.shape[0]
+        ip c, b, k, byte, low, high, pos, nchannels, nblocks
 
         size_t f_bytes = sizeof(floating)
-
+        size_t num_bytes = f_bytes * blocksize
         floating* chunk = NULL
-
         FILE* f = NULL
 
+    nchannels = grouped.shape[1]
+    nblocks = grouped.shape[0]
+
     with nogil, parallel():
-        chunk = <floating*> malloc(f_bytes * nsamples)
+        chunk = <floating*> malloc(num_bytes)
 
         if not chunk:
             with gil:
-                raise MemoryError('Out of memory when allocating chunk')
+                raise MemoryError('unable to allocate chunk of size %d bytes'
+                                  % num_bytes)
 
         f = fopen(filename, 'rb')
 
@@ -76,47 +59,45 @@ cdef void _read_tev(char* filename, integer nsamples, integer[:] fp_locs,
             chunk = NULL
 
             with gil:
-                raise IOError('Unable to open file %s' % filename)
+                raise IOError('unable to open file %s' % filename)
 
-        for i in prange(n, schedule='guided'):
-            # go to the ith file pointer location
-            fseek(f, fp_locs[i], SEEK_SET)
+        for c in prange(nchannels, schedule='guided'):
+            for b in range(nblocks):
 
-            # read floating_bytes * nsamples bytes into chunk_data
-            fread(chunk, f_bytes, nsamples, f)
+                pos = grouped[b, c]
 
-            # assign the chunk data to the spikes array
-            for j in xrange(nsamples):
-                spikes[i, j] = chunk[j]
+                if fseek(f, pos, SEEK_SET) == -1:
+                    fclose(f)
+                    free(chunk)
 
-        # get rid of the chunk data
+                    with gil:
+                        raise IOError('could not seek to pos %d in %s'
+                                      % (pos, filename))
+
+                if not fread(chunk, num_bytes, 1, f):
+                    fclose(f)
+                    free(chunk)
+
+                    with gil:
+                        raise IOError('could not read from %s' % filename)
+
+                low = b * blocksize
+                high = (b + 1) * blocksize
+
+                for k, byte in enumerate(range(low, high)):
+                    spikes[byte, c] = chunk[k]
+
         free(chunk)
         chunk = NULL
 
         fclose(f)
         f = NULL
 
+    return 0
 
-@cython.wraparound(False)
+
 @cython.boundscheck(False)
-def read_tev(char* filename, ip nsamples, integer[:] fp_locs not None,
-             floating[:, :] spikes not None):
-    """Read a TDT tev file in. Slightly faster than the pure Python version.
-
-    Parameters
-    ----------
-    filename : char *
-        Name of the TDT file to load.
-
-    nsamples : i8
-        The number of samples per chunk of data.
-
-    fp_locs : i8[:]
-        The array of locations of each chunk in the TEV file.
-
-    spikes : floating[:, :]
-        Output array
-    """
-    assert filename, 'filename (1st argument) cannot be empty'
-    assert nsamples > 0, '"nsamples" must be greater than 0'
-    _read_tev(filename, nsamples, fp_locs, spikes)
+@cython.wraparound(False)
+cpdef int _read_tev_parallel(char* filename, integral[:, :] grouped,
+                             ip blocksize, floating[:, :] spikes) nogil:
+    return read_tev_parallel_impl(filename, grouped, blocksize, spikes)

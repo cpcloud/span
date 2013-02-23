@@ -18,6 +18,7 @@
 # along with this program. If not, see <http://www.gnu.org/licenses/>.
 
 
-import span.tdt
-import span.utils
-import span.xcorr
+from span.tdt import *
+from span.utils import *
+from span.xcorr import *
+from span.stats import *

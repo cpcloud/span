@@ -18,5 +18,6 @@
 # along with this program. If not, see <http://www.gnu.org/licenses/>.
 
 
-from span.xcorr.xcorr import *
-from span.xcorr._mult_mat_xcorr import *
+from span.xcorr.xcorr import xcorr
+
+__all__ = 'xcorr',

@@ -1,0 +1,7 @@
+git+git://github.com/cython/cython.git
+git+git://github.com/numpy/numpy.git
+git+git://github.com/scipy/scipy.git
+git+git://github.com/pydata/pandas.git
+hg+http://bitbucket.org/birkenfeld/sphinx
+numpydoc
+distutils

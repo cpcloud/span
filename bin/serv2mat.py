@@ -57,18 +57,22 @@ def parse_args():
     try:
         _, args = parser.parse_args()
         args = args[0]
-    except ValueError:
+    except (TypeError, ValueError):
         args = parser.parse_args()
     return args
 
 
 def main():
-    dn = parse_args().rstrip(os.sep)
+    dn = parse_args().dirname.rstrip(os.sep)
+
+    if not os.path.exists(dn):
+        raise OSError('%s does NOT exist, make sure you typed the name of '
+                      'the directory correctly' % dn)
     tev, = glob.glob(os.path.join(dn, '*.tev'))
     tev_name, _ = os.path.splitext(tev)
     mat_filename = os.path.join(tev_name + os.extsep + 'mat')
     print '\nConverting TDT Tank to MATLAB: {0}'.format(mat_filename)
-    serv2mat(span.tdt.PandasTank(tev_name).spikes.channels.values,
+    serv2mat(span.tdt.PandasTank(tev_name).spikes.values,
              mat_filename)
     print 'Done!'
 

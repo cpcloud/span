@@ -17,9 +17,10 @@
 # You should have received a copy of the GNU General Public License
 # along with this program. If not, see <http://www.gnu.org/licenses/>.
 
+from span.tdt.spikedataframe import SpikeDataFrame, spike_xcorr
+from span.tdt.spikeglobals import SortedIndexer as Indexer, DataTypes
+from span.tdt.tank import PandasTank
+from span.tdt.recording import distance_map, ElectrodeMap
 
-from span.tdt.spikedataframe import *
-from span.tdt.spikeglobals import *
-from span.tdt.tank import *
-from span.tdt.recording import *
-from span.tdt._read_tev import *
+__all__ = ('SpikeDataFrame', 'spike_xcorr', 'Indexer', 'DataTypes',
+           'PandasTank', 'ElectrodeMap')

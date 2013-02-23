@@ -19,17 +19,81 @@
 # You should have received a copy of the GNU General Public License
 # along with this program. If not, see <http://www.gnu.org/licenses/>.
 
-
-import warnings
-
 import numpy as np
-import pandas as pd
+from pandas import Series, DataFrame
+from six.moves import xrange
 
-from span.utils import (detrend_mean, get_fft_funcs, isvector, nextpow2,
-                        pad_larger)
+from span.utils import get_fft_funcs, isvector, nextpow2
+from span.xcorr._mult_mat_xcorr import _mult_mat_xcorr_parallel
 
-from span.xcorr._mult_mat_xcorr import mult_mat_xcorr
-from nose.tools import set_trace
+
+def _diag_inds_n(n):
+    return (n + 1) * np.arange(n)
+
+
+def _diag_inds(x):
+    m, n = x.shape
+    assert m == n, 'x is not square, diagonal is not defined'
+    return _diag_inds_n(n)
+
+
+def _mult_mat_xcorr_cython_parallel(X, Xc, c, n):
+    """Perform the necessary matrix-vector multiplication and fill the cross-
+    correlation array. Slightly faster than pure Python.
+
+    Parameters
+    ----------
+    X, Xc, c : c16[:, :]
+    n : ip
+
+    Raises
+    ------
+    AssertionError
+       If n <= 0 or nx <= 0
+    """
+    nx = c.shape[1]
+    _mult_mat_xcorr_parallel(X, Xc, c, n, nx)
+
+
+def _mult_mat_xcorr_python(X, Xc, c, n):
+    """Perform the necessary matrix-vector multiplication and fill the cross-
+    correlation array. Slightly slower than cython.
+
+    Parameters
+    ----------
+    X, Xc, c : c16[:, :]
+    n : ip
+
+    Raises
+    ------
+    AssertionError
+       If n <= 0 or nx <= 0
+    """
+    for i in xrange(n):
+        c[i * n:(i + 1) * n] = X[i] * Xc
+
+
+def _mult_mat_xcorr(X, Xc):
+    """Perform the necessary matrix-vector multiplication and fill the cross-
+    correlation array. Slightly faster than pure Python.
+
+    Parameters
+    ----------
+    X, Xc, c : c16[:, :]
+    n : ip
+
+    Raises
+    ------
+    AssertionError
+       If n <= 0 or nx <= 0
+    """
+    assert X is not None, '1st argument "X" must not be None'
+    assert Xc is not None, '2nd argument "Xc" must not be None'
+
+    n, nx = X.shape
+    c = np.empty((n * n, nx), dtype=X.dtype)
+    _mult_mat_xcorr_cython_parallel(X, Xc, c, n)
+    return c
 
 
 def _autocorr(x, nfft):
@@ -96,25 +160,26 @@ def _matrixcorr(x, nfft):
     ifft, fft = get_fft_funcs(x)
     X = fft(x.T, nfft)
     Xc = X.conj()
-    mx, nx = X.shape
-    c = np.empty((mx ** 2, nx), dtype=X.dtype)
-    mult_mat_xcorr(X, Xc, c, n, nx)
+    c = _mult_mat_xcorr(X, Xc)
     return ifft(c, nfft).T
 
 
 def _unbiased(c, x, y, lags, lsize):
-    """Compute the unbiased estimate of `c`.
+    r"""Compute an unbiased estimate of `c`.
 
-    This function returns `c` scaled by number of data points available at
-    each lag.
+    This function returns `c` scaled by the number of data points
+    available at each lag.
 
     Parameters
     ----------
     c : array_like
         The cross correlation array
 
-    x : array_like
-    y : array_like
+    x, y : array_like
+
+    lags : array_like
+        The lags array, e.g., :math:`\left[\ldots, -2, -1, 0, 1, 2,
+        \ldots\right]`
 
     lsize : int
         The size of the largest of the inputs to the cross correlation
@@ -125,28 +190,27 @@ def _unbiased(c, x, y, lags, lsize):
     c : array_like
         The unbiased estimate of the cross correlation.
     """
-    try:
-        index = c.index
-    except AttributeError:
-        index = lags
+    # max number of observations minus observations at each lag
+    d = lsize - np.abs(lags)
 
-    d = lsize - np.abs(index).values
+    # protect divison by zero
+    d[np.logical_not(d)] = 1.0
+
+    # make the denominator repeat over the correct dimension
     denom = np.tile(d[:, np.newaxis], (1, c.shape[1])) if c.ndim == 2 else d
-    denom[denom == 0] = 1
-
     return c / denom
 
 
 def _biased(c, x, y, lags, lsize):
-    """Compute the biased estimate of `c`.
+    """Compute a biased estimate of `c`.
 
     Parameters
     ----------
     c : array_like
-        The cross correlation array
+        The unscaled cross correlation array
 
-    x : array_like
-    y : array_like
+    x, y, lags : array_like
+        Unused; here to keep the API sane
 
     lsize : int
         The size of the largest of the inputs to the cross correlation
@@ -154,8 +218,21 @@ def _biased(c, x, y, lags, lsize):
 
     Returns
     -------
-    c : array_like
+    csc : array_like
         The biased estimate of the cross correlation.
+
+    Notes
+    -----
+    Conceptually, when you choose this scaling procedure you are
+    ignoring the fact that there is a different amount of data at each
+    of the different lags, thus this procedure is called "biased".
+    Only the lag 0 cross-correlation is an unbiased estimate of
+    thecross-correlation function.
+
+    See Also
+    --------
+    span.xcorr.xcorr.unbiased
+    span.xcorr.xcorr.normalize
     """
     return c / lsize
 
@@ -171,6 +248,8 @@ def _normalize(c, x, y, lags, lsize):
     x : array_like
     y : array_like
 
+    lags : array_like
+
     lsize : int
         The size of the largest of the inputs to the cross correlation
         function
@@ -184,34 +263,53 @@ def _normalize(c, x, y, lags, lsize):
     -------
     c : array_like
         The normalized cross correlation.
+
     """
-    assert c.ndim in (1, 2), 'invalid size of cross correlation array'
+    assert c.ndim in (1, 2), ('invalid number of dimensions of cross '
+                              'correlation array, INPUT: %d, EXPECTED: 1 or 2'
+                              ', i.e., vector or matrix' % c.ndim)
 
+    # vector
     if c.ndim == 1:
-        cx00 = np.sum(np.abs(x) ** 2)
-        cy00 = np.sum(np.abs(y) ** 2) if y is not None else cx00
-        cdiv = np.sqrt(cx00 * cy00)
+        # need this for either cross or auto
+        ax2 = np.abs(x)
+        ax2 *= ax2
+        cdiv = np.sum(ax2)
+
+        # y is given so we computed a cross correlation
+        if y is not None:
+            ay2 = np.abs(y)
+            ay2 *= ay2
+            cdiv *= np.sum(ay2)
+            cdiv = np.sqrt(cdiv)
     else:
-        _, nc = c.shape
-        ncsqrt = int(np.sqrt(nc))
-        jkl = np.diag(np.r_[:nc].reshape(ncsqrt, ncsqrt))
+        ## matrix case
 
-        with warnings.catch_warnings():
-            warnings.simplefilter('ignore', category=FutureWarning)
+        # need diagonal elements of array
+        jkl = _diag_inds_n(int(np.sqrt(c.shape[1])))
 
-            try:
-                vals = c.ix[0, jkl]
-            except AttributeError:
-                vals = c[lags.max(), jkl]
+        try:
+            # pandas lag 0 jklth column pair
+            vals = c.ix[0, jkl]
+        except AttributeError:
+            # not pandas so assume it's a numpy array
+            vals = c[lags.max(), jkl]
 
-            tmp = np.sqrt(vals)
-
-        cdiv = np.outer(tmp, tmp).ravel()
+        # scale by lag 0 of each column pair
+        np.sqrt(vals, vals)
+        cdiv = np.outer(vals, vals).ravel()
 
     return c / cdiv
 
 
 def _none(c, x, y, lags, lsize):
+    """Do nothing with the input and return `c`.
+
+    Parameters
+    ----------
+    c, x, y, lags : array_like
+    lsize : int
+    """
     return c
 
 
@@ -224,8 +322,10 @@ _SCALE_FUNCTIONS = {
 }
 
 
-def xcorr(x, y=None, maxlags=None, detrend=detrend_mean,
-          scale_type='normalize'):
+_SCALE_KEYS = tuple(_SCALE_FUNCTIONS.keys())
+
+
+def xcorr(x, y=None, maxlags=None, detrend=None, scale_type=None):
     """Compute the cross correlation of `x` and `y`.
 
     This function computes the cross correlation of `x` and `y`. It uses the
@@ -262,10 +362,13 @@ def xcorr(x, y=None, maxlags=None, detrend=detrend_mean,
     ------
     AssertionError
         * If `y` is not None and `x` is a matrix
-        * If `x` is not a vector when y is None or y is x or all(x == y)
+        * If `x` is not a vector when `y` is None or `y` is `x` or
+          ``all(x == y)``.
         * If `detrend` is not callable
         * If `scale_type` is not a string or ``None``
-        * If `maxlags` is > `lsize`, see source for details.
+        * If `scale_type` is not in ``(None, 'none', 'unbiased', 'biased',
+          'normalize')``
+        * If `maxlags` ``>`` `lsize`, see source for details.
 
     Returns
     -------
@@ -275,9 +378,15 @@ def xcorr(x, y=None, maxlags=None, detrend=detrend_mean,
         and `y` if both `x` and `y` are vectors.
     """
     assert x.ndim in (1, 2), 'x must be a 1D or 2D array'
-    assert callable(detrend), 'detrend must be a callable object'
+    assert callable(detrend) or detrend is None, \
+        'detrend must be a callable object or None'
     assert isinstance(scale_type, basestring) or scale_type is None, \
         '"scale_type" must be a string or None'
+    assert scale_type in _SCALE_KEYS, ('"scale_type" must be one of '
+                                       '{0}'.format(_SCALE_KEYS))
+
+    if detrend is None:
+        detrend = lambda x: x
 
     x = detrend(x)
 
@@ -286,17 +395,20 @@ def xcorr(x, y=None, maxlags=None, detrend=detrend_mean,
         lsize = x.shape[0]
         inputs = x,
         corrfunc = _matrixcorr
-    elif y is None or y is x or np.array_equal(x, y):
+    elif (y is None or y is x or np.array_equal(x, y) or
+          (x.shape == y.shape and np.allclose(x, y))):
         assert isvector(x), 'x must be 1D'
-        lsize = max(x.shape)
+        lsize = x.shape[0]
         inputs = x,
         corrfunc = _autocorr
     else:
-        x, y, lsize = pad_larger(x, detrend(y))
+        lsize = max(x.size, y.size)
+        y = detrend(y)
         inputs = x, y
         corrfunc = _crosscorr
 
-    ctmp = corrfunc(*inputs, nfft=2 ** nextpow2(2 * lsize - 1))
+    nfft = 2 ** nextpow2(2 * lsize - 1)
+    ctmp = corrfunc(*inputs, nfft=nfft)
 
     if maxlags is None:
         maxlags = lsize
@@ -304,12 +416,12 @@ def xcorr(x, y=None, maxlags=None, detrend=detrend_mean,
     assert maxlags <= lsize, ('max lags must be less than or equal to %i'
                               % lsize)
 
-    lags = pd.Int64Index(np.r_[1 - maxlags:maxlags])
+    lags = np.r_[1 - maxlags:maxlags]
 
-    if isinstance(x, pd.Series):
-        return_type = lambda x, index: pd.Series(x, index=index)
-    elif isinstance(x, pd.DataFrame):
-        return_type = lambda x, index: pd.DataFrame(x, index=index)
+    if isinstance(x, Series):
+        return_type = lambda x, index: Series(x, index=index)
+    elif isinstance(x, DataFrame):
+        return_type = lambda x, index: DataFrame(x, index=index)
     elif isinstance(x, np.ndarray):
         return_type = lambda x, index: np.asanyarray(x)
 

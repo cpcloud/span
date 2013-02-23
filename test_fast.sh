@@ -1,3 +1,4 @@
 #!/bin/bash
-
-nosetests -w span -A "not slow" $*
+procs=`nproc`
+nosetests -w span -A "not slow" \
+    --nologcapture --nocapture --processes=$procs $*

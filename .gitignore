@@ -8,3 +8,5 @@ dist/
 /dist/*
 /span/utils/test/test_server.py
 *.cfg
+*.log
+**/cover

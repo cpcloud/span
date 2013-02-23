@@ -24,6 +24,7 @@ from functools import partial
 
 import numpy as np
 import pandas as pd
+from six.moves import zip
 
 from span.tdt.recording import distance_map
 
@@ -40,33 +41,34 @@ NSides = NShanks * 2
 ShankMap = pd.Series(np.outer(np.arange(NShanks),
                               np.ones(NShanks)).astype(int).ravel(),
                      name='Shank Map')
-MedLatRaw = np.array(('lat', 'med'))[np.hstack((np.zeros(NSides, int),
-                                                np.ones(NSides, int)))]
-MedialLateral = pd.Series(MedLatRaw, name='Side Map')
-Indexer = pd.DataFrame(dict(zip(('channel', 'shank', 'side'),
-                                (ElectrodeMap, ShankMap, MedialLateral))))
+Indexer = pd.DataFrame(dict(zip(('channel', 'shank'),
+                                (ElectrodeMap, ShankMap))))
 
 SortedIndexer = Indexer.sort('channel').reset_index(drop=True)
 ChannelIndex = pd.MultiIndex.from_arrays((SortedIndexer.channel,
-                                          SortedIndexer.shank,
-                                          SortedIndexer.side))
+                                          SortedIndexer.shank))
 
 EventTypes = pd.Series({
     0x0: 'unknown',
     0x101: 'strobe_on',
     0x102: 'strobe_off',
-    0x201: 'scaler',
+    0x201: 'scalar',
     0x8101: 'stream',
     0x8201: 'snip',
-    0x8801: 'mark'
+    0x8801: 'mark',
+    0x8000: 'hasdata'
 }, name='TDT Event Types')
 
 DistanceMap = partial(distance_map, NShanks, ElectrodesPerShank)
+
+
+def _dtype_mapper(raw, attr='name'):
+    return getattr(np.dtype(raw), attr)
 
 DataTypes = pd.Series({
     0: np.float32,
     1: np.int32,
     2: np.int16,
     3: np.int8,
-    4: np.float64
-}, name='TDT Data Types')
+    4: np.float64,
+}, name='TDT Data Types').map(_dtype_mapper)

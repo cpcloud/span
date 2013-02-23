@@ -22,84 +22,22 @@
 
 """A collection of utility functions."""
 
-from future_builtins import map, zip
-
 import os
 import operator
-import itertools as itools
+import itertools
 import functools
 import numbers
 
 import numpy as np
-import pandas as pd
+from numpy.fft import fft, ifft, rfft, irfft
 
-from pandas import DataFrame, datetime, MultiIndex
+from pandas import datetime
+from six.moves import map
+
+from span.utils._clear_refrac import _clear_refrac as _clear_refrac_cython
 
 
 fromtimestamp = np.vectorize(datetime.fromtimestamp)
-
-try:
-    from pylab import gca
-
-    def remove_legend(ax=None):
-        """Remove legend for ax or the current axes if ax is None.
-
-        Parameters
-        ----------
-        ax : matplotlib.axes.Axes
-            Axis whose legend will be hidden
-        """
-        if ax is None:
-            ax = gca() # pragma: no cover
-        ax.legend_ = None
-
-except RuntimeError:  # pragma: no cover
-    def remove_legend(ax=None):
-        raise NotImplementedError('matplotlib not available on this system')
-
-
-def cast(a, dtype, copy=False):
-    """Cast `a` to dtype `dtype`.
-
-    Attempt to cast `a` to a different dtype `dtype` without copying.
-
-    Parameters
-    ----------
-    a : array_like
-        The array to cast.
-
-    dtype : numpy.dtype
-        The dtype to cast the input array to.
-
-    copy : bool, optional
-        Whether to copy the data given the previous arguments.
-
-    Raises
-    ------
-    AssertionError
-
-    Returns
-    -------
-    r : array_like
-        The array `a` casted to type dtype
-
-    See Also
-    --------
-    numpy.ndarray.astype
-    """
-    assert hasattr(a, 'dtype'), ('argument "a" of type {0} has no "dtype" '
-                                 'attribute'.format(a.__class__))
-    assert hasattr(a, 'astype'), ('argument "a" of type {0} has no "astype" '
-                                 'method'.format(a.__class__))
-
-    if a.dtype == dtype:
-        return a
-
-    try:
-        r = a.astype(dtype, casting='safe', subok=True, copy=copy)
-    except TypeError:
-        r = a.astype(dtype)
-    return r
 
 
 def ndtuples(*dims):
@@ -130,7 +68,8 @@ def ndtuples(*dims):
     assert dims, 'no arguments given'
     assert all(map(lambda x: isinstance(x, (numbers.Integral)), dims)), \
         'all arguments must be integers'
-    assert all(map(lambda x: x > 0, dims)), 'all arguments must be greater than 0'
+    assert all(map(lambda x: x > 0, dims)), \
+        'all arguments must be greater than 0'
 
     dims = list(dims)
     n = dims.pop()
@@ -144,54 +83,6 @@ def ndtuples(*dims):
         n *= d
 
     return cur.squeeze()
-
-
-def nans(shape):
-    """Create an array of NaNs.
-
-    Parameters
-    ----------
-    shape : tuple
-        The shape tuple of the array of NaNs to create.
-
-    Returns
-    -------
-    a : array_like
-    """
-    a = np.empty(shape, dtype=float)
-    a.fill(np.nan)
-    return a
-
-
-def nans_like(a):
-    """Returns an array of nans in the shape of `x` while preserving `a`'s
-    type.
-
-    This function also attempts to preserve the index and columns of a
-    DataFrame or Series.
-
-    Parameters
-    ----------
-    a : array_like
-        Array whose shape will be used to create an array of nans
-
-    Returns
-    -------
-    r : array_like
-        A view of an array `a` of shape `a.shape` with type `type(a)`.
-    """
-    ns = nans(a.shape)
-
-    if isinstance(a, pd.Series):
-        r = pd.Series(ns, index=a.index)
-    elif isinstance(a, pd.DataFrame):
-        r = pd.DataFrame(ns, index=a.index, columns=a.columns)
-    elif isinstance(a, pd.Panel):
-        r = pd.Panel(ns, items=a.items, major_axis=a.major_axis,
-                     minor_axis=a.minor_axis)
-    else:
-        r = ns.view(type=type(a))
-    return r
 
 
 def name2num(name, base=256):
@@ -214,102 +105,6 @@ def name2num(name, base=256):
     return (base ** np.r_[:len(name)]).dot(tuple(map(ord, name)))
 
 
-# TODO: this is very slow
-def num2name(num, base=256, slen=4):
-    """Inverse of `name2num`.
-
-    Parameters
-    ----------
-    num : int
-        The number to convert to a valid string.
-
-    base : int, optional
-        The base to use for conversion.
-
-    slen : int, optional
-        The allowable length of the word.
-
-    Returns
-    -------
-    ret : str
-        The string associated with `num`.
-    """
-    import string
-    letters = string.ascii_letters
-    x = pd.Series(dict(zip(letters, map(ord, letters))))
-    base_vec = base ** np.r_[:slen]
-    xad = x[ndtuples(*itools.repeat(len(letters), slen))] * base_vec
-    w = xad[xad.sum(1) == num].squeeze() / base_vec
-    return ''.join(map(chr, w))
-
-
-def pad_larger2(x, y):
-    """Pad the larger of two arrays and the return the arrays and the size of
-    the larger array.
-
-    Parameters
-    ----------
-    x, y : array_like
-
-    Returns
-    -------
-    x, y : array_like
-    lsize : int
-        The size of the larger of `x` and `y`.
-    """
-    xsize, ysize = x.size, y.size
-    lsize = max(xsize, ysize)
-    if xsize != ysize:
-        size_diff = lsize - min(xsize, ysize)
-
-        def _pad_func(a):
-            return np.pad(a, (0, size_diff), mode='constant',
-                          constant_values=(0,))
-
-        if xsize > ysize:
-            y = _pad_func(y)
-        else:
-            x = _pad_func(x)
-
-    return x, y, lsize
-
-
-def pad_larger(*arrays):
-    """Pad the smallest of `n` arrays.
-
-    Parameters
-    ----------
-    arrays : tuple of array_like
-
-    Raises
-    ------
-    AssertionError
-
-    Returns
-    -------
-    ret : tuple
-        Tuple of zero padded arrays.
-    """
-    assert all(map(isinstance, arrays, itools.repeat(np.ndarray))), \
-        ("all arguments must be instances of ndarray or implement the ndarray"
-         " interface")
-    if len(arrays) == 2:
-        return pad_larger2(*arrays)
-
-    sizes = np.fromiter(map(operator.attrgetter('size'), arrays), int)
-    lsize = sizes.max()
-
-    ret = []
-
-    for array, size in zip(arrays, sizes):
-        size_diff = lsize - size
-        ret.append(np.pad(array, (0, size_diff), 'constant',
-                          constant_values=(0,)))
-    ret.append(lsize)
-
-    return ret
-
-
 def iscomplex(x):
     """Test whether `x` is any type of complex array.
 
@@ -326,27 +121,7 @@ def iscomplex(x):
         return np.issubdtype(x.dtype, np.complexfloating)
     except AttributeError:
         cfloat = np.complexfloating
-        return any(map(np.issubdtype, x.dtypes, itools.repeat(cfloat)))
-
-
-def hascomplex(x):
-    """Check whether an array has all complex entries.
-
-    Parameters
-    ----------
-    x : array_like
-
-    Returns
-    -------
-    r : bool
-        Whether xs dtype is complex and not all of the elements are el + 0j
-    """
-    try:
-        v = x.imag
-    except AttributeError:
-        v = x.values.imag
-
-    return iscomplex(x) and not np.logical_not(v).all()
+        return any(map(np.issubdtype, x.dtypes, itertools.repeat(cfloat)))
 
 
 def get_fft_funcs(*arrays):
@@ -362,11 +137,7 @@ def get_fft_funcs(*arrays):
     r : tuple of callables
         The fft and ifft appropriate for the dtype of input.
     """
-    r = np.fft.irfft, np.fft.rfft
-    arecomplex = functools.partial(map, iscomplex)
-    if any(arecomplex(arrays)):
-        r = np.fft.ifft, np.fft.fft
-    return r
+    return (ifft, fft) if any(map(iscomplex, arrays)) else (irfft, rfft)
 
 
 def isvector(x):
@@ -384,58 +155,46 @@ def isvector(x):
     -------
     b : bool
     """
-    return functools.reduce(operator.mul, x.shape) == max(x.shape)
-
-
-def mi2df(mi):
-    """Return a `pandas <http://pandas.pydata.org>`_
-    `MultiIndex <http://pandas.pydata.org/pandas-docs/dev/indexing.html#hierarchical-indexing-multiindex>`_
-    as a `DataFrame <http://pandas.pydata.org/pandas-docs/dev/dsintro.html#dataframe>`_.
-
-    Parameters
-    ----------
-    mi : `MultiIndex <http://pandas.pydata.org/pandas-docs/dev/indexing.html#hierarchical-indexing-multiindex>`_
-
-    Returns
-    -------
-    df : `DataFrame <http://pandas.pydata.org/pandas-docs/dev/dsintro.html#dataframe>`_
-    """
-    assert isinstance(mi, MultiIndex), \
-        'conversion not implemented for simple indices'
-
-    def _type_converter(x):
-        if not isinstance(x, basestring):
-            return type(x)
-
-        return 'S%i' % len(x)
-
-    v = mi.values  # raw object array
-    n = mi.names
-    t = list(map(_type_converter, v[0]))  # strings are empty without this call
-    dt = np.dtype(list(zip(n, t)))
-    r = v.astype(dt)  # recarray
-    return DataFrame(r)  # df handles recarrays very nicely
-
-
-def nonzero_existing_file(f):
-    """Return whether a file exists and is not size 0.
-
-    Parameters
-    ----------
-    f : str
-
-    Returns
-    -------
-    nef : bool
-
-    Notes
-    -----
-    This doesn't perform as expected for temporary files. It returns False
-    on ``os.path.getsize(f) > 0`` even if the file has just been written to.
-    """
-    return os.path.exists(f) and os.path.isfile(f) and os.path.getsize(f) > 0
+    try:
+        newx = np.asanyarray(x)
+        return functools.reduce(operator.mul, newx.shape) == max(newx.shape)
+    except:
+        return False
 
 
 def assert_nonzero_existing_file(f):
-    assert nonzero_existing_file(f), ("%s does not exist or has a size of 0 "
-                                      "bytes" % f)
+    assert os.path.exists(f), '%s does not exist'
+    assert os.path.isfile(f), '%s is not a file'
+    assert os.path.getsize(f) > 0, \
+        '%s exists and is a file, but it has a size of 0'
+
+
+def clear_refrac(a, window):
+    """Clear the refractory period of a boolean array.
+
+    Parameters
+    ----------
+    a : array_like
+    window : npy_intp
+
+    Notes
+    -----
+    If ``a.dtype == np.bool_`` in Python then this function will not work
+    unless ``a.view(uint8)`` is passed.
+
+    Raises
+    ------
+    AssertionError
+    If `window` is less than or equal to 0
+    """
+    assert isinstance(a, np.ndarray), 'a must be a numpy array'
+    assert isinstance(window, (numbers.Integral, np.integer)), \
+        '"window" must be an integer'
+    assert window > 0, '"window" must be greater than 0'
+    _clear_refrac_cython(a.view(np.uint8), window)
+
+
+def ispower2(x):
+    b = np.log2(x)
+    e, m = np.modf(b)
+    return 0 if e else m

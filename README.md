@@ -7,4 +7,4 @@ is a Python module for
 
 Documentation
 -------------
-Full documentation is available [here](http://cpcloud.github.com/span).
+Full documentation is available [here](http://span.rtfd.org).

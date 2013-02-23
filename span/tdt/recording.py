@@ -20,19 +20,18 @@
 # along with this program. If not, see <http://www.gnu.org/licenses/>.
 
 
-"""Module for meta data about the recording."""
+"""
+``recording.py`` is a module for encapsulating information about the
+electrode array(s) used in an experiment.
+"""
 
-from future_builtins import map, zip
+from six.moves import zip, map
 
 import numbers
-import ConfigParser
-import re
-import string
-
-from operator import attrgetter
+import operator
 
 import numpy as np
-from pandas import Series, DataFrame, MultiIndex
+from pandas import DataFrame,  MultiIndex
 
 from span.utils import ndtuples, compose
 from scipy.spatial.distance import squareform, pdist
@@ -46,7 +45,7 @@ def distance_map(nshanks, electrodes_per_shank, within_shank, between_shank,
     ----------
     nshanks, electrodes_per_shank : int
 
-    between_shank, within_shank : float
+    within_shank, between_shank : float
 
     metric : str or callable, optional
         The distance measure to use to compute the distance between electrodes.
@@ -79,6 +78,10 @@ def distance_map(nshanks, electrodes_per_shank, within_shank, between_shank,
         '"p" must be a positive real number'
 
     locs = ndtuples(electrodes_per_shank, nshanks)
+
+    if locs.ndim == 1:
+        locs = locs[:, np.newaxis]
+
     w = np.asanyarray((between_shank, within_shank), dtype=float)
 
     return squareform(pdist(locs, metric=metric, p=p, w=w))
@@ -114,14 +117,6 @@ class ElectrodeMap2D(DataFrame):
     map_ : array_like
         The electrode configuration. Can have an arbitrary integer base.
 
-    order : None or str, optional
-        If there is a topography to the are that was recorded from, indicate
-        here by "lm". Defaults to None.
-
-    base_index : int, optional
-        The number to start the channel indexing from. Defaults to 0 for ease
-        of use in Python.
-
     Attributes
     ----------
     nshanks : int
@@ -131,8 +126,6 @@ class ElectrodeMap2D(DataFrame):
         Number of channels.
     """
     def __init__(self, map_):
-        super(ElectrodeMap, self).__init__()
-
         map_ = np.atleast_1d(np.asanyarray(map_).squeeze())
 
         try:
@@ -144,19 +137,20 @@ class ElectrodeMap2D(DataFrame):
 
         data = {'channel': map_.ravel(), 'shank': s}
         df = DataFrame(data).sort('shank').reset_index(drop=True)
-        index = df.pop('channel')
-        self.map = Series(df.values.squeeze(), index=index, name='shank')
+        df.index = df.pop('shank')
+
+        super(ElectrodeMap, self).__init__(df.sort())
 
     @property
     def nshanks(self):
-        return self.map.nunique()
+        return self.index.unique().size
 
     @property
     def nchans(self):
-        return self.map.index.nunique()
+        return self.channel.unique().size
 
     def distance_map(self, within, between, metric='wminkowski', p=2.0):
-        """Create a distance map from the current electrode configuration.
+        r"""Create a distance map from the current electrode configuration.
 
         This method performs some type checking on its arguments.
 
@@ -168,24 +162,36 @@ class ElectrodeMap2D(DataFrame):
 
         metric : str or callable, optional
             Metric to use to calculate the distance between electrodes/shanks.
+            Defaults to a weighted Minkowski distance
 
         p : numbers.Real, optional
-            The :math:`p` of the norm to use. Defaults to 2 for weighted
+            The :math:`p` of the norm to use. Defaults to 2.0 for weighted
             Euclidean distance.
+
+        Notes
+        -----
+        The default `metric` of ``'wminkowski'`` and the default `p` of ``2.0``
+        combine to give a weighted Euclidean distance metric. The weighted
+        Minkowski distance between two points
+        :math:`\mathbf{x},\mathbf{y}\in\mathbb{R}^{n}`, and a weight vector
+        :math:`\mathbf{w}\in\mathbb{R}^{n}` is given by
+
+            .. math::
+               \left(\sum_{i=1}^{n}w_i\left|x_i-y_i\right|^{p}\right)^{1/p}
 
         Raises
         ------
         AssertionError
             * If `within` is not an instance of ``numbers.Real``
             * If `between` is not an instance of ``numbers.Real``
-            * If `p` is not an instance of ``numbers.Real`` and greater than 0
-            * If `metric` is not a string or a callable
+            * If `p` is not an instance of ``numbers.Real``
+            * If metric is not an instance of ``basestring`` or a callable
 
         Returns
         -------
         df : DataFrame
             A dataframe with pairwise distances between electrodes, indexed by
-            channel, shank, and side (if ordered).
+            channel, shank.
         """
         assert isinstance(within, numbers.Real) and within > 0, \
             '"within" must be a positive real number'
@@ -196,31 +202,29 @@ class ElectrodeMap2D(DataFrame):
         assert isinstance(p, numbers.Real) and p > 0, \
             'p must be a real number greater than 0'
 
-        dm = distance_map(self.nshanks, self.nshanks, within, between,
-                          metric=metric, p=p)
-        # s = self.sort()
-        # cols = s.index, s.shank
+        dm = distance_map(self.nshanks, self.nchans / self.nshanks, within,
+                          between, metric=metric, p=p)
+        s = self.sort()
+        cols = s.index, s.channel
 
-        # values_getter = operator.attrgetter('values')
-        # cols = tuple(map(values_getter, cols))
-        # names = 'channel', 'shank'
-
-        # def _label_maker(i, names):
-        #     new_names = tuple(map(lambda x: x + ' %s' % i, names))
-        #     return MultiIndex.from_arrays(cols, names=new_names)
+        values_getter = operator.attrgetter('values')
+        cols = tuple(map(values_getter, cols))
+        names = 'shank', 'channel'
 
         # index = _label_maker('i', names)
         # columns = _label_maker('j', names)
         # df = DataFrame(dm, index=index, columns=columns)
 
-        # nnames = len(names)
-        # ninds = len(index)
-        # nlevels = nnames * ninds
+        columns = _label_maker('i', names)
+        index = _label_maker('j', names)
+        df = DataFrame(dm, index=index, columns=columns)
 
-        # zipped = zip(xrange(nnames), xrange(nnames, nlevels))
-        # reordering = tuple(reduce(operator.add, zipped))
+        nnames = len(names)
+        ninds = len(index)
+        nlevels = nnames * ninds
 
-        # s = df.stack(0)
+        zipped = zip(xrange(nnames), xrange(nnames, nlevels))
+        reordering = tuple(reduce(operator.add, zipped))
 
         # for _ in xrange(nnames - 1):
         #     s = s.stack(0)
@@ -230,45 +234,5 @@ class ElectrodeMap2D(DataFrame):
         # return s.reorder_levels(reordering)
         return dm
 
-    def __repr__(self):
-        return repr(self.map)
-
-
-def parse_electrode_config(filename, sep=','):
-    cfg = ConfigParser.SafeConfigParser()
-
-    with open(filename, 'rt') as f:
-        cfg.readfp(f)
-
-    assert cfg.has_section('shanks'), \
-        'configuration file has no "shanks" section'
-
-    d = dict(cfg.items('shanks'))
-
-    keys, values = zip(*d.items())
-
-    list_to_array = compose(np.asanyarray, list)
-    mapf = compose(list_to_array, map)
-
-    keys = mapf(int, keys)
-    keys -= keys.min()
-
-    pat = re.compile(r'\s{2,}')
-    punct_sans_pairs = ''.join(set(string.punctuation) - set('()[]{}'))
-
-    if sep in string.whitespace:
-        def str_list_to_int_array(x):
-            s = pat.sub(' ', x)
-            s = re.sub(string.punctuation, '', s)
-            return mapf(int, s.strip().split(sep))
-    elif sep in punct_sans_pairs:
-        def str_list_to_int_array(x):
-            return mapf(int, pat.sub('', x).split(sep))
-    else:
-        raise ValueError('%s is not a valid separator' % sep)
-
-    values = mapf(str_list_to_int_array, values)
-    values -= values.min()
-    df = DataFrame(values.T, columns=keys).sort_index(axis=1)
-
-    return df.values.T
+        return s.reorder_levels(reordering)
+        # return df
