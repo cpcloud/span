@@ -49,26 +49,6 @@ from span.utils import (name2num, thunkify, cached_property, fromtimestamp,
                         assert_nonzero_existing_file, ispower2)
 
 
-def _get_first_match(pattern, string):
-    """Helper function for getting the first match of a pattern within a
-    string.
-
-    Parameters
-    ----------
-    pattern, string : str
-
-    Returns
-    -------
-    rgrp1 : str
-    """
-    try:
-        r = pattern.match(string)
-    except AttributeError:
-        r = re.match(pattern, string)
-
-    return r.group(1)
-
-
 def _cython_read_tev_parallel(filename, grouped, block_size, spikes):
     """Read a TDT tev file into a numpy array. Slightly faster than
     the pure Python version.
@@ -125,42 +105,6 @@ def _read_tev(filename, grouped, block_size, spikes):
         "spikes's dtype must be a subdtype of floating'"
 
     _cython_read_tev_parallel(filename, grouped, block_size, spikes)
-
-
-def _match_int(pattern, string, get_exc=False, excs=(AttributeError,
-                                                     ValueError, TypeError)):
-    """Convert a string matched from a regex to an integer or return None.
-
-    Parameters
-    ----------
-    pattern : str or compiled regex
-        Regular expression to use to match elements of `string`
-
-    string : str
-        The string to match
-
-    get_exc : bool, optional, default False
-        Whether to return the exceptions caught
-
-    excs : tuple of Exceptions, optional, default (AttributeError, ValueError,
-                                                     TypeError)
-        The exceptions to catch when trying to match an integer in the regular
-        expression `pattern`
-
-    Returns
-    -------
-    r : {int, None, tuple of int, tuple of None and Exception}
-    """
-    try:
-        r = int(_get_first_match(pattern, string))
-        e = None
-    except excs as e:
-        r = None
-
-    if get_exc:
-        r = r, e
-
-    return r
 
 
 class TdtTankAbstractBase(object):
@@ -319,17 +263,29 @@ class TdtTankBase(TdtTankAbstractBase):
 
         self.path = path
         self.name = os.path.basename(path)
-        self.age = _match_int(self._age_re, self.name)
-        self.site = _match_int(self._site_re, self.name)
+
+        try:
+            self.age = self._age_re.search(self.name)
+        except:
+            self.age = None
+
+        try:
+            self.site = self._site_re.search(self.name)
+        except:
+            self.site = None
+
         istart = self.stsq.timestamp.index[0]
         iend = self.stsq.timestamp.index[-1]
         tstart = pd.datetime.fromtimestamp(self.stsq.timestamp[istart])
+
         self.__datetime = pd.Timestamp(tstart)
         self.time = self.__datetime.time()
         self.date = self.__datetime.date()
         self.fs = self.stsq.reset_index(drop=True).fs[0]
         self.start = self.__datetime
+
         tend = pd.datetime.fromtimestamp(self.stsq.timestamp[iend])
+
         self.end = pd.Timestamp(tend)
         self.duration = np.timedelta64(self.end - self.start)
 

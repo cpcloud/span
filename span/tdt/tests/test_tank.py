@@ -67,50 +67,6 @@ class TestReadTev(object):
             yield self._reader_builder, reader
 
 
-class TestGetFirstMatch(unittest.TestCase):
-    def test_get_first_match_succeed(self):
-        pattern = r'(\d).*'
-        string = r'1, 2, 3'
-        fm = _get_first_match(pattern, string)
-        self.assert_(fm)
-
-    def test_get_first_match_fail(self):
-        pattern = r'(\d).*'
-        string = r'asdf'
-        self.assertRaises(AttributeError, _get_first_match, pattern, string)
-
-
-class TestMatchInt(unittest.TestCase):
-    def test_match_int_succeed(self):
-        pattern = r'(\d).*'
-        string = r'1, 2, 3'
-        r = _match_int(pattern, string)
-        self.assertIsInstance(r, int)
-
-    def test_match_int_succeed_and_exceptions(self):
-        pattern = r'(\d).*'
-        string = r'1, 2, 3'
-        r = _match_int(pattern, string)
-        self.assertIsInstance(r, int)
-
-        r, e = _match_int(pattern, string, get_exc=True)
-        self.assertIsInstance(r, int)
-        self.assertIsNone(e)
-
-    def test_match_int_fail_none(self):
-        pattern = r'(\d).*'
-        string = r'asdf'
-        r = _match_int(pattern, string)
-        self.assertIsNone(r)
-
-    def test_match_int_fail_none_and_exceptions(self):
-        pattern = r'(\d).*'
-        string = r'asdf'
-        r, e = _match_int(pattern, string, get_exc=True)
-        self.assertIsNone(r)
-        self.assertIsInstance(e, Exception)
-
-
 class TestTdtTankBase(unittest.TestCase):
     def test_init(self):
         self.assertRaises(TypeError, TdtTankBase, pd.util.testing.rands(10))
