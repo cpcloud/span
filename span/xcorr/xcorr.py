@@ -19,11 +19,15 @@
 # You should have received a copy of the GNU General Public License
 # along with this program. If not, see <http://www.gnu.org/licenses/>.
 
+import itertools
+import string
+
 import numpy as np
-from pandas import Series, DataFrame
+from pandas import Series, DataFrame, MultiIndex, DatetimeIndex
 from six.moves import xrange
 
-from span.utils import get_fft_funcs, isvector, nextpow2
+
+from span.utils import get_fft_funcs, isvector, nextpow2, compose
 from span.xcorr._mult_mat_xcorr import _mult_mat_xcorr_parallel
 
 
@@ -269,31 +273,24 @@ def _normalize(c, x, y, lags, lsize):
                               'correlation array, INPUT: %d, EXPECTED: 1 or 2'
                               ', i.e., vector or matrix' % c.ndim)
 
+    def _sumsqr(x):
+        ax = np.abs(x)
+        ax *= ax
+        return ax.sum()
+
     # vector
     if c.ndim == 1:
         # need this for either cross or auto
-        ax2 = np.abs(x)
-        ax2 *= ax2
-        cdiv = np.sum(ax2)
+        cdiv = _sumsqr(x)
 
         # y is given so we computed a cross correlation
         if y is not None:
-            ay2 = np.abs(y)
-            ay2 *= ay2
-            cdiv *= np.sum(ay2)
+            cdiv *= _sumsqr(y)
             cdiv = np.sqrt(cdiv)
-    else:
-        ## matrix case
 
-        # need diagonal elements of array
-        jkl = _diag_inds_n(int(np.sqrt(c.shape[1])))
-
-        try:
-            # pandas lag 0 jklth column pair
-            vals = c.ix[0, jkl]
-        except AttributeError:
-            # not pandas so assume it's a numpy array
-            vals = c[lags.max(), jkl]
+    else:  # matrix case
+        # locations of lag 0 in a flat arrangement
+        vals = c[lags.max(), _diag_inds_n(int(np.sqrt(c.shape[1])))]
 
         # scale by lag 0 of each column pair
         np.sqrt(vals, vals)
@@ -330,10 +327,10 @@ def xcorr(x, y=None, maxlags=None, detrend=None, scale_type=None):
 
     This function computes the cross correlation of `x` and `y`. It uses the
     equivalence of the cross correlation with the negative convolution computed
-    using a FFT to achieve must faster cross correlation than is possible with
+    using a FFT to achieve much faster cross correlation than is possible with
     the signal processing definition.
 
-    By default it computes the normalized cross correlation.
+    By default it computes the unnormalized cross correlation.
 
     Parameters
     ----------
@@ -416,14 +413,76 @@ def xcorr(x, y=None, maxlags=None, detrend=None, scale_type=None):
     assert maxlags <= lsize, ('max lags must be less than or equal to %i'
                               % lsize)
 
-    lags = np.r_[1 - maxlags:maxlags]
+    if isinstance(x, (Series, DataFrame)):
+        stack = np.hstack((x.index[maxlags - 1::-1], x.index[1:maxlags]))
+        index = DatetimeIndex(stack)
 
-    if isinstance(x, Series):
-        return_type = lambda x, index: Series(x, index=index)
-    elif isinstance(x, DataFrame):
-        return_type = lambda x, index: DataFrame(x, index=index)
+        if isinstance(x, Series):
+            return_type = lambda y: Series(y, index)
+        elif isinstance(x, DataFrame):
+            columns = _create_xcorr_inds(x.columns)
+            return_type = lambda y: DataFrame(y, index, columns)
     elif isinstance(x, np.ndarray):
-        return_type = lambda x, index: np.asanyarray(x)
+        return_type = lambda x: np.asanyarray(x)
 
-    sc_func = _SCALE_FUNCTIONS[scale_type]
-    return sc_func(return_type(ctmp[lags], index=lags), x, y, lags, lsize)
+    scale_function = _SCALE_FUNCTIONS[scale_type]
+    ret_func = compose(return_type, scale_function)
+    lags = np.r_[1 - maxlags:maxlags]
+    return ret_func(ctmp.take(lags, axis=0), x, y, lags, lsize)
+
+
+# TODO: hack to make it so nans are allowed when creating indices
+def _create_xcorr_inds(columns, index_start_string='i'):
+    """Create an appropriate index for cross correlation.
+
+    Parameters
+    ----------
+    columns : MultiIndex
+    index_start_string : basestring
+
+    Returns
+    -------
+    mi : MultiIndex
+
+    Notes
+    -----
+    I'm not sure if this is actually slick, or just insane seems like
+    functional idioms are so concise as to be confusing sometimes,
+    although maybe I'm just slow.
+
+    This absolutely does not handle the case where there are more than
+    52 levels in the index, because i haven't had a chance to think
+    about it yet..
+    """
+    colnames = columns.names
+
+    # get the index of the starting index string provided
+    letters = string.ascii_letters
+    first_ind = letters.index(index_start_string)
+
+    # repeat endlessly
+    cycle_letters = itertools.cycle(letters)
+
+    # slice from the index of the first letter to that plus the number
+    # of names
+    sliced = itertools.islice(cycle_letters, first_ind, first_ind +
+                              len(colnames))
+
+    # alternate names and index letter
+    srt = sorted(itertools.product(colnames, sliced), key=lambda x: x[-1])
+    names = itertools.imap(' '.join, srt)
+
+    # number of columns
+    ncols = len(columns)
+
+    # number levels
+    nlevels = len(columns.levels)
+
+    # {0, ..., ncols - 1} ^ nlevels
+    xrs = itertools.product(*itertools.repeat(xrange(ncols), nlevels))
+
+    all_inds = tuple(tuple(itertools.chain.from_iterable(columns[i]
+                                                         for i in inds))
+                     for inds in xrs)
+
+    return MultiIndex.from_tuples(all_inds, names=list(names))
