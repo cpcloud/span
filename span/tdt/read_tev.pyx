@@ -29,7 +29,7 @@ from numpy cimport npy_intp as ip
 
 @cython.boundscheck(False)
 @cython.wraparound(False)
-cdef int read_tev_parallel_impl(char* filename, integral[:, :] grouped,
+cdef int read_tev_parallel_impl(const char* filename, integral[:, :] grouped,
                                 ip blocksize,
                                 floating[:, :] spikes) nogil except -1:
 
@@ -98,6 +98,7 @@ cdef int read_tev_parallel_impl(char* filename, integral[:, :] grouped,
 
 @cython.boundscheck(False)
 @cython.wraparound(False)
-cpdef int _read_tev_parallel(char* filename, integral[:, :] grouped,
-                             ip blocksize, floating[:, :] spikes) nogil:
+cpdef int _read_tev_parallel(const char* filename, integral[:, :] grouped,
+                             ip blocksize,
+                             floating[:, :] spikes) nogil except -1:
     return read_tev_parallel_impl(filename, grouped, blocksize, spikes)
