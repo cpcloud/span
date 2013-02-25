@@ -66,5 +66,5 @@ cdef int clear_refrac_impl(integral[:, :] a, ip window) nogil except -1:
 
 @cython.wraparound(False)
 @cython.boundscheck(False)
-cpdef int _clear_refrac(integral[:, :] a, ip window) nogil:
+cpdef int _clear_refrac(integral[:, :] a, ip window) nogil except -1:
     return clear_refrac_impl(a, window)
