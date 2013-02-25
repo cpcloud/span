@@ -412,22 +412,19 @@ def xcorr(x, y=None, maxlags=None, detrend=None, scale_type=None):
 
     assert maxlags <= lsize, ('max lags must be less than or equal to %i'
                               % lsize)
+    lags = np.r_[1 - maxlags:maxlags]
 
-    if isinstance(x, (Series, DataFrame)):
-        stack = np.hstack((x.index[maxlags - 1::-1], x.index[1:maxlags]))
-        index = DatetimeIndex(stack)
-
-        if isinstance(x, Series):
-            return_type = lambda y: Series(y, index)
-        elif isinstance(x, DataFrame):
-            columns = _create_xcorr_inds(x.columns)
-            return_type = lambda y: DataFrame(y, index, columns)
+    if isinstance(x, Series):
+        return_type = lambda y: Series(y, lags)
+    elif isinstance(x, DataFrame):
+        columns = _create_xcorr_inds(x.columns)
+        return_type = lambda y: DataFrame(y, lags, columns)
     elif isinstance(x, np.ndarray):
         return_type = lambda x: np.asanyarray(x)
 
     scale_function = _SCALE_FUNCTIONS[scale_type]
     ret_func = compose(return_type, scale_function)
-    lags = np.r_[1 - maxlags:maxlags]
+
     return ret_func(ctmp.take(lags, axis=0), x, y, lags, lsize)
 
 
