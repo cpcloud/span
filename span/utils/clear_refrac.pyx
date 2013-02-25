@@ -19,7 +19,6 @@
 
 
 cimport cython
-from cython.parallel cimport prange, parallel
 from numpy cimport (npy_intp as ip, uint8_t as u1, uint16_t as u2,
                     uint32_t as u4, uint64_t as u8, int8_t as i1,
                     int16_t as i2, int32_t as i4, int64_t as i8)
@@ -58,7 +57,7 @@ cdef int clear_refrac_impl(integral[:, :] a, ip window) nogil except -1:
 
                 if a[sample, channel]:
                     sp1 = sample + 1
-                    a[sp1:sp1 + window, channel] = 0
+                    a[sp1:sp1 + window, channel] = False
                     sample += window
 
                 sample += 1
