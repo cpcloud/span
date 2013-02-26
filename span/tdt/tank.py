@@ -180,12 +180,10 @@ class TdtTankAbstractBase(object):
         tsq.channel = tsq.channel.astype(int)
         tsq.shank = tsq.shank.astype(int)
 
-        return tsq, row
+        return tsq, row.argmax()
 
     def tsq(self, event_name):
-        getter = self._read_tsq(event_name)
-        d, row = getter()
-        return d, row
+        return self._read_tsq(event_name)()
 
     @cached_property
     def stsq(self):
@@ -351,14 +349,11 @@ class PandasTank(TdtTankBase):
         """
         from span.tdt.spikeglobals import ChannelIndex as columns
 
-        meta, row = self.tsq(event_name)
+        meta, first_row = self.tsq(event_name)
 
         if meta.duplicated('fp_loc').any():
             raise ValueError('Duplicate file pointer locations, file is '
                              'probably corrupted')
-
-        # first row of event type
-        first_row = np.argmax(row)
 
         # data type of this event
         dtype = meta.format[first_row]
