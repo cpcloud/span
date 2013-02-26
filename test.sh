@@ -12,14 +12,7 @@ function nocoverfast
 
 function nocover
 {
-    nosetests -w span -A 'not slow' \
-        --ignore='.*flymake.*' \
-        --nocapture \
-        --nologcapture \
-        --processes=$numprocs
-
-    nosetests -w span --ignore='.*flymake.*' \
-        --detailed-errors --processes=$numprocs
+    nosetests --ignore='.*flymake.*' --processes=$numprocs
 }
 
 function cover
@@ -50,5 +43,5 @@ case $1 in
     cover|c) cover ;;
     nocover|nc) nocover ;;
     covernotest|cnt) cover_no_tests ;;
-    *) nocoverfast ;;
+    *) nocover ;;
 esac
