@@ -1,8 +1,8 @@
-git+git://github.com/cython/cython.git
-git+git://github.com/numpy/numpy.git
-git+git://github.com/scipy/scipy.git
-git+git://github.com/pydata/pandas.git
-hg+https://bitbucket.org/gutworth/six
-hg+http://bitbucket.org/birkenfeld/sphinx
+cython
+numpy
+scipy
+pandas
+six
+sphinx
 numpydoc
 distutils
