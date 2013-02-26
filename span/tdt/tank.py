@@ -409,7 +409,7 @@ def _create_ns_datetime_index(start, fs, nsamples):
     -------
     index : DatetimeIndex
     """
-    ns = int(1e9 / fs.get_value(0))
+    ns = int(1e9 / fs)
     dtstart = np.datetime64(start)
     dt = dtstart + np.arange(nsamples) * np.timedelta64(ns, 'ns')
     return DatetimeIndex(dt, freq=ns * pd.datetools.Nano(), name='time',
