@@ -24,7 +24,8 @@ cimport cython
 from cython cimport floating, integral
 from cython.parallel cimport prange, parallel
 
-from numpy cimport npy_intp as ip
+# from numpy cimport npy_intp as ip
+ctypedef Py_ssize_t ip
 
 
 @cython.boundscheck(False)
@@ -37,8 +38,8 @@ cdef int read_tev_parallel_impl(const char* filename, integral[:, :] grouped,
         ip c, b, k, byte, low, high, pos
         ip nchannels = grouped.shape[1], nblocks = grouped.shape[0]
 
-        size_t f_bytes = sizeof(floating)
-        size_t num_bytes = f_bytes * blocksize
+        ip f_bytes = sizeof(floating)
+        ip num_bytes = f_bytes * blocksize
         floating* chunk = NULL
         FILE* f = NULL
 
