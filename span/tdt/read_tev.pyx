@@ -30,19 +30,17 @@ from numpy cimport npy_intp as ip
 @cython.boundscheck(False)
 @cython.wraparound(False)
 cdef int read_tev_parallel_impl(const char* filename, integral[:, :] grouped,
-                                ip blocksize,
+                                const ip blocksize,
                                 floating[:, :] spikes) nogil except -1:
 
     cdef:
-        ip c, b, k, byte, low, high, pos, nchannels, nblocks
+        ip c, b, k, byte, low, high, pos
+        ip nchannels = grouped.shape[1], nblocks = grouped.shape[0]
 
         size_t f_bytes = sizeof(floating)
         size_t num_bytes = f_bytes * blocksize
         floating* chunk = NULL
         FILE* f = NULL
-
-    nchannels = grouped.shape[1]
-    nblocks = grouped.shape[0]
 
     with nogil, parallel():
         chunk = <floating*> malloc(num_bytes)
@@ -99,6 +97,6 @@ cdef int read_tev_parallel_impl(const char* filename, integral[:, :] grouped,
 @cython.boundscheck(False)
 @cython.wraparound(False)
 cpdef int _read_tev_parallel(const char* filename, integral[:, :] grouped,
-                             ip blocksize,
+                             const ip blocksize,
                              floating[:, :] spikes) nogil except -1:
     return read_tev_parallel_impl(filename, grouped, blocksize, spikes)
