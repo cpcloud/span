@@ -23,11 +23,11 @@ import itertools
 import string
 
 import numpy as np
-from pandas import Series, DataFrame, MultiIndex, DatetimeIndex
+from pandas import Series, DataFrame, MultiIndex
 from six.moves import xrange
 
 
-from span.utils import get_fft_funcs, isvector, nextpow2, compose
+from span.utils import get_fft_funcs, isvector, nextpow2, compose, cartesian
 from span.xcorr._mult_mat_xcorr import _mult_mat_xcorr_parallel
 
 
@@ -451,6 +451,15 @@ def _create_xcorr_inds(columns, index_start_string='i'):
     52 levels in the index, because i haven't had a chance to think
     about it yet..
     """
+    if not isinstance(columns, MultiIndex):
+        try:
+            inp = columns.values, columns.values
+        except AttributeError:
+            inp = columns, columns
+
+        f = MultiIndex.from_arrays
+        return f(cartesian(inp).T)
+
     colnames = columns.names
 
     # get the index of the starting index string provided

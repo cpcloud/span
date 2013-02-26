@@ -6,17 +6,21 @@ import numpy as np
 from numpy.random import randn, randint
 from numpy.testing import assert_allclose
 
-from pandas import DataFrame, Series
+from scipy.signal import fftconvolve as fftconv
+
+from pandas import DataFrame, Series, MultiIndex, Int64Index
 from pandas.util.testing import assert_frame_equal
 
 from six.moves import map
 
 from span.xcorr.xcorr import (xcorr, _mult_mat_xcorr,
                               _mult_mat_xcorr_cython_parallel,
-                              _mult_mat_xcorr_python)
+                              _mult_mat_xcorr_python,
+                              _create_xcorr_inds)
 from span.utils import (nextpow2, get_fft_funcs, detrend_mean, detrend_none,
-                        detrend_linear)
-from span.testing import assert_array_equal, knownfailure, assert_raises
+                        detrend_linear, cartesian)
+from span.testing import (assert_array_equal, knownfailure, assert_raises,
+                          create_spike_df)
 
 
 def is_symmetric(x):
@@ -44,7 +48,7 @@ def correlate1d(x, y):
     xc = x - x.mean()
     yc = y - y.mean()
     z = np.sqrt(np.sum(np.abs(xc) ** 2) * np.sum(np.abs(yc) ** 2))
-    return np.correlate(xc, yc, mode='full') / z
+    return fftconv(xc, yc[::-1]) / z
 
 
 def correlate2d(x_, normalize=False):
@@ -186,3 +190,28 @@ class TestMultMatXcorr(unittest.TestCase):
 
     def test_mult_mat_xcorr_high_level(self):
         assert_allclose(_mult_mat_xcorr(self.X, self.Xc), self.ground_truth)
+
+
+class TestCreateXCorrInds(unittest.TestCase):
+    def setUp(self):
+        self.spikes = create_spike_df()
+
+    def tearDown(self):
+        del self.spikes
+
+    def test_create_xcorr_inds(self):
+        thr = self.spikes.threshold(self.spikes.std())
+        clr = self.spikes.clear_refrac(thr)
+        binned = clr.resample('L', how='sum')
+        inds = _create_xcorr_inds(binned.columns)
+        self.assertIsInstance(inds, MultiIndex)
+
+        chan = binned.columns.labels[1]
+        inds = _create_xcorr_inds(chan)
+        self.assertIsInstance(inds, MultiIndex)
+
+        received = np.column_stack([level[label]
+                                    for level, label in
+                                    zip(inds.levels, inds.labels)])
+        expected = cartesian((chan, chan))
+        assert_array_equal(received, expected)
