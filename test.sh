@@ -12,7 +12,7 @@ function nocoverfast
 
 function nocover
 {
-    nosetests --ignore='.*flymake.*' --processes=$numprocs
+    nosetests --ignore='.*flymake.*' --detailed-errors
 }
 
 function cover
