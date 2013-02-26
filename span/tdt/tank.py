@@ -263,12 +263,12 @@ class TdtTankBase(TdtTankAbstractBase):
         self.name = os.path.basename(path)
 
         try:
-            self.age = self._age_re.search(self.name)
+            self.age = int(self._age_re.search(self.name).group(1))
         except:
             self.age = None
 
         try:
-            self.site = self._site_re.search(self.name)
+            self.site = int(self._site_re.search(self.name).group(1))
         except:
             self.site = None
 

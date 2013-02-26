@@ -14,7 +14,6 @@ from six.moves import zip
 from span.tdt.tank import (TdtTankBase, PandasTank, _read_tev,
                            _read_tev_parallel, _python_read_tev_serial)
 from span.tdt import SpikeDataFrame
-from span.tdt.tank import _get_first_match, _match_int
 from span.testing import slow
 
 
