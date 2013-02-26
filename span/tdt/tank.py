@@ -342,8 +342,8 @@ class PandasTank(TdtTankBase):
 
         Raises
         ------
-        AssertionError
-            If there is no event with the name `event_name`.
+        ValueError
+            If there are duplicate file pointer locations
 
         See Also
         --------
@@ -352,6 +352,10 @@ class PandasTank(TdtTankBase):
         from span.tdt.spikeglobals import ChannelIndex as columns
 
         meta, row = self.tsq(event_name)
+
+        if meta.duplicated('fp_loc').any():
+            raise ValueError('Duplicate file pointer locations, file is '
+                             'probably corrupted')
 
         # first row of event type
         first_row = np.argmax(row)
@@ -374,7 +378,7 @@ class PandasTank(TdtTankBase):
             warnings.simplefilter('ignore', FutureWarning)
             meta.reset_index(drop=True, inplace=True)
 
-        grouped = np.column_stack(meta.groupby('channel').indices.values())
+        grouped = np.column_stack(meta.groupby('channel').indices.itervalues())
         grouped_locs = meta.fp_loc.values.take(grouped)
 
         # read in the TEV data to spikes
@@ -385,12 +389,28 @@ class PandasTank(TdtTankBase):
 
         meta = meta.reset_index(drop=True)
 
-        # datetime hack
-        ns = int(1e9 / meta.fs.get_value(0))
-        dtstart = np.datetime64(self.datetime)
-        dt = dtstart + np.arange(nsamples) * np.timedelta64(ns, 'ns')
-        index = DatetimeIndex(dt, freq=ns * pd.datetools.Nano(), name='time',
-                              tz='US/Eastern')
-        df = DataFrame(spikes, index, columns, np.float64)
-        df = df.reorder_levels((1, 0), axis=1).sortlevel('shank', axis=1)
+        index = _create_ns_datetime_index(self.datetime, self.fs, nsamples)
+        df = DataFrame(spikes, index, columns, float).reorder_levels((1, 0),
+                                                                     axis=1)
+        df.sortlevel('shank', axis=1, inplace=True)
         return SpikeDataFrame(df)
+
+
+def _create_ns_datetime_index(start, fs, nsamples):
+    """Create a datetime index in nanoseconds
+
+    Parameters
+    ----------
+    start : datetime_like
+    fs : Series
+    nsamples : int
+
+    Returns
+    -------
+    index : DatetimeIndex
+    """
+    ns = int(1e9 / fs.get_value(0))
+    dtstart = np.datetime64(start)
+    dt = dtstart + np.arange(nsamples) * np.timedelta64(ns, 'ns')
+    return DatetimeIndex(dt, freq=ns * pd.datetools.Nano(), name='time',
+                         tz='US/Eastern')
