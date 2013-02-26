@@ -45,14 +45,14 @@ cdef int read_tev_parallel_impl(const char* filename, integral[:, :] grouped,
     with nogil, parallel():
         chunk = <floating*> malloc(num_bytes)
 
-        if not chunk:
+        if chunk is NULL:
             with gil:
                 raise MemoryError('unable to allocate chunk of size %d bytes'
                                   % num_bytes)
 
         f = fopen(filename, 'rb')
 
-        if not f:
+        if f is NULL:
             free(chunk)
             chunk = NULL
 
