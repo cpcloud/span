@@ -24,7 +24,7 @@
 Examples
 --------
 >>> import span
->>> tank = span.tdt.PandasTank('some/tank/file/folder')
+>>> tank = span.tdt.PandasTank('basename/of/some/tank/file/folder')
 >>> sp = tank.spikes
 >>> assert isinstance(sp, span.tdt.SpikeDataFrame)
 """
@@ -169,7 +169,7 @@ class SpikeDataFrame(SpikeDataFrameBase):
 
     @classmethod
     def xcorr(cls, binned, maxlags=None, detrend=None, scale_type=None,
-              sortlevel='shank i', nan_auto=False, lag_name='lag'):
+              sortlevel='shank i', nan_auto=False):
         """Compute the cross correlation of binned data.
 
         Parameters
@@ -195,10 +195,6 @@ class SpikeDataFrame(SpikeDataFrameBase):
         nan_auto : bool, optional
             If ``True`` then the autocorrelation values will be ``NaN``.
             Defaults to ``False``.
-
-        lag_name : str, optional
-            Name to give to the lag index for plotting. Defaults to
-            ``r'$\ell$'``.
 
         Raises
         ------
@@ -234,7 +230,7 @@ class SpikeDataFrame(SpikeDataFrameBase):
                     scale_type=scale_type)
 
         if nan_auto:
-            # slight HACK for channel names
+            # HACK for channel names
             xc0 = xc.ix[0]
             names = xc0.index.names
             chi_ind = names.index('channel i')
@@ -243,9 +239,7 @@ class SpikeDataFrame(SpikeDataFrameBase):
             selector = lambda x: x[chi_ind] == x[chj_ind]
             xc.ix[0, xc0.select(selector).index] = np.nan
 
-        xc = xc.sortlevel(level=sortlevel, axis=1)
-        xc.index.name = lag_name
-
+        xc.sortlevel(level=sortlevel, axis=1, inplace=True)
         return xc
 
     def jitter(self, window=100, unit='ms'):
