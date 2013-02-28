@@ -364,7 +364,7 @@ class PandasTank(TdtTankBase):
         nsamples = meta.shape[0] * block_size // nchannels
 
         # raw ndarray for data
-        # spikes = np.empty((meta.shape[0], block_size), dtype=dtype)
+        spikes = np.empty((meta.shape[0], block_size), dtype=dtype)
 
         # tev filename
         tev_name = self.path + os.extsep + self._raw_ext
@@ -392,8 +392,6 @@ class PandasTank(TdtTankBase):
         return _pure_python_read(tev_name, meta.fp_loc.values, block_size,
                                  meta.channel.values, meta.shank.values,
                                  spikes, index, columns.sortlevel(1)[0])
-
-        # return SpikeDataFrame(df)
 
 
 def _create_ns_datetime_index(start, fs, nsamples):
