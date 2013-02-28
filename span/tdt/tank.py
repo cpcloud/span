@@ -331,7 +331,7 @@ class PandasTank(TdtTankBase):
         index = _create_ns_datetime_index(self.datetime, self.fs, nsamples)
         return _read_tev_impl(tev_name, meta.fp_loc.values, block_size,
                               meta.channel.values, meta.shank.values, spikes,
-                              index, columns)
+                              index, columns.reorder_levels((1, 0)))
 
 
 def _create_ns_datetime_index(start, fs, nsamples):
@@ -396,7 +396,7 @@ def _read_tev_impl(filename, fp_locs, block_size, channel, shank, spikes,
         del df[name]
 
     new_a = _reshape_spikes(df.values, group_inds.values)
-    df = DataFrame(new_a, index, columns.reorder_levels((1, 0)))
+    df = DataFrame(new_a, index, columns)
     df.sort_index(axis=1, inplace=True)
     return SpikeDataFrame(df, dtype=float)
 
