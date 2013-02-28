@@ -43,7 +43,7 @@ from six.moves import xrange
 from span.tdt.spikeglobals import Indexer, EventTypes, DataTypes
 from span.tdt.spikedataframe import SpikeDataFrame
 from span.tdt._read_tev import _read_tev_parallel
-
+from span.tdt._read_tev import _read_tev_raw
 
 from span.utils import (name2num, thunkify, cached_property, fromtimestamp,
                         assert_nonzero_existing_file, ispower2)
@@ -364,7 +364,7 @@ class PandasTank(TdtTankBase):
         nsamples = meta.shape[0] * block_size // nchannels
 
         # raw ndarray for data
-        spikes = np.empty((nsamples, nchannels), dtype=dtype)
+        # spikes = np.empty((meta.shape[0], block_size), dtype=dtype)
 
         # tev filename
         tev_name = self.path + os.extsep + self._raw_ext
@@ -373,22 +373,27 @@ class PandasTank(TdtTankBase):
             warnings.simplefilter('ignore', FutureWarning)
             meta.reset_index(drop=True, inplace=True)
 
-        grouped = np.column_stack(meta.groupby('channel').indices.itervalues())
-        grouped_locs = meta.fp_loc.values.take(grouped)
+        # inds = meta.groupby('channel').indices
+        # grouped = DataFrame(inds)
+        # grouped.sort_index(axis=1, inplace=True)
+        # grouped_locs = meta.fp_loc.values.take(grouped.values)
 
         # read in the TEV data to spikes
-        _read_tev(tev_name, grouped_locs, block_size, spikes)
+        # _read_tev(tev_name, grouped_locs, block_size, spikes)
 
         # convert timestamps to datetime objects
         meta.timestamp = fromtimestamp(meta.timestamp)
-
         meta = meta.reset_index(drop=True)
 
         index = _create_ns_datetime_index(self.datetime, self.fs, nsamples)
-        df = DataFrame(spikes, index, columns, float).reorder_levels((1, 0),
-                                                                     axis=1)
-        df.sortlevel('shank', axis=1, inplace=True)
-        return SpikeDataFrame(df)
+        # df = DataFrame(spikes, index, columns, float).reorder_levels((1, 0),
+                                                                     # axis=1)
+        # df.sortlevel('shank', axis=1, inplace=True)
+        return _pure_python_read(tev_name, meta.fp_loc.values, block_size,
+                                 meta.channel.values, meta.shank.values,
+                                 spikes, index, columns.sortlevel(1)[0])
+
+        # return SpikeDataFrame(df)
 
 
 def _create_ns_datetime_index(start, fs, nsamples):
@@ -409,3 +414,36 @@ def _create_ns_datetime_index(start, fs, nsamples):
     dt = dtstart + np.arange(nsamples) * np.timedelta64(ns, 'ns')
     return DatetimeIndex(dt, freq=ns * pd.datetools.Nano(), name='time',
                          tz='US/Eastern')
+
+
+def _reshape_spikes(df, group_inds):
+    reshaped = df.take(group_inds, axis=0)
+    shp = reshaped.shape
+    shpsrt = np.argsort(reshaped.shape)[::-1]
+    nchannels = min(shp)
+    newshp = reshaped.size // nchannels, nchannels
+    return reshaped.transpose(shpsrt).reshape(newshp)
+
+
+def _pure_python_read(filename, fp_locs, block_size, channel, shank, spikes,
+                      index, columns=None):
+    _read_tev_raw(filename, fp_locs, block_size, spikes)
+
+    new_cols = {'channel': channel, 'shank': shank}
+
+    df = DataFrame(spikes)
+
+    for k, v in new_cols.iteritems():
+        df[k] = v
+
+    groups = df.groupby(new_cols.keys())
+    group_inds = DataFrame(groups.indices)
+
+    for name in new_cols.iterkeys():
+        del df[name]
+
+    new_a = _reshape_spikes(df.values, group_inds.values)
+    df = DataFrame(new_a, index, columns).reorder_levels((1, 0),
+                                                                      axis=1)
+    df.sort_index(axis=1, inplace=True)
+    return SpikeDataFrame(df)

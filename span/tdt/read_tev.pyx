@@ -101,3 +101,43 @@ cpdef int _read_tev_parallel(const char* filename, integral[:, :] grouped,
                              const ip blocksize,
                              floating[:, :] spikes) nogil except -1:
     return read_tev_parallel_impl(filename, grouped, blocksize, spikes)
+
+
+@cython.boundscheck(False)
+@cython.wraparound(False)
+cpdef int _read_tev_raw(const char* filename, integral[:] fp_locs,
+                        ip block_size, floating[:, :] spikes) nogil except -1:
+    cdef:
+        ip n = fp_locs.shape[0], f_bytes = sizeof(floating)
+        ip i, j, num_bytes = block_size * f_bytes
+        floating* chunk = NULL
+        FILE* f = NULL
+
+    with nogil, parallel():
+        chunk = <floating*> malloc(num_bytes)
+        f = fopen(filename, "rb")
+
+        for i in prange(n, schedule='guided'):
+            if fseek(f, fp_locs[i], SEEK_SET) == -1:
+                free(chunk)
+                fclose(f)
+
+                with gil:
+                    raise IOError('')
+
+            if not fread(chunk, num_bytes, 1, f):
+                free(chunk)
+                fclose(f)
+
+                with gil:
+                    raise IOError('')
+
+            for j in range(block_size):
+                spikes[i, j] = chunk[j]
+
+        fclose(f)
+        f = NULL
+        free(chunk)
+        chunk = NULL
+
+    return 0
