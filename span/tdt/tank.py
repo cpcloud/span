@@ -32,6 +32,8 @@ import os
 import abc
 import re
 import itertools
+import collections
+import numbers
 
 import numpy as np
 from numpy import nan as NA
@@ -47,27 +49,6 @@ from span.utils import (name2num, thunkify, cached_property, fromtimestamp,
                         assert_nonzero_existing_file, ispower2)
 
 
-def _cython_read_tev_parallel(filename, grouped, block_size, spikes):
-    """Read a TDT tev file into a numpy array. Slightly faster than
-    the pure Python version.
-
-    Parameters
-    ----------
-    filename : char *
-        Name of the TDT file to load.
-
-    block_size : int
-        The number of samples per chunk of data.
-
-    fp_locs : integral[:]
-        The array of locations of each chunk in the TEV file.
-
-    spikes : floating[:, :]
-        Output array
-    """
-    _read_tev_parallel(filename, grouped, block_size, spikes)
-
-
 def _python_read_tev_serial(filename, grouped, block_size, spikes):
     dt = spikes.dtype
     nblocks, nchannels = grouped.shape
@@ -80,29 +61,6 @@ def _python_read_tev_serial(filename, grouped, block_size, spikes):
             f.seek(gbc)
             ks = slice(b * block_size, (b + 1) * block_size)
             spikes[ks, c] = np.fromfile(f, dt, block_size)
-
-
-def _read_tev(filename, grouped, block_size, spikes):
-    # this is so we can fail gracefully in python
-    assert filename, 'filename (1st argument) cannot be empty'
-    assert grouped is not None, 'grouped cannot be None'
-    assert block_size, 'block_size cannot test false'
-    assert spikes is not None, 'spikes cannot be None'
-
-    assert isinstance(filename, basestring), 'filename must be a string'
-
-    assert isinstance(grouped, np.ndarray), 'grouped must be an ndarray'
-    assert np.issubdtype(grouped.dtype, np.integer), \
-        "grouped's dtype must be a subdtype of integral'"
-    assert isinstance(block_size, np.integer), 'block_size must be an integer'
-    assert block_size > 0, 'block_size must be a positive integer'
-    assert ispower2(block_size), 'block_size must be a power of 2'
-
-    assert isinstance(spikes, np.ndarray), 'spikes must be an ndarray'
-    assert np.issubdtype(spikes.dtype, np.floating), \
-        "spikes's dtype must be a subdtype of floating'"
-
-    _cython_read_tev_parallel(filename, grouped, block_size, spikes)
 
 
 class TdtTankAbstractBase(object):
@@ -145,8 +103,8 @@ class TdtTankAbstractBase(object):
         # -1s are invalid
         tsq.channel[tsq.channel == -1.0] = NA
 
-        tsq.type = EventTypes[tsq.type].reset_index(drop=True)
-        tsq.format = DataTypes[tsq.format].reset_index(drop=True)
+        tsq.type = EventTypes[tsq.type].values
+        tsq.format = DataTypes[tsq.format].values
 
         tsq.timestamp[np.logical_not(tsq.timestamp)] = NA
         tsq.fs[np.logical_not(tsq.fs)] = NA
@@ -155,8 +113,9 @@ class TdtTankAbstractBase(object):
         tsq.size.ix[2:] -= self.dtype.itemsize / tsq.size.dtype.itemsize
 
         # create some new indices based on the electrode array
-        srt = Indexer.sort('channel').reset_index(drop=True)
-        shank = srt.shank[tsq.channel].reset_index(drop=True)
+        srt = Indexer.sort('channel')
+        srt.reset_index(drop=True, inplace=True)
+        shank = srt.shank[tsq.channel].values
 
         tsq['shank'] = shank
 
@@ -186,12 +145,14 @@ class TdtTankAbstractBase(object):
     @cached_property
     def stsq(self):
         tsq, _ = self.tsq('Spik')
-        return tsq.reset_index(drop=True)
+        tsq.reset_index(drop=True, inplace=True)
+        return tsq
 
     @cached_property
     def ltsq(self):
         tsq, _ = self.tsq('LFPs')
-        return tsq.reset_index(drop=True)
+        tsq.reset_index(drop=True, inplace=True)
+        return tsq
 
     def tev(self, event_name):
         """Return the data from a particular event.
@@ -277,7 +238,7 @@ class TdtTankBase(TdtTankAbstractBase):
         self.__datetime = pd.Timestamp(tstart)
         self.time = self.__datetime.time()
         self.date = self.__datetime.date()
-        self.fs = self.stsq.reset_index(drop=True).fs[0]
+        self.fs = self.stsq.fs[istart]
         self.start = self.__datetime
 
         tend = pd.datetime.fromtimestamp(self.stsq.timestamp[iend])
@@ -325,7 +286,6 @@ class PandasTank(TdtTankBase):
         super(PandasTank, self).__init__(path)
 
     @thunkify
-    # @profile
     def _read_tev(self, event_name, group='channel'):
         """Read an event from a TDT Tank tev file.
 
@@ -374,12 +334,11 @@ class PandasTank(TdtTankBase):
 
         # convert timestamps to datetime objects
         meta.timestamp = fromtimestamp(meta.timestamp)
-        meta = meta.reset_index(drop=True)
 
         index = _create_ns_datetime_index(self.datetime, self.fs, nsamples)
-        return _pure_python_read(tev_name, meta.fp_loc.values, block_size,
-                                 meta.channel.values, meta.shank.values,
-                                 spikes, index, columns.sortlevel(1)[0])
+        return _read_tev_impl(tev_name, meta.fp_loc.values, block_size,
+                              meta.channel.values, meta.shank.values, spikes,
+                              index, columns.sortlevel(1)[0])
 
 
 def _create_ns_datetime_index(start, fs, nsamples):
@@ -411,8 +370,25 @@ def _reshape_spikes(df, group_inds):
     return reshaped.transpose(shpsrt).reshape(newshp)
 
 
-def _pure_python_read(filename, fp_locs, block_size, channel, shank, spikes,
-                      index, columns):
+def _read_tev(filename, fp_locs, block_size, channel, shank, spikes,
+              index, columns):
+    assert isinstance(filename, basestring)
+    assert isinstance(fp_locs, (np.ndarray, collections.Sequence))
+    assert isinstance(block_size, (numbers.Integral, np.integer))
+    assert ispower2(block_size)
+    assert isinstance(channel, (np.ndarray, collections.Sequence))
+    assert isinstance(shank, (np.ndarray, collections.Sequence))
+    assert len(channel) == len(shank)
+    assert isinstance(spikes, np.ndarray)
+    assert spikes.shape[1] == block_size
+    assert isinstance(index, pd.Index)
+    assert isinstance(columns, pd.Index)
+    return _read_tev_impl(filename, fp_locs, block_size, channel, shank,
+                          spikes, index, columns)
+
+
+def _read_tev_impl(filename, fp_locs, block_size, channel, shank, spikes,
+                   index, columns):
     _read_tev_raw(filename, fp_locs, block_size, spikes)
 
     new_cols = {'channel': channel, 'shank': shank}
@@ -421,7 +397,7 @@ def _pure_python_read(filename, fp_locs, block_size, channel, shank, spikes,
     for k, v in new_cols.iteritems():
         df[k] = v
 
-    group_inds = DataFrame(df.groupby(new_cols.keys()).indices)
+    group_inds = DataFrame(df.groupby('channel').indices)
 
     for name in new_cols.iterkeys():
         del df[name]

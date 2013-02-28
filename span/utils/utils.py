@@ -169,7 +169,6 @@ def assert_nonzero_existing_file(f):
         '%s exists and is a file, but it has a size of 0'
 
 
-@profile
 def clear_refrac(a, window):
     """Clear the refractory period of a boolean array.
 

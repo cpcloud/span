@@ -11,8 +11,7 @@ import pandas as pd
 
 from six.moves import zip
 
-from span.tdt.tank import (TdtTankBase, PandasTank, _read_tev,
-                           _read_tev_parallel, _python_read_tev_serial)
+from span.tdt.tank import TdtTankBase, PandasTank
 from span.tdt import SpikeDataFrame
 from span.testing import slow
 
@@ -62,7 +61,7 @@ class TestReadTev(object):
             assert mag <= -3.0
 
     def test_read_tev(self):
-        for reader in {_read_tev, _read_tev_parallel, _python_read_tev_serial}:
+        for reader in {}:
             yield self._reader_builder, reader
 
 
