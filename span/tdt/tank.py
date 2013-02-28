@@ -32,7 +32,6 @@ import os
 import abc
 import re
 import itertools
-import warnings
 
 import numpy as np
 from numpy import nan as NA
@@ -42,7 +41,6 @@ from six.moves import xrange
 
 from span.tdt.spikeglobals import Indexer, EventTypes, DataTypes
 from span.tdt.spikedataframe import SpikeDataFrame
-from span.tdt._read_tev import _read_tev_parallel
 from span.tdt._read_tev import _read_tev_raw
 
 from span.utils import (name2num, thunkify, cached_property, fromtimestamp,
@@ -327,6 +325,7 @@ class PandasTank(TdtTankBase):
         super(PandasTank, self).__init__(path)
 
     @thunkify
+    # @profile
     def _read_tev(self, event_name, group='channel'):
         """Read an event from a TDT Tank tev file.
 
@@ -351,44 +350,33 @@ class PandasTank(TdtTankBase):
 
         meta, first_row = self.tsq(event_name)
 
-        if meta.duplicated('fp_loc').any():
-            raise ValueError('Duplicate file pointer locations, file is '
-                             'probably corrupted')
-
         # data type of this event
         dtype = meta.format[first_row]
 
         # number of samples per chunk
-        block_size = np.int64(meta.size[first_row])
+        block_size = meta.size[first_row]
         nchannels = meta.channel.dropna().nunique()
-        nsamples = meta.shape[0] * block_size // nchannels
+        nblocks = meta.shape[0]
+        nsamples = nblocks * block_size // nchannels
 
         # raw ndarray for data
-        spikes = np.empty((meta.shape[0], block_size), dtype=dtype)
+        spikes = np.empty((nblocks, block_size), dtype=dtype)
 
         # tev filename
         tev_name = self.path + os.extsep + self._raw_ext
 
-        with warnings.catch_warnings():
-            warnings.simplefilter('ignore', FutureWarning)
-            meta.reset_index(drop=True, inplace=True)
+        meta.reset_index(drop=True, inplace=True)
 
         # inds = meta.groupby('channel').indices
         # grouped = DataFrame(inds)
         # grouped.sort_index(axis=1, inplace=True)
         # grouped_locs = meta.fp_loc.values.take(grouped.values)
 
-        # read in the TEV data to spikes
-        # _read_tev(tev_name, grouped_locs, block_size, spikes)
-
         # convert timestamps to datetime objects
         meta.timestamp = fromtimestamp(meta.timestamp)
         meta = meta.reset_index(drop=True)
 
         index = _create_ns_datetime_index(self.datetime, self.fs, nsamples)
-        # df = DataFrame(spikes, index, columns, float).reorder_levels((1, 0),
-                                                                     # axis=1)
-        # df.sortlevel('shank', axis=1, inplace=True)
         return _pure_python_read(tev_name, meta.fp_loc.values, block_size,
                                  meta.channel.values, meta.shank.values,
                                  spikes, index, columns.sortlevel(1)[0])
@@ -418,30 +406,34 @@ def _reshape_spikes(df, group_inds):
     reshaped = df.take(group_inds, axis=0)
     shp = reshaped.shape
     shpsrt = np.argsort(reshaped.shape)[::-1]
-    nchannels = min(shp)
+    nchannels = shp[shpsrt[-1]]
     newshp = reshaped.size // nchannels, nchannels
     return reshaped.transpose(shpsrt).reshape(newshp)
 
 
 def _pure_python_read(filename, fp_locs, block_size, channel, shank, spikes,
-                      index, columns=None):
+                      index, columns):
     _read_tev_raw(filename, fp_locs, block_size, spikes)
 
     new_cols = {'channel': channel, 'shank': shank}
-
     df = DataFrame(spikes)
 
     for k, v in new_cols.iteritems():
         df[k] = v
 
-    groups = df.groupby(new_cols.keys())
-    group_inds = DataFrame(groups.indices)
+    group_inds = DataFrame(df.groupby(new_cols.keys()).indices)
 
     for name in new_cols.iterkeys():
         del df[name]
 
     new_a = _reshape_spikes(df.values, group_inds.values)
-    df = DataFrame(new_a, index, columns).reorder_levels((1, 0),
-                                                                      axis=1)
+    df = DataFrame(new_a, index, columns.reorder_levels((1, 0)))
     df.sort_index(axis=1, inplace=True)
-    return SpikeDataFrame(df)
+    return SpikeDataFrame(df, dtype=float)
+
+
+if __name__ == '__main__':
+    f = ('/home/phillip/Data/xcorr_data/Spont_Spikes_091210_p17rat_s4_'
+         '657umV/Spont_Spikes_091210_p17rat_s4_657umV')
+    tank = PandasTank(f)
+    sp = tank.spikes
