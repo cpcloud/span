@@ -492,3 +492,15 @@ def _create_xcorr_inds(columns, index_start_string='i'):
                      for inds in xrs)
 
     return MultiIndex.from_tuples(all_inds, names=list(names))
+
+
+if __name__ == '__main__':
+    from span import PandasTank
+    f = ('/home/phillip/Data/xcorr_data/Spont_Spikes_091210_p17rat_s4_'
+         '657umV/Spont_Spikes_091210_p17rat_s4_657umV')
+    tank = PandasTank(f)
+    sp = tank.spikes
+    thr = sp.threshold(4 * sp.std())
+    clr = thr.clear_refrac(thr)
+    binned = clr.resample('S', how='sum')
+    xc = clr.xcorr(binned)

@@ -19,6 +19,7 @@
 
 
 cimport cython
+from cython.parallel cimport parallel, prange
 from numpy cimport (npy_intp as ip, uint8_t as u1, uint16_t as u2,
                     uint32_t as u4, uint64_t as u8, int8_t as i1,
                     int16_t as i2, int32_t as i4, int64_t as i8)
@@ -43,7 +44,7 @@ ctypedef fused integral:
 
 @cython.wraparound(False)
 @cython.boundscheck(False)
-cdef int clear_refrac_impl(integral[:, :] a, ip window) nogil except -1:
+cdef int _clear_refrac_impl(integral[:, :] a, ip window) nogil except -1:
     cdef ip channel, i, sample, sp1, nsamples, nchannels
 
     nsamples = a.shape[0]
@@ -67,4 +68,4 @@ cdef int clear_refrac_impl(integral[:, :] a, ip window) nogil except -1:
 @cython.wraparound(False)
 @cython.boundscheck(False)
 cpdef int _clear_refrac(integral[:, :] a, ip window) nogil except -1:
-    return clear_refrac_impl(a, window)
+    return _clear_refrac_impl(a, window)

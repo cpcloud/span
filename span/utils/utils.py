@@ -120,8 +120,8 @@ def iscomplex(x):
     try:
         return np.issubdtype(x.dtype, np.complexfloating)
     except AttributeError:
-        cfloat = np.complexfloating
-        return any(map(np.issubdtype, x.dtypes, itertools.repeat(cfloat)))
+        return any(map(np.issubdtype, x.dtypes,
+                       itertools.repeat(np.complexfloating)))
 
 
 def get_fft_funcs(*arrays):
@@ -191,7 +191,7 @@ def clear_refrac(a, window):
     assert isinstance(window, (numbers.Integral, np.integer)), \
         '"window" must be an integer'
     assert window > 0, '"window" must be greater than 0'
-    _clear_refrac_cython(a.view(np.uint8), window)
+    _clear_refrac_cython(a.view(np.int8), window)
 
 
 def ispower2(x):
