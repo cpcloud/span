@@ -322,23 +322,16 @@ class PandasTank(TdtTankBase):
         # raw ndarray for data
         spikes = np.empty((nblocks, block_size), dtype=dtype)
 
-        # tev filename
         tev_name = self.path + os.extsep + self._raw_ext
-
         meta.reset_index(drop=True, inplace=True)
 
-        # inds = meta.groupby('channel').indices
-        # grouped = DataFrame(inds)
-        # grouped.sort_index(axis=1, inplace=True)
-        # grouped_locs = meta.fp_loc.values.take(grouped.values)
-
-        # convert timestamps to datetime objects
+        # convert timestamps to datetime objects (vectorized)
         meta.timestamp = fromtimestamp(meta.timestamp)
 
         index = _create_ns_datetime_index(self.datetime, self.fs, nsamples)
         return _read_tev_impl(tev_name, meta.fp_loc.values, block_size,
                               meta.channel.values, meta.shank.values, spikes,
-                              index, columns.sortlevel(1)[0])
+                              index, columns)
 
 
 def _create_ns_datetime_index(start, fs, nsamples):
