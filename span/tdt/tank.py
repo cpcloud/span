@@ -264,13 +264,11 @@ class TdtTankBase(TdtTankAbstractBase):
     def datetime(self):
         return self.__datetime.to_pydatetime()
 
-    @cached_property
-    def spikes(self):
-        return self.tev('Spik')
-
-    @cached_property
-    def lfps(self):
-        return self.tev('LFPs')
+    def __getattr__(self, name):
+        try:
+            return self.tev(name)
+        except AssertionError:
+            return super(TdtTankBase, self).__getattribute__(name)
 
 
 class PandasTank(TdtTankBase):
@@ -407,7 +405,6 @@ def _read_tev_impl(filename, fp_locs, block_size, channel, shank, spikes,
     group_inds = np.column_stack(OrderedDict(items).itervalues())
     reshaped = _reshape_spikes(spikes.values, group_inds)
     d = DataFrame(reshaped, index, columns)
-    d.sort_index(axis=1, inplace=True)
     return SpikeDataFrame(d, dtype=float)
 
 
@@ -415,4 +412,4 @@ if __name__ == '__main__':
     f = ('/home/phillip/Data/xcorr_data/Spont_Spikes_091210_p17rat_s4_'
          '657umV/Spont_Spikes_091210_p17rat_s4_657umV')
     tank = PandasTank(f)
-    sp = tank.spikes
+    sp = tank.Spik
