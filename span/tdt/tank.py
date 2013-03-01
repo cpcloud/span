@@ -593,9 +593,10 @@ class PandasTank(TdtTankBase):
         meta.timestamp = fromtimestamp(meta.timestamp)
 
         index = _create_ns_datetime_index(self.datetime, self.fs, nsamples)
-        return _read_tev(tev_name, meta.fp_loc, block_size,
-                         meta.channel, meta.shank, DataFrame(spikes),
-                         index, columns.reorder_levels((1, 0)))
+        return _read_tev(tev_name, meta.fp_loc.values, block_size,
+                         meta.channel.values, meta.shank.values,
+                         DataFrame(spikes), index,
+                         columns.reorder_levels((1, 0)))
 
 
 def _create_ns_datetime_index(start, fs, nsamples):
