@@ -43,7 +43,6 @@ from pandas import DataFrame, DatetimeIndex
 import pandas as pd
 from six.moves import xrange
 from pytz import UnknownTimeZoneError
-from numba import autojit, jit
 
 from span.tdt.spikeglobals import Indexer, EventTypes, DataTypes
 from span.tdt.spikedataframe import SpikeDataFrame
