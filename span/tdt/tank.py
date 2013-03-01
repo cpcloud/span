@@ -375,17 +375,24 @@ def _reshape_spikes(df, group_inds):
 
 def _read_tev(filename, fp_locs, block_size, channel, shank, spikes,
               index, columns):
-    assert isinstance(filename, basestring)
-    assert isinstance(fp_locs, (np.ndarray, collections.Sequence))
-    assert isinstance(block_size, (numbers.Integral, np.integer))
-    assert ispower2(block_size)
-    assert isinstance(channel, (np.ndarray, collections.Sequence))
-    assert isinstance(shank, (np.ndarray, collections.Sequence))
-    assert len(channel) == len(shank)
-    assert isinstance(spikes, (np.ndarray, DataFrame))
-    assert spikes.shape[1] == block_size
-    assert isinstance(index, pd.Index)
-    assert isinstance(columns, pd.Index)
+    assert isinstance(filename, basestring), 'filename must be a string'
+    assert isinstance(fp_locs, (np.ndarray, collections.Sequence)), \
+        'fp_locs must be a sequence'
+    assert isinstance(block_size, (numbers.Integral, np.integer)), \
+        'block_size must be an integer'
+    assert ispower2(block_size), 'block_size must be a power of 2'
+    assert isinstance(channel, (np.ndarray, collections.Sequence)), \
+        'channel must be a sequence'
+    assert isinstance(shank, (np.ndarray, collections.Sequence)), \
+        'shank must be a sequence'
+    assert len(channel) == len(shank), 'len(channel) != len(shank)'
+    assert isinstance(spikes, (np.ndarray, DataFrame)), \
+        'spikes must be an ndarray or a DataFrame'
+    assert spikes.shape[1] == block_size, \
+        'number of columns of spikes must equal block_size'
+    assert isinstance(index, pd.Index), 'index must be an instance of Index'
+    assert isinstance(columns, pd.Index), \
+        'columns must be an instance of Index'
     return _read_tev_impl(filename, fp_locs, block_size, channel, shank,
                           spikes, index, columns)
 
