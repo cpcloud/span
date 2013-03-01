@@ -225,15 +225,14 @@ class TdtTankBase(TdtTankAbstractBase):
         self.path = path
         self.name = os.path.basename(path)
 
-        try:
-            self.age = int(self._age_re.search(self.name).group(1))
-        except:
-            self.age = None
+        def _first_group_int(regex, string):
+            try:
+                return int(regex.search(string).group(1))
+            except (AttributeError, TypeError):
+                return None
 
-        try:
-            self.site = int(self._site_re.search(self.name).group(1))
-        except:
-            self.site = None
+        self.age = _first_group_int(self._age_re, self.name)
+        self.site = _first_group_int(self._site_re, self.name)
 
         istart = self.stsq.timestamp.index[0]
         iend = self.stsq.timestamp.index[-1]
