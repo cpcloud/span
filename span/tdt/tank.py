@@ -34,12 +34,16 @@ import re
 import itertools
 import collections
 import numbers
+import warnings
+from collections import OrderedDict
 
 import numpy as np
 from numpy import nan as NA
 from pandas import DataFrame, DatetimeIndex
 import pandas as pd
 from six.moves import xrange
+from pytz import UnknownTimeZoneError
+from numba import autojit, jit
 
 from span.tdt.spikeglobals import Indexer, EventTypes, DataTypes
 from span.tdt.spikedataframe import SpikeDataFrame
@@ -94,8 +98,9 @@ class TdtTankAbstractBase(object):
 
         # read in the raw data as a numpy rec array and convert to
         # DataFrame
-        tsq = DataFrame.from_records(np.fromfile(tsq_name, self.dtype))
-        tsq.strobe[tsq.strobe <= np.finfo(np.float64).eps] = NA
+        tsq = DataFrame(np.fromfile(tsq_name, self.dtype))
+        inds = tsq.strobe <= np.finfo(np.float64).eps
+        tsq.strobe[inds] = NA
 
         # zero based indexing
         tsq.channel -= 1.0
@@ -329,9 +334,9 @@ class PandasTank(TdtTankBase):
         meta.timestamp = fromtimestamp(meta.timestamp)
 
         index = _create_ns_datetime_index(self.datetime, self.fs, nsamples)
-        return _read_tev_impl(tev_name, meta.fp_loc.values, block_size,
-                              meta.channel.values, meta.shank.values, spikes,
-                              index, columns.reorder_levels((1, 0)))
+        return _read_tev(tev_name, meta.fp_loc, block_size,
+                         meta.channel, meta.shank, DataFrame(spikes),
+                         index, columns.reorder_levels((1, 0)))
 
 
 def _create_ns_datetime_index(start, fs, nsamples):
@@ -350,8 +355,13 @@ def _create_ns_datetime_index(start, fs, nsamples):
     ns = int(1e9 / fs)
     dtstart = np.datetime64(start)
     dt = dtstart + np.arange(nsamples) * np.timedelta64(ns, 'ns')
-    return DatetimeIndex(dt, freq=ns * pd.datetools.Nano(), name='time',
-                         tz='US/Eastern')
+    try:
+        return DatetimeIndex(dt, freq=ns * pd.datetools.Nano(), name='time',
+                             tz='US/Eastern')
+    except UnknownTimeZoneError:
+        warnings.warn('Time zone not found, you might need to reinstall '
+                      'pytz or matplotlib or both', RuntimeWarning)
+        return DatetimeIndex(dt, freq=ns * pd.datetools.Nano(), name='time')
 
 
 def _reshape_spikes(df, group_inds):
@@ -372,7 +382,7 @@ def _read_tev(filename, fp_locs, block_size, channel, shank, spikes,
     assert isinstance(channel, (np.ndarray, collections.Sequence))
     assert isinstance(shank, (np.ndarray, collections.Sequence))
     assert len(channel) == len(shank)
-    assert isinstance(spikes, np.ndarray)
+    assert isinstance(spikes, (np.ndarray, DataFrame))
     assert spikes.shape[1] == block_size
     assert isinstance(index, pd.Index)
     assert isinstance(columns, pd.Index)
@@ -382,23 +392,16 @@ def _read_tev(filename, fp_locs, block_size, channel, shank, spikes,
 
 def _read_tev_impl(filename, fp_locs, block_size, channel, shank, spikes,
                    index, columns):
-    _read_tev_raw(filename, fp_locs, block_size, spikes)
+    _read_tev_raw(filename, fp_locs, block_size, spikes.values)
 
-    new_cols = {'channel': channel, 'shank': shank}
-    df = DataFrame(spikes)
+    items = spikes.groupby(channel).indices.items()
+    items.sort()
 
-    for k, v in new_cols.iteritems():
-        df[k] = v
-
-    group_inds = DataFrame(df.groupby('channel').indices)
-
-    for name in new_cols.iterkeys():
-        del df[name]
-
-    new_a = _reshape_spikes(df.values, group_inds.values)
-    df = DataFrame(new_a, index, columns)
-    df.sort_index(axis=1, inplace=True)
-    return SpikeDataFrame(df, dtype=float)
+    group_inds = np.column_stack(OrderedDict(items).itervalues())
+    reshaped = _reshape_spikes(spikes.values, group_inds)
+    d = DataFrame(reshaped, index, columns)
+    d.sort_index(axis=1, inplace=True)
+    return SpikeDataFrame(d, dtype=float)
 
 
 if __name__ == '__main__':
