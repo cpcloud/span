@@ -27,6 +27,7 @@ import operator
 import itertools
 import functools
 import numbers
+from string import ascii_letters as _LETTERS
 
 import numpy as np
 from numpy.fft import fft, ifft, rfft, irfft
@@ -35,7 +36,7 @@ from pandas import datetime
 from six.moves import map
 
 from span.utils._clear_refrac import _clear_refrac as _clear_refrac_cython
-
+from span.utils.math import cartesian
 
 fromtimestamp = np.vectorize(datetime.fromtimestamp)
 
@@ -103,6 +104,17 @@ def name2num(name, base=256):
         type string.
     """
     return (base ** np.r_[:len(name)]).dot(tuple(map(ord, name)))
+
+
+_ORDS = list(map(ord, _LETTERS))
+_MAXLEN = 4
+_BIG_ORDS = cartesian([_ORDS] * _MAXLEN)
+
+
+def num2name(num, base=256, maxlen=_MAXLEN):
+    rhs = base ** np.arange(maxlen)
+    row = _BIG_ORDS[np.dot(_BIG_ORDS, rhs) == num].ravel()
+    return ''.join(map(chr, row))
 
 
 def iscomplex(x):
