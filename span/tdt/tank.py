@@ -48,7 +48,7 @@ from span.tdt.spikeglobals import Indexer, EventTypes, DataTypes
 from span.tdt.spikedataframe import SpikeDataFrame
 from span.tdt._read_tev import _read_tev_raw
 
-from span.utils import (name2num, thunkify, cached_property, fromtimestamp,
+from span.utils import (thunkify, cached_property, fromtimestamp,
                         assert_nonzero_existing_file, ispower2, num2name)
 
 
@@ -136,17 +136,17 @@ class TdtTankAbstractBase(object):
         """
         tsq = self.raw
 
-        # get the row of the metadata where its value equals the name-number
-        row = tsq.name.isin([event_name])
-
         # make sure there's at least one event
         p = self.path
+
+        # get the row of the metadata where its value equals the name-number
+        row = tsq.name.isin([event_name])
         assert row.any(), 'no event named %s in tank: %s' % (event_name, p)
 
         # get all the metadata for those events
         tsq = tsq[row]
 
-        # convert to integer where possibel
+        # convert to integer where possible
         try:
             tsq.channel = tsq.channel.astype(int)
             tsq.shank = tsq.shank.astype(int)

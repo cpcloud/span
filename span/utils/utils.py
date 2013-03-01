@@ -112,9 +112,13 @@ _BIG_ORDS = cartesian([_ORDS] * _MAXLEN)
 
 
 def num2name(num, base=256, maxlen=_MAXLEN):
+    # if the number could not possibly be a name
+    if (num < _BIG_ORDS[0]).all():
+        return ''
+
     rhs = base ** np.arange(maxlen)
-    row = _BIG_ORDS[np.dot(_BIG_ORDS, rhs) == num].ravel()
-    return ''.join(map(chr, row))
+    out = _BIG_ORDS[_BIG_ORDS.dot(rhs) == num].ravel()
+    return ''.join(map(chr, out))
 
 
 def iscomplex(x):
