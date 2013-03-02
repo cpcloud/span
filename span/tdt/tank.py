@@ -49,13 +49,13 @@ except ImportError:
     except ImportError:
         pass
 
-
     class OrderedDict(dict):
         'Dictionary that remembers insertion order'
         # An inherited dict maps keys to values.
         # The inherited dict provides __getitem__, __len__, __contains__, and get.
         # The remaining methods are order-aware.
-        # Big-O running times for all methods are the same as for regular dictionaries.
+        # Big-O running times for all methods are the same as for regular
+        # dictionaries.
 
         # The internal self.__map dictionary maps keys to links in a doubly linked list.
         # The circular doubly linked list starts and ends with a sentinel element.
@@ -69,7 +69,8 @@ except ImportError:
 
             '''
             if len(args) > 1:
-                raise TypeError('expected at most 1 arguments, got %d' % len(args))
+                raise TypeError(
+                    'expected at most 1 arguments, got %d' % len(args))
             try:
                 self.__root
             except AttributeError:
@@ -81,7 +82,8 @@ except ImportError:
         def __setitem__(self, key, value, dict_setitem=dict.__setitem__):
             'od.__setitem__(i, y) <==> od[i]=y'
             # Setting a new item creates a new link which goes at the end of the linked
-            # list, and the inherited dictionary is updated with the new key/value pair.
+            # list, and the inherited dictionary is updated with the new
+            # key/value pair.
             if key not in self:
                 root = self.__root
                 last = root[0]
@@ -91,7 +93,8 @@ except ImportError:
         def __delitem__(self, key, dict_delitem=dict.__delitem__):
             'od.__delitem__(y) <==> del od[y]'
             # Deleting an existing item uses self.__map to find the link which is
-            # then removed by updating the links in the predecessor and successor nodes.
+            # then removed by updating the links in the predecessor and
+            # successor nodes.
             dict_delitem(self, key)
             link_prev, link_next, key = self.__map.pop(key)
             link_prev[1] = link_next
@@ -275,7 +278,7 @@ except ImportError:
 
             '''
             if isinstance(other, OrderedDict):
-                return len(self)==len(other) and self.items() == other.items()
+                return len(self) == len(other) and self.items() == other.items()
             return dict.__eq__(self, other)
 
         def __ne__(self, other):
