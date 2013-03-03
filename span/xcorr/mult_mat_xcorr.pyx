@@ -40,8 +40,9 @@ cpdef int _mult_mat_xcorr_parallel(floating[:, :] X, floating[:, :] Xc,
                                    floating[:, :] c, ip n,
                                    ip nx) nogil except -1:
 
-    cdef ip i, j, k, r
+    cdef ip i, r, j, k
 
+    # guided < dynamic < runtime < static
     with nogil, parallel():
         for i in prange(n, schedule='guided'):
             for r, j in enumerate(range(i * n, (i + 1) * n)):

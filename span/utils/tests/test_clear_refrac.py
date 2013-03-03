@@ -8,9 +8,8 @@ from span.utils import clear_refrac, nextpow2
 
 class TestClearRefrac(unittest.TestCase):
     def setUp(self):
-        m, n = randint(20, 101), randint(4, 5)
-        ms = randint(2, 11)
-        fs = int(2 ** nextpow2(randint(1, m / ms)))
+        m, n = 20, 4
+        fs = ms = 2
 
         self.x = rand(m, n)
         self.window = int(np.floor(ms / 1e3 * fs))
@@ -28,7 +27,8 @@ class TestClearRefrac(unittest.TestCase):
         self.assertFalse(np.array_equal(thr, cleared))
 
     def test_one_thresh(self):
-        thr = self.x > rand()
+        thr = self.x > 0.5
         cleared = thr.copy()
         clear_refrac(cleared, self.window)
+
         self.assertFalse(np.array_equal(thr, cleared))

@@ -32,42 +32,287 @@ import os
 import abc
 import re
 import itertools
+import collections
+import numbers
 import warnings
+
+try:
+    from collections import OrderedDict
+except ImportError:
+    try:
+        from thread import get_ident as _get_ident
+    except ImportError:
+        from dummy_thread import get_ident as _get_ident
+
+    try:
+        from _abcoll import KeysView, ValuesView, ItemsView
+    except ImportError:
+        pass
+
+    class OrderedDict(dict):
+        'Dictionary that remembers insertion order'
+        # An inherited dict maps keys to values.
+        # The inherited dict provides __getitem__, __len__, __contains__, and get.
+        # The remaining methods are order-aware.
+        # Big-O running times for all methods are the same as for regular
+        # dictionaries.
+
+        # The internal self.__map dictionary maps keys to links in a doubly linked list.
+        # The circular doubly linked list starts and ends with a sentinel element.
+        # The sentinel element never gets deleted (this simplifies the algorithm).
+        # Each link is stored as a list of length three:  [PREV, NEXT, KEY].
+
+        def __init__(self, *args, **kwds):
+            '''Initialize an ordered dictionary.  Signature is the same as for
+            regular dictionaries, but keyword arguments are not recommended
+            because their insertion order is arbitrary.
+
+            '''
+            if len(args) > 1:
+                raise TypeError(
+                    'expected at most 1 arguments, got %d' % len(args))
+            try:
+                self.__root
+            except AttributeError:
+                self.__root = root = []                     # sentinel node
+                root[:] = [root, root, None]
+                self.__map = {}
+            self.__update(*args, **kwds)
+
+        def __setitem__(self, key, value, dict_setitem=dict.__setitem__):
+            'od.__setitem__(i, y) <==> od[i]=y'
+            # Setting a new item creates a new link which goes at the end of the linked
+            # list, and the inherited dictionary is updated with the new
+            # key/value pair.
+            if key not in self:
+                root = self.__root
+                last = root[0]
+                last[1] = root[0] = self.__map[key] = [last, root, key]
+            dict_setitem(self, key, value)
+
+        def __delitem__(self, key, dict_delitem=dict.__delitem__):
+            'od.__delitem__(y) <==> del od[y]'
+            # Deleting an existing item uses self.__map to find the link which is
+            # then removed by updating the links in the predecessor and
+            # successor nodes.
+            dict_delitem(self, key)
+            link_prev, link_next, key = self.__map.pop(key)
+            link_prev[1] = link_next
+            link_next[0] = link_prev
+
+        def __iter__(self):
+            'od.__iter__() <==> iter(od)'
+            root = self.__root
+            curr = root[1]
+            while curr is not root:
+                yield curr[2]
+                curr = curr[1]
+
+        def __reversed__(self):
+            'od.__reversed__() <==> reversed(od)'
+            root = self.__root
+            curr = root[0]
+            while curr is not root:
+                yield curr[2]
+                curr = curr[0]
+
+        def clear(self):
+            'od.clear() -> None.  Remove all items from od.'
+            try:
+                for node in self.__map.itervalues():
+                    del node[:]
+                root = self.__root
+                root[:] = [root, root, None]
+                self.__map.clear()
+            except AttributeError:
+                pass
+            dict.clear(self)
+
+        def popitem(self, last=True):
+            '''od.popitem() -> (k, v), return and remove a (key, value) pair.
+            Pairs are returned in LIFO order if last is true or FIFO order if false.
+
+            '''
+            if not self:
+                raise KeyError('dictionary is empty')
+            root = self.__root
+            if last:
+                link = root[0]
+                link_prev = link[0]
+                link_prev[1] = root
+                root[0] = link_prev
+            else:
+                link = root[1]
+                link_next = link[1]
+                root[1] = link_next
+                link_next[0] = root
+            key = link[2]
+            del self.__map[key]
+            value = dict.pop(self, key)
+            return key, value
+
+        # -- the following methods do not depend on the internal structure --
+
+        def keys(self):
+            'od.keys() -> list of keys in od'
+            return list(self)
+
+        def values(self):
+            'od.values() -> list of values in od'
+            return [self[key] for key in self]
+
+        def items(self):
+            'od.items() -> list of (key, value) pairs in od'
+            return [(key, self[key]) for key in self]
+
+        def iterkeys(self):
+            'od.iterkeys() -> an iterator over the keys in od'
+            return iter(self)
+
+        def itervalues(self):
+            'od.itervalues -> an iterator over the values in od'
+            for k in self:
+                yield self[k]
+
+        def iteritems(self):
+            'od.iteritems -> an iterator over the (key, value) items in od'
+            for k in self:
+                yield (k, self[k])
+
+        def update(*args, **kwds):
+            '''od.update(E, **F) -> None.  Update od from dict/iterable E and F.
+
+            If E is a dict instance, does:           for k in E: od[k] = E[k]
+            If E has a .keys() method, does:         for k in E.keys(): od[k] = E[k]
+            Or if E is an iterable of items, does:   for k, v in E: od[k] = v
+            In either case, this is followed by:     for k, v in F.items(): od[k] = v
+
+            '''
+            if len(args) > 2:
+                raise TypeError('update() takes at most 2 positional '
+                                'arguments (%d given)' % (len(args),))
+            elif not args:
+                raise TypeError('update() takes at least 1 argument (0 given)')
+            self = args[0]
+            # Make progressively weaker assumptions about "other"
+            other = ()
+            if len(args) == 2:
+                other = args[1]
+            if isinstance(other, dict):
+                for key in other:
+                    self[key] = other[key]
+            elif hasattr(other, 'keys'):
+                for key in other.keys():
+                    self[key] = other[key]
+            else:
+                for key, value in other:
+                    self[key] = value
+            for key, value in kwds.items():
+                self[key] = value
+
+        __update = update  # let subclasses override update without breaking __init__
+
+        __marker = object()
+
+        def pop(self, key, default=__marker):
+            '''od.pop(k[,d]) -> v, remove specified key and return the corresponding value.
+            If key is not found, d is returned if given, otherwise KeyError is raised.
+
+            '''
+            if key in self:
+                result = self[key]
+                del self[key]
+                return result
+            if default is self.__marker:
+                raise KeyError(key)
+            return default
+
+        def setdefault(self, key, default=None):
+            'od.setdefault(k[,d]) -> od.get(k,d), also set od[k]=d if k not in od'
+            if key in self:
+                return self[key]
+            self[key] = default
+            return default
+
+        def __repr__(self, _repr_running={}):
+            'od.__repr__() <==> repr(od)'
+            call_key = id(self), _get_ident()
+            if call_key in _repr_running:
+                return '...'
+            _repr_running[call_key] = 1
+            try:
+                if not self:
+                    return '%s()' % (self.__class__.__name__,)
+                return '%s(%r)' % (self.__class__.__name__, self.items())
+            finally:
+                del _repr_running[call_key]
+
+        def __reduce__(self):
+            'Return state information for pickling'
+            items = [[k, self[k]] for k in self]
+            inst_dict = vars(self).copy()
+            for k in vars(OrderedDict()):
+                inst_dict.pop(k, None)
+            if inst_dict:
+                return (self.__class__, (items,), inst_dict)
+            return self.__class__, (items,)
+
+        def copy(self):
+            'od.copy() -> a shallow copy of od'
+            return self.__class__(self)
+
+        @classmethod
+        def fromkeys(cls, iterable, value=None):
+            '''OD.fromkeys(S[, v]) -> New ordered dictionary with keys from S
+            and values equal to v (which defaults to None).
+
+            '''
+            d = cls()
+            for key in iterable:
+                d[key] = value
+            return d
+
+        def __eq__(self, other):
+            '''od.__eq__(y) <==> od==y.  Comparison to another OD is order-sensitive
+            while comparison to a regular mapping is order-insensitive.
+
+            '''
+            if isinstance(other, OrderedDict):
+                return len(self) == len(other) and self.items() == other.items()
+            return dict.__eq__(self, other)
+
+        def __ne__(self, other):
+            return not self == other
+
+        # -- the following methods are only used in Python 2.7 --
+
+        def viewkeys(self):
+            "od.viewkeys() -> a set-like object providing a view on od's keys"
+            return KeysView(self)
+
+        def viewvalues(self):
+            "od.viewvalues() -> an object providing a view on od's values"
+            return ValuesView(self)
+
+        def viewitems(self):
+            "od.viewitems() -> a set-like object providing a view on od's items"
+            return ItemsView(self)
+    ## end of http://code.activestate.com/recipes/576693/ }}}
+
 
 import numpy as np
 from numpy import nan as NA
 from pandas import DataFrame, DatetimeIndex
 import pandas as pd
 from six.moves import xrange
+from pytz import UnknownTimeZoneError
 
 from span.tdt.spikeglobals import Indexer, EventTypes, DataTypes
 from span.tdt.spikedataframe import SpikeDataFrame
-from span.tdt._read_tev import _read_tev_parallel
-
+from span.tdt._read_tev import _read_tev_raw
 
 from span.utils import (name2num, thunkify, cached_property, fromtimestamp,
                         assert_nonzero_existing_file, ispower2)
-
-
-def _cython_read_tev_parallel(filename, grouped, block_size, spikes):
-    """Read a TDT tev file into a numpy array. Slightly faster than
-    the pure Python version.
-
-    Parameters
-    ----------
-    filename : char *
-        Name of the TDT file to load.
-
-    block_size : int
-        The number of samples per chunk of data.
-
-    fp_locs : integral[:]
-        The array of locations of each chunk in the TEV file.
-
-    spikes : floating[:, :]
-        Output array
-    """
-    _read_tev_parallel(filename, grouped, block_size, spikes)
 
 
 def _python_read_tev_serial(filename, grouped, block_size, spikes):
@@ -82,29 +327,6 @@ def _python_read_tev_serial(filename, grouped, block_size, spikes):
             f.seek(gbc)
             ks = slice(b * block_size, (b + 1) * block_size)
             spikes[ks, c] = np.fromfile(f, dt, block_size)
-
-
-def _read_tev(filename, grouped, block_size, spikes):
-    # this is so we can fail gracefully in python
-    assert filename, 'filename (1st argument) cannot be empty'
-    assert grouped is not None, 'grouped cannot be None'
-    assert block_size, 'block_size cannot test false'
-    assert spikes is not None, 'spikes cannot be None'
-
-    assert isinstance(filename, basestring), 'filename must be a string'
-
-    assert isinstance(grouped, np.ndarray), 'grouped must be an ndarray'
-    assert np.issubdtype(grouped.dtype, np.integer), \
-        "grouped's dtype must be a subdtype of integral'"
-    assert isinstance(block_size, np.integer), 'block_size must be an integer'
-    assert block_size > 0, 'block_size must be a positive integer'
-    assert ispower2(block_size), 'block_size must be a power of 2'
-
-    assert isinstance(spikes, np.ndarray), 'spikes must be an ndarray'
-    assert np.issubdtype(spikes.dtype, np.floating), \
-        "spikes's dtype must be a subdtype of floating'"
-
-    _cython_read_tev_parallel(filename, grouped, block_size, spikes)
 
 
 class TdtTankAbstractBase(object):
@@ -138,8 +360,9 @@ class TdtTankAbstractBase(object):
 
         # read in the raw data as a numpy rec array and convert to
         # DataFrame
-        tsq = DataFrame.from_records(np.fromfile(tsq_name, self.dtype))
-        tsq.strobe[tsq.strobe <= np.finfo(np.float64).eps] = NA
+        tsq = DataFrame(np.fromfile(tsq_name, self.dtype))
+        inds = tsq.strobe <= np.finfo(np.float64).eps
+        tsq.strobe[inds] = NA
 
         # zero based indexing
         tsq.channel -= 1.0
@@ -147,8 +370,8 @@ class TdtTankAbstractBase(object):
         # -1s are invalid
         tsq.channel[tsq.channel == -1.0] = NA
 
-        tsq.type = EventTypes[tsq.type].reset_index(drop=True)
-        tsq.format = DataTypes[tsq.format].reset_index(drop=True)
+        tsq.type = EventTypes[tsq.type].values
+        tsq.format = DataTypes[tsq.format].values
 
         tsq.timestamp[np.logical_not(tsq.timestamp)] = NA
         tsq.fs[np.logical_not(tsq.fs)] = NA
@@ -157,8 +380,9 @@ class TdtTankAbstractBase(object):
         tsq.size.ix[2:] -= self.dtype.itemsize / tsq.size.dtype.itemsize
 
         # create some new indices based on the electrode array
-        srt = Indexer.sort('channel').reset_index(drop=True)
-        shank = srt.shank[tsq.channel].reset_index(drop=True)
+        srt = Indexer.sort('channel')
+        srt.reset_index(drop=True, inplace=True)
+        shank = srt.shank[tsq.channel].values
 
         tsq['shank'] = shank
 
@@ -180,22 +404,22 @@ class TdtTankAbstractBase(object):
         tsq.channel = tsq.channel.astype(int)
         tsq.shank = tsq.shank.astype(int)
 
-        return tsq, row
+        return tsq, row.argmax()
 
     def tsq(self, event_name):
-        getter = self._read_tsq(event_name)
-        d, row = getter()
-        return d, row
+        return self._read_tsq(event_name)()
 
     @cached_property
     def stsq(self):
         tsq, _ = self.tsq('Spik')
-        return tsq.reset_index(drop=True)
+        tsq.reset_index(drop=True, inplace=True)
+        return tsq
 
     @cached_property
     def ltsq(self):
         tsq, _ = self.tsq('LFPs')
-        return tsq.reset_index(drop=True)
+        tsq.reset_index(drop=True, inplace=True)
+        return tsq
 
     def tev(self, event_name):
         """Return the data from a particular event.
@@ -265,12 +489,12 @@ class TdtTankBase(TdtTankAbstractBase):
         self.name = os.path.basename(path)
 
         try:
-            self.age = self._age_re.search(self.name)
+            self.age = int(self._age_re.search(self.name).group(1))
         except:
             self.age = None
 
         try:
-            self.site = self._site_re.search(self.name)
+            self.site = int(self._site_re.search(self.name).group(1))
         except:
             self.site = None
 
@@ -281,7 +505,7 @@ class TdtTankBase(TdtTankAbstractBase):
         self.__datetime = pd.Timestamp(tstart)
         self.time = self.__datetime.time()
         self.date = self.__datetime.date()
-        self.fs = self.stsq.reset_index(drop=True).fs[0]
+        self.fs = self.stsq.fs[istart]
         self.start = self.__datetime
 
         tend = pd.datetime.fromtimestamp(self.stsq.timestamp[iend])
@@ -342,8 +566,8 @@ class PandasTank(TdtTankBase):
 
         Raises
         ------
-        AssertionError
-            If there is no event with the name `event_name`.
+        ValueError
+            If there are duplicate file pointer locations
 
         See Also
         --------
@@ -351,46 +575,108 @@ class PandasTank(TdtTankBase):
         """
         from span.tdt.spikeglobals import ChannelIndex as columns
 
-        meta, row = self.tsq(event_name)
-
-        # first row of event type
-        first_row = np.argmax(row)
+        meta, first_row = self.tsq(event_name)
 
         # data type of this event
         dtype = meta.format[first_row]
 
         # number of samples per chunk
-        block_size = np.int64(meta.size[first_row])
+        block_size = meta.size[first_row]
         nchannels = meta.channel.dropna().nunique()
-        nsamples = meta.shape[0] * block_size // nchannels
+        nblocks = meta.shape[0]
+        nsamples = nblocks * block_size // nchannels
 
         # raw ndarray for data
-        spikes = np.empty((nsamples, nchannels), dtype=dtype)
+        spikes = np.empty((nblocks, block_size), dtype=dtype)
 
-        # tev filename
         tev_name = self.path + os.extsep + self._raw_ext
+        meta.reset_index(drop=True, inplace=True)
 
-        with warnings.catch_warnings():
-            warnings.simplefilter('ignore', FutureWarning)
-            meta.reset_index(drop=True, inplace=True)
-
-        grouped = np.column_stack(meta.groupby('channel').indices.values())
-        grouped_locs = meta.fp_loc.values.take(grouped)
-
-        # read in the TEV data to spikes
-        _read_tev(tev_name, grouped_locs, block_size, spikes)
-
-        # convert timestamps to datetime objects
+        # convert timestamps to datetime objects (vectorized)
         meta.timestamp = fromtimestamp(meta.timestamp)
 
-        meta = meta.reset_index(drop=True)
+        index = _create_ns_datetime_index(self.datetime, self.fs, nsamples)
+        return _read_tev(tev_name, meta.fp_loc.values, block_size,
+                         meta.channel.values, meta.shank.values,
+                         DataFrame(spikes), index,
+                         columns.reorder_levels((1, 0)))
 
-        # datetime hack
-        ns = int(1e9 / meta.fs.get_value(0))
-        dtstart = np.datetime64(self.datetime)
-        dt = dtstart + np.arange(nsamples) * np.timedelta64(ns, 'ns')
-        index = DatetimeIndex(dt, freq=ns * pd.datetools.Nano(), name='time',
-                              tz='US/Eastern')
-        df = DataFrame(spikes, index, columns, np.float64)
-        df = df.reorder_levels((1, 0), axis=1).sortlevel('shank', axis=1)
-        return SpikeDataFrame(df)
+
+def _create_ns_datetime_index(start, fs, nsamples):
+    """Create a datetime index in nanoseconds
+
+    Parameters
+    ----------
+    start : datetime_like
+    fs : Series
+    nsamples : int
+
+    Returns
+    -------
+    index : DatetimeIndex
+    """
+    ns = int(1e9 / fs)
+    dtstart = np.datetime64(start)
+    dt = dtstart + np.arange(nsamples) * np.timedelta64(ns, 'ns')
+
+    try:
+        return DatetimeIndex(dt, freq=ns * pd.datetools.Nano(), name='time',
+                             tz='US/Eastern')
+    except UnknownTimeZoneError:
+        warnings.warn('Time zone not found, you might need to reinstall '
+                      'pytz or matplotlib or both', RuntimeWarning)
+        return DatetimeIndex(dt, freq=ns * pd.datetools.Nano(), name='time')
+
+
+def _reshape_spikes(df, group_inds):
+    reshaped = df.take(group_inds, axis=0)
+    shp = reshaped.shape
+    shpsrt = np.argsort(reshaped.shape)[::-1]
+    nchannels = shp[shpsrt[-1]]
+    newshp = reshaped.size // nchannels, nchannels
+    return reshaped.transpose(shpsrt).reshape(newshp)
+
+
+def _read_tev(filename, fp_locs, block_size, channel, shank, spikes,
+              index, columns):
+    assert isinstance(filename, basestring), 'filename must be a string'
+    assert isinstance(fp_locs, (np.ndarray, collections.Sequence)), \
+        'fp_locs must be a sequence'
+    assert isinstance(block_size, (numbers.Integral, np.integer)), \
+        'block_size must be an integer'
+    assert ispower2(block_size), 'block_size must be a power of 2'
+    assert isinstance(channel, (np.ndarray, collections.Sequence)), \
+        'channel must be a sequence'
+    assert isinstance(shank, (np.ndarray, collections.Sequence)), \
+        'shank must be a sequence'
+    assert len(channel) == len(shank), 'len(channel) != len(shank)'
+    assert isinstance(spikes, (np.ndarray, DataFrame)), \
+        'spikes must be an ndarray or a DataFrame'
+    assert spikes.shape[1] == block_size, \
+        'number of columns of spikes must equal block_size'
+    assert isinstance(index, pd.Index), 'index must be an instance of Index'
+    assert isinstance(columns, pd.Index), \
+        'columns must be an instance of Index'
+    return _read_tev_impl(filename, fp_locs, block_size, channel, shank,
+                          spikes, index, columns)
+
+
+def _read_tev_impl(filename, fp_locs, block_size, channel, shank, spikes,
+                   index, columns):
+    _read_tev_raw(filename, fp_locs, block_size, spikes.values)
+
+    items = spikes.groupby(channel).indices.items()
+    items.sort()
+
+    group_inds = np.column_stack(OrderedDict(items).itervalues())
+    reshaped = _reshape_spikes(spikes.values, group_inds)
+    d = DataFrame(reshaped, index, columns)
+    d.sort_index(axis=1, inplace=True)
+    return SpikeDataFrame(d, dtype=float)
+
+
+if __name__ == '__main__':
+    f = ('/home/phillip/Data/xcorr_data/Spont_Spikes_091210_p17rat_s4_'
+         '657umV/Spont_Spikes_091210_p17rat_s4_657umV')
+    tank = PandasTank(f)
+    sp = tank.spikes

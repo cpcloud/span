@@ -10,7 +10,7 @@ from pandas import MultiIndex
 from pandas.util.testing import assert_frame_equal
 
 
-from span.tdt.spikedataframe import SpikeDataFrame, _create_xcorr_inds
+from span.tdt.spikedataframe import SpikeDataFrame
 from span.utils import detrend_mean, detrend_linear, detrend_none
 from span.testing import (assert_all_dtypes, create_spike_df,
                           assert_array_equal, assert_raises)
@@ -151,18 +151,3 @@ class TestSpikeDataFrame(object):
     def test_jitter(self):
         jittered = self.spikes.jitter()
         assert not np.array_equal(jittered, self.spikes)
-
-
-class TestCreateXCorrInds(TestCase):
-    def setUp(self):
-        self.spikes = create_spike_df()
-
-    def tearDown(self):
-        del self.spikes
-
-    def test_create_xcorr_inds(self):
-        thr = self.spikes.threshold(self.spikes.std())
-        clr = self.spikes.clear_refrac(thr)
-        binned = clr.resample('L', how='sum')
-        inds = _create_xcorr_inds(binned.columns)
-        self.assertIsInstance(inds, MultiIndex)

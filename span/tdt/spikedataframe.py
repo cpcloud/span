@@ -24,7 +24,7 @@
 Examples
 --------
 >>> import span
->>> tank = span.tdt.PandasTank('some/tank/file/folder')
+>>> tank = span.tdt.PandasTank('basename/of/some/tank/file/folder')
 >>> sp = tank.spikes
 >>> assert isinstance(sp, span.tdt.SpikeDataFrame)
 """
@@ -35,7 +35,7 @@ import abc
 import functools
 
 import numpy as np
-from pandas import Series, DataFrame, MultiIndex
+from pandas import Series, DataFrame
 
 from span.xcorr import xcorr as _xcorr
 from span.utils import samples_per_ms, clear_refrac
@@ -65,10 +65,6 @@ class SpikeDataFrameBase(DataFrame):
 
     @abc.abstractmethod
     def clear_refrac(self, *args, **kwargs):
-        pass
-
-    @abc.abstractmethod
-    def xcorr(self, *args, **kwargs):
         pass
 
 
@@ -173,7 +169,7 @@ class SpikeDataFrame(SpikeDataFrameBase):
 
     @classmethod
     def xcorr(cls, binned, maxlags=None, detrend=None, scale_type=None,
-              sortlevel='shank i', nan_auto=False, lag_name='lag'):
+              sortlevel='shank i', nan_auto=False):
         """Compute the cross correlation of binned data.
 
         Parameters
@@ -199,10 +195,6 @@ class SpikeDataFrame(SpikeDataFrameBase):
         nan_auto : bool, optional
             If ``True`` then the autocorrelation values will be ``NaN``.
             Defaults to ``False``.
-
-        lag_name : str, optional
-            Name to give to the lag index for plotting. Defaults to
-            ``r'$\ell$'``.
 
         Raises
         ------
@@ -237,10 +229,8 @@ class SpikeDataFrame(SpikeDataFrameBase):
         xc = _xcorr(binned, maxlags=maxlags, detrend=detrend,
                     scale_type=scale_type)
 
-        xc.columns = _create_xcorr_inds(binned.columns)
-
         if nan_auto:
-            # slight hack for channel names
+            # HACK for channel names
             xc0 = xc.ix[0]
             names = xc0.index.names
             chi_ind = names.index('channel i')
@@ -249,9 +239,7 @@ class SpikeDataFrame(SpikeDataFrameBase):
             selector = lambda x: x[chi_ind] == x[chj_ind]
             xc.ix[0, xc0.select(selector).index] = np.nan
 
-        xc = xc.sortlevel(level=sortlevel, axis=1)
-        xc.index.name = lag_name
-
+        xc.sortlevel(level=sortlevel, axis=1, inplace=True)
         return xc
 
     def jitter(self, window=100, unit='ms'):
@@ -268,73 +256,5 @@ class SpikeDataFrame(SpikeDataFrameBase):
 
 spike_xcorr = SpikeDataFrame.xcorr
 
-
-# TODO: hack to make it so nans are allowed when creating indices
-def _create_xcorr_inds(columns, index_start_string='i'):
-    """Create an appropriate index for cross correlation.
-
-    Parameters
-    ----------
-    columns : MultiIndex
-    index_start_string : basestring
-
-    Returns
-    -------
-    mi : MultiIndex
-
-    Notes
-    -----
-    I'm not sure if this is actually slick, or just insane seems like
-    functional idioms are so concise as to be confusing sometimes,
-    although maybe I'm just slow.
-
-    This absolutely does not handle the case where there are more than
-    52 levels in the index, because i haven't had the chance to think
-    about it yet.
-
-    The reduce etc code is equivalent to the following loop-based code:
-
-    .. code-block:: python
-
-        red = []
-        for inds in xrs:
-            s = ()
-
-            for i in inds:
-                s += columns[i]
-
-            red.append(s)
-    """
-    from string import ascii_letters as letters
-    from itertools import product, repeat, cycle, islice, imap
-
-    # number of columns
-    ncols = len(columns)
-
-    # number levels
-    nlevels = len(columns.levels)
-
-    # {0, ..., ncols - 1} ^ nlevels
-    xrs = product(*repeat(xrange(ncols), nlevels))
-
-    # see docstring
-    inner_reducer = lambda i, j: columns[i] + columns[j]
-    reducer = lambda inds: reduce(inner_reducer, inds)
-    all_inds = imap(reducer, xrs)
-
-    colnames = columns.names
-
-    # get the index of the starting index string provided
-    first_ind = letters.index(index_start_string)
-
-    # repeat endlessly
-    cycle_letters = cycle(letters)
-
-    # slice from the index of the first letter to that plus the number
-    # of names
-    sliced = islice(cycle_letters, first_ind, first_ind + len(colnames))
-
-    # alternate names and index letter
-    names = sorted(product(colnames, sliced), key=lambda x: x[-1])
-    names = imap(' '.join, names)
-    return MultiIndex.from_tuples(list(all_inds), names=list(names))
+if __name__ == '__main__':
+    tank = PandasTank('~/Data/')

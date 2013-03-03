@@ -13,7 +13,8 @@ except (RuntimeError, ImportError):
 def _permute_axis(values, axis=0):
     if not axis:
         return np.random.permutation(values)
-    return values.take(np.random.permutation(values.shape[axis]), axis=axis)
+
+    return values.take(np.random.permutation(values.shape[axis]), axis)
 
 
 def _shuffle_frame(self, n=1, axis=0):
@@ -30,7 +31,7 @@ def _shuffle_frame(self, n=1, axis=0):
 DataFrame.shuffle = _shuffle_frame
 
 
-def _series_shuffle(self, n=1):
+def _shuffle_series(self, n=1):
     values = self.values.copy()
 
     if n == 1:
@@ -38,10 +39,10 @@ def _series_shuffle(self, n=1):
                                  self.name)
 
     res = dict((i, _permute_axis(values)) for i in xrange(n))
-    return DataFrame(res, index=self.index)
+    return DataFrame(res, self.index)
 
 
-Series.shuffle = _series_shuffle
+Series.shuffle = _shuffle_series
 
 
 def cch_perm(xci, M=1000, alpha=0.05, plot=False, ax=None):
@@ -54,13 +55,13 @@ def cch_perm(xci, M=1000, alpha=0.05, plot=False, ax=None):
     # create M surrogates by shuffling the lags
     xcs = xci.shuffle(n=M)
 
-    # empirical mean
+    # empirical mean across shuffles
     xcm = xcs.mean(1)
 
     # add in the original for sorting
     xcs.columns = np.arange(1, M + 1)
     xcs[0] = xci.values
-    xcs = xcs.sort_index(axis=1)
+    xcs.sort_index(axis=1, inplace=True)
 
     # compute a p-value for the lag 0 distribution
     p = np.mean(xcs.ix[0] >= xci.ix[0])
@@ -74,7 +75,7 @@ def cch_perm(xci, M=1000, alpha=0.05, plot=False, ax=None):
     b = srt_xcs[n_upper]
 
     # compute the 'trimmed' mean and std
-    rsm = srt_xcs.ix[:, 1:M - 1]
+    rsm = srt_xcs.ix[:, 1:M - 1]  # inclusive indices here
     nu = rsm.mean(1)
     s = rsm.std(1)
 
@@ -115,14 +116,14 @@ def cch_perm(xci, M=1000, alpha=0.05, plot=False, ax=None):
             ax1.fill_between(ind, a - xcm, b - xcm, alpha=0.4, color='k')
 
             ax1.vlines(ind, 0, xcv, lw=lw)
-            ax1.set_xlabel(r'$\ell$')
-            ax1.set_ylabel(r'$\gamma(\ell)$')
+            ax1.set_xlabel(r'$\ell$', fontsize=15)
+            ax1.set_ylabel(r'$\gamma(\ell)$', fontsize=15)
             ax1.set_ylim((lower.min(), upper.max()))
 
             xcs.ix[0].hist(ax=ax2, bins=20)
             ax2.axvline(lag0, c='r', lw=lw)
-            ax2.set_xlabel(r'$\gamma(0)$')
-            ax2.set_ylabel('Count')
+            ax2.set_xlabel(r'$\gamma(0)$', fontsize=15)
+            ax2.set_ylabel('Count', fontsize=15)
             fig.tight_layout()
     except (RuntimeError, NameError):
         pass
