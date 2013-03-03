@@ -52,12 +52,12 @@ EventTypes = pd.Series({
     0x0: 'unknown',
     0x101: 'strobe_on',
     0x102: 'strobe_off',
-    0x201: 'scalar',
+    0x201: 'scaler',
     0x8101: 'stream',
     0x8201: 'snip',
     0x8801: 'mark',
     0x8000: 'hasdata'
-}, name='TDT Event Types')
+}, name='Event Types')
 
 DistanceMap = partial(distance_map, NShanks, ElectrodesPerShank)
 
@@ -65,10 +65,10 @@ DistanceMap = partial(distance_map, NShanks, ElectrodesPerShank)
 def _dtype_mapper(raw, attr='name'):
     return getattr(np.dtype(raw), attr)
 
-DataTypes = pd.Series({
+RawDataTypes = pd.Series({
     0: np.float32,
     1: np.int32,
     2: np.int16,
     3: np.int8,
     4: np.float64,
-}, name='TDT Data Types').map(_dtype_mapper)
+}, name='Raw Data Types').map(_dtype_mapper)
