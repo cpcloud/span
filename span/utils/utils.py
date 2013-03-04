@@ -164,10 +164,10 @@ def isvector(x):
 
 
 def assert_nonzero_existing_file(f):
-    assert os.path.exists(f), '%s does not exist'
-    assert os.path.isfile(f), '%s is not a file'
+    assert os.path.exists(f), '%s does not exist' % f
+    assert os.path.isfile(f), '%s is not a file' % f
     assert os.path.getsize(f) > 0, \
-        '%s exists and is a file, but it has a size of 0'
+        '%s exists and is a file, but it has a size of 0' % f
 
 
 def clear_refrac(a, window):
@@ -263,3 +263,7 @@ def create_repeating_multi_index(columns, index_start_string='i'):
                 for inds in xrs)
 
     return MultiIndex.from_tuples(tuple(all_inds), names=list(names))
+
+
+def _diag_inds_n(n):
+    return (n + 1) * np.arange(n)
