@@ -257,4 +257,4 @@ class SpikeDataFrame(SpikeDataFrameBase):
 spike_xcorr = SpikeDataFrame.xcorr
 
 if __name__ == '__main__':
-    tank = PandasTank('~/Data/')
+    pass
