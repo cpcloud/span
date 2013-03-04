@@ -3,3 +3,5 @@ exclude_lines =
     pass
     except ImportError:
     except RuntimeError:
+    pragma: no cover
+    if __name__ == '__main__':
