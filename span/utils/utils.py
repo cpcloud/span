@@ -27,6 +27,7 @@ import operator
 import itertools
 import functools
 import numbers
+import string
 from string import ascii_letters as _LETTERS
 
 import numpy as np

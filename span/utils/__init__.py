@@ -22,7 +22,8 @@ from span.utils.utils import (name2num, ndtuples, iscomplex,
                               get_fft_funcs, isvector,
                               assert_nonzero_existing_file,
                               clear_refrac, ispower2, fromtimestamp,
-                              create_repeating_multi_index, _diag_inds_n)
+                              create_repeating_multi_index, _diag_inds_n,
+                              num2name)
 from span.utils.ordereddict import OrderedDict
 from span.utils.math import (detrend_none, detrend_mean, detrend_linear,
                              cartesian, nextpow2, samples_per_ms, compose,
