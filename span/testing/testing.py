@@ -34,13 +34,13 @@ def skip(test):
 
 def create_stsq(size=None, typ='stream',
                 name=span.utils.name2num('Spik'), nchannels=16, sort_code=0,
-                fmt=np.float32, fs=4882.8125,
+                fmt=np.float32, fs=1000,
                 samples_per_channel=None, strobe=None):
     if size is None:
-        size = randint(2 ** 3, 2 ** 4)
+        size = 8
 
     if samples_per_channel is None:
-        samples_per_channel = randint(2 ** 5, 2 ** 6)
+        samples_per_channel = 32
 
     names = ('size', 'type', 'name', 'channel', 'sort_code', 'timestamp',
              'fp_loc', 'format', 'fs', 'shank')
