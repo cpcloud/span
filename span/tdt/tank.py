@@ -107,7 +107,7 @@ class TdtTankAbstractBase(object):
 
         tsq['shank'] = shank
 
-        for key in {'channel', 'shank', 'sort_code', 'fp_loc'}:
+        for key in set(['channel', 'shank', 'sort_code', 'fp_loc']):
             try:
                 tsq[key][tsq.strobe.notnull()] = NA
             except ValueError:
