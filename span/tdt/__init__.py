@@ -18,9 +18,9 @@
 # along with this program. If not, see <http://www.gnu.org/licenses/>.
 
 from span.tdt.spikedataframe import SpikeDataFrame, spike_xcorr
-from span.tdt.spikeglobals import SortedIndexer as Indexer, DataTypes
+from span.tdt.spikeglobals import SortedIndexer as Indexer, RawDataTypes
 from span.tdt.tank import PandasTank
 from span.tdt.recording import distance_map, ElectrodeMap
 
-__all__ = ('SpikeDataFrame', 'spike_xcorr', 'Indexer', 'DataTypes',
+__all__ = ('SpikeDataFrame', 'spike_xcorr', 'Indexer', 'RawDataTypes',
            'PandasTank', 'ElectrodeMap')

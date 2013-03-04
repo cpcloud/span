@@ -173,14 +173,14 @@ class TestMultMatXcorr(unittest.TestCase):
 
 class TestCreateRepeatingMultiIndex(unittest.TestCase):
     def setUp(self):
-        self.spikes = create_spike_df()
+        self.spik = create_spike_df()
 
     def tearDown(self):
-        del self.spikes
+        del self.spik
 
     def test_create_repeating_multi_index(self):
-        thr = self.spikes.threshold(self.spikes.std())
-        clr = self.spikes.clear_refrac(thr)
+        thr = self.spik.threshold(self.spik.std())
+        clr = self.spik.clear_refrac(thr)
         binned = clr.resample('L', how='sum')
         inds = create_repeating_multi_index(binned.columns)
         self.assertIsInstance(inds, MultiIndex)

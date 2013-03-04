@@ -77,7 +77,7 @@ def main():
     tev_name, _ = os.path.splitext(tev)
     mat_filename = os.path.join(tev_name + os.extsep + 'mat')
     print '\nConverting TDT Tank to MATLAB: {0}'.format(mat_filename)
-    serv2mat(span.tdt.PandasTank(tev_name).spikes.values,
+    serv2mat(span.tdt.PandasTank(tev_name).spik.values,
              mat_filename)
     print 'Done!'
 

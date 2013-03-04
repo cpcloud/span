@@ -28,6 +28,7 @@ import itertools
 import functools
 import numbers
 import string
+from string import ascii_letters as _LETTERS
 
 import numpy as np
 from numpy.fft import fft, ifft, rfft, irfft
@@ -104,6 +105,21 @@ def name2num(name, base=256):
         type string.
     """
     return (base ** np.r_[:len(name)]).dot(tuple(map(ord, name)))
+
+
+_ORDS = list(map(ord, _LETTERS))
+_MAXLEN = 4
+_BIG_ORDS = cartesian([_ORDS] * _MAXLEN)
+
+
+def num2name(num, base=256, maxlen=_MAXLEN):
+    # if the number could not possibly be a name
+    if (num < _BIG_ORDS[0]).all():
+        return ''
+
+    rhs = base ** np.arange(maxlen)
+    out = _BIG_ORDS[_BIG_ORDS.dot(rhs) == num].ravel()
+    return ''.join(map(chr, out))
 
 
 def iscomplex(x):

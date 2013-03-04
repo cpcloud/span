@@ -39,9 +39,9 @@ class TestReadTev(object):
                 warnings.simplefilter('ignore', FutureWarning)
                 tsq.reset_index(drop=True, inplace=True)
 
-            fp_locs = tsq.fp_loc
+            fp_locs = tsq.fp_loc.astype(int)
 
-            assert np.dtype(np.int64) == fp_locs.dtype
+            assert np.issubdtype(fp_locs.dtype, np.integer)
 
             chunk_size = tsq.size.unique().max()
 
@@ -79,8 +79,6 @@ def test_reshape_spikes():
     reshaped = _reshape_spikes(df.values, group_inds)
 
     a, b = reshaped.shape, (nsamples, nchannels)
-    print 'reshaped.shape == {0}'.format(a)
-    print '(nsamples, nchannels) == {0}'.format(b)
     assert a == b
 
 
@@ -110,8 +108,16 @@ class TestPandasTank(unittest.TestCase):
 
         for name, typ in zip(names, typs):
             self.assert_(hasattr(self.tank, name))
-            self.assertIsInstance(getattr(self.tank, name),
-                                  (types.NoneType, typ))
+
+            for event_name in self.names:
+                attr = getattr(self.tank, name)
+
+                try:
+                    tester = attr[event_name]
+                except (TypeError, IndexError):
+                    tester = attr
+
+                self.assertIsInstance(tester, (types.NoneType, typ))
 
     def setUp(self):
         self.names = 'Spik', 'LFPs'
@@ -132,7 +138,7 @@ class TestPandasTank(unittest.TestCase):
 
     def test_read_tsq(self):
         for name in self.names:
-            tsq, _ = self.tank._read_tsq(name)()
+            tsq, _ = self.tank._get_tsq_event(name)()
             self.assertIsNotNone(tsq)
             self.assertIsInstance(tsq, pd.DataFrame)
 
@@ -140,20 +146,14 @@ class TestPandasTank(unittest.TestCase):
         for name in self.names:
             self.assertIsNotNone(self.tank.tsq(name))
 
-    def test_stsq(self):
-        self.assertIsNotNone(self.tank.stsq)
-
-    def test_ltsq(self):
-        self.assertIsNotNone(self.tank.ltsq)
-
     @slow
     def test_tev(self):
         for name in self.names:
-            self.assertIsNotNone(self.tank.tev(name))
+            self.assertIsNotNone(self.tank._tev(name))
 
     @slow
     def test_spikes(self):
-        self.assertIsNotNone(self.tank.spikes)
+        self.assertIsNotNone(self.tank.spik)
 
     @slow
     def test_lfps(self):

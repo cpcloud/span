@@ -37,16 +37,17 @@ import warnings
 
 import numpy as np
 from numpy import nan as NA
-from pandas import DataFrame, DatetimeIndex
+from pandas import DataFrame, DatetimeIndex, Series
 import pandas as pd
 from pytz import UnknownTimeZoneError
 
-from span.tdt.spikeglobals import Indexer, EventTypes, DataTypes
+from span.tdt.spikeglobals import Indexer, EventTypes, RawDataTypes
 from span.tdt.spikedataframe import SpikeDataFrame
 from span.tdt._read_tev import _read_tev_raw
 
-from span.utils import (name2num, thunkify, cached_property, fromtimestamp,
-                        assert_nonzero_existing_file, ispower2, OrderedDict)
+from span.utils import (thunkify, cached_property, fromtimestamp,
+                        assert_nonzero_existing_file, ispower2, OrderedDict,
+                        num2name)
 
 
 def _python_read_tev_raw(filename, fp_locs, block_size, spikes):
@@ -74,14 +75,7 @@ class TdtTankAbstractBase(object):
         pass  # pragma: no cover
 
     @thunkify
-    def _read_tsq(self, event_name):
-        """Read the metadata (TSQ) file of a TDT Tank.
-
-        Returns
-        -------
-        b : pandas.DataFrame
-            Recording metadata
-        """
+    def _raw_tsq(self):
         # create the path name
         tsq_name = self.path + os.extsep + self._header_ext
 
@@ -98,7 +92,7 @@ class TdtTankAbstractBase(object):
         tsq.channel[tsq.channel == -1.0] = NA
 
         tsq.type = EventTypes[tsq.type].values
-        tsq.format = DataTypes[tsq.format].values
+        tsq.format = RawDataTypes[tsq.format].values
 
         tsq.timestamp[np.logical_not(tsq.timestamp)] = NA
         tsq.fs[np.logical_not(tsq.fs)] = NA
@@ -113,42 +107,53 @@ class TdtTankAbstractBase(object):
 
         tsq['shank'] = shank
 
-        # convert the event_name to a number
-        name = name2num(event_name)
+        for key in {'channel', 'shank', 'sort_code', 'fp_loc'}:
+            try:
+                tsq[key][tsq.strobe.notnull()] = NA
+            except ValueError:
+                tsq[key] = tsq[key].astype(float)
+                tsq[key][tsq.strobe.notnull()] = NA
 
-        # get the row of the metadata where its value equals the name-number
-        row = tsq.name == name
+        return tsq
+
+    @thunkify
+    def _get_tsq_event(self, event_name):
+        """Read the metadata (TSQ) file of a TDT Tank.
+
+        Returns
+        -------
+        b : pandas.DataFrame
+            Recording metadata
+        """
+        tsq = self.raw
 
         # make sure there's at least one event
         p = self.path
+
+        # get the row of the metadata where its value equals the name-number
+        row = tsq.name.isin([event_name])
         assert row.any(), 'no event named %s in tank: %s' % (event_name, p)
-        self.raw = tsq
 
         # get all the metadata for those events
         tsq = tsq[row]
 
         # convert to integer where possible
-        tsq.channel = tsq.channel.astype(int)
-        tsq.shank = tsq.shank.astype(int)
+        try:
+            tsq.channel = tsq.channel.astype(int)
+            tsq.shank = tsq.shank.astype(int)
+        except ValueError:
+            pass
 
         return tsq, row.argmax()
 
     def tsq(self, event_name):
-        return self._read_tsq(event_name)()
+        return self._get_tsq_event(event_name)()
 
     @cached_property
-    def stsq(self):
-        tsq, _ = self.tsq('Spik')
-        tsq.reset_index(drop=True, inplace=True)
-        return tsq
+    def raw(self):
+        return self._raw_tsq()()
 
-    @cached_property
-    def ltsq(self):
-        tsq, _ = self.tsq('LFPs')
-        tsq.reset_index(drop=True, inplace=True)
-        return tsq
-
-    def tev(self, event_name):
+    def _tev(self, event_name):
         """Return the data from a particular event.
 
         Parameters
@@ -224,25 +229,41 @@ class TdtTankBase(TdtTankAbstractBase):
         self.age = _first_int_group(self._age_re, self.name)
         self.site = _first_int_group(self._site_re, self.name)
 
-        istart = self.stsq.timestamp.index[0]
-        iend = self.stsq.timestamp.index[-1]
-        tstart = pd.datetime.fromtimestamp(self.stsq.timestamp[istart])
+        not_na_ts = self.raw.timestamp.dropna()
+        tstart = pd.datetime.fromtimestamp(not_na_ts.head(1).item())
+        tend = pd.datetime.fromtimestamp(not_na_ts.tail(1).item())
 
         self.__datetime = pd.Timestamp(tstart)
         self.time = self.__datetime.time()
         self.date = self.__datetime.date()
-        self.fs = self.stsq.fs[istart]
+
         self.start = self.__datetime
-
-        tend = pd.datetime.fromtimestamp(self.stsq.timestamp[iend])
-
         self.end = pd.Timestamp(tend)
+
         self.duration = np.timedelta64(self.end - self.start)
+        unames = self.raw.name.unique()
+        raw_names = map(lambda x: NA if not x else x, map(num2name, unames))
+        self.names = Series(list(raw_names), index=unames)
+
+        self.raw.name = self.names[self.raw.name].reset_index(drop=True)
+        self._name_mapper = dict(zip(self.names.str.lower().values,
+                                     self.names.values))
+
+        def _try_get_na(x):
+            try:
+                return x.item()
+            except ValueError:
+                return NA
+
+        fs_nona = self.raw.fs.dropna()
+        name_nona = self.raw.name.dropna()
+        self.fs = Series({name: _try_get_na(fs_nona[name_nona == name].head(1))
+                          for name in self.names.dropna().values})
 
     def __repr__(self):
         objr = repr(self.__class__)
         params = dict(age=self.age, name=self.name, site=self.site, obj=objr,
-                      fs=self.fs, datetime=str(self.datetime),
+                      fs=self.fs.to_dict(), datetime=str(self.datetime),
                       duration=self.duration / np.timedelta64(1, 'm'))
         fmt = ('{obj}\nname:     {name}\ndatetime: {datetime}\nage:      '
                'P{age}\nsite:     {site}\nfs:       {fs}\n'
@@ -250,16 +271,29 @@ class TdtTankBase(TdtTankAbstractBase):
         return fmt.format(**params)
 
     @property
+    def values(self):
+        return self.raw.values
+
+    @property
     def datetime(self):
         return self.__datetime.to_pydatetime()
 
-    @cached_property
-    def spikes(self):
-        return self.tev('Spik')
+    def __getattr__(self, name):
+        # try:
+        mapper = super(TdtTankBase, self).__getattribute__('_name_mapper')
 
-    @cached_property
-    def lfps(self):
-        return self.tev('LFPs')
+        # check to see if something similar was given
+        lowered_name = name.lower()
+
+        if lowered_name != name and lowered_name in mapper:
+            raise AttributeError('Tried to retrieve the attribute '
+                                 '\'%s\', did you mean \'%s\'?'
+                                 % (name, lowered_name))
+
+        return self._tev(mapper[name])
+        # except (AssertionError, KeyError):
+        # except AssertionError:
+            # return super(TdtTankBase, self).__getattribute__(name)
 
 
 class PandasTank(TdtTankBase):
@@ -321,8 +355,9 @@ class PandasTank(TdtTankBase):
         # convert timestamps to datetime objects (vectorized)
         meta.timestamp = fromtimestamp(meta.timestamp)
 
-        index = _create_ns_datetime_index(self.datetime, self.fs, nsamples)
-        return _read_tev(tev_name, meta.fp_loc.values, block_size,
+        index = _create_ns_datetime_index(self.datetime, self.fs[event_name],
+                                          nsamples)
+        return _read_tev(tev_name, meta.fp_loc.astype(int).values, block_size,
                          meta.channel.values, meta.shank.values,
                          spikes, index, columns.reorder_levels((1, 0)))
 
@@ -406,4 +441,4 @@ if __name__ == '__main__':
     span_data_path = os.environ['SPAN_DATA_PATH']
     f = os.path.join(span_data_path, 'Spont_Spikes_091210_p17rat_s4_657umV')
     tank = PandasTank(f)
-    sp = tank.spikes
+    sp = tank.Spik

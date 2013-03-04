@@ -25,7 +25,7 @@ Examples
 --------
 >>> import span
 >>> tank = span.tdt.PandasTank('basename/of/some/tank/file/folder')
->>> sp = tank.spikes
+>>> sp = tank.spik
 >>> assert isinstance(sp, span.tdt.SpikeDataFrame)
 """
 
