@@ -25,18 +25,8 @@ from six.moves import xrange
 
 
 from span.utils import get_fft_funcs, isvector, nextpow2, compose
-from span.utils import create_repeating_multi_index
+from span.utils import create_repeating_multi_index, _diag_inds_n
 from span.xcorr._mult_mat_xcorr import _mult_mat_xcorr_parallel
-
-
-def _diag_inds_n(n):
-    return (n + 1) * np.arange(n)
-
-
-def _diag_inds(x):
-    m, n = x.shape
-    assert m == n, 'x is not square, diagonal is not defined'
-    return _diag_inds_n(n)
 
 
 def _mult_mat_xcorr_cython_parallel(X, Xc, c, n):
@@ -428,11 +418,13 @@ def xcorr(x, y=None, maxlags=None, detrend=None, scale_type=None):
 
 if __name__ == '__main__':
     from span import PandasTank
-    f = ('/home/phillip/Data/correlation_paper/'
-         '657umV/Spont_Spikes_091210_p17rat_s4_657umV')
-    tank = PandasTank(f)
+    import os
+    span_data_path = os.environ['SPAN_DATA_PATH']  # pragma: no cover
+    f = os.path.join(span_data_path, 'correlation_paper', 'Spont_Spikes_'
+                     '091210_p17rat_s4_657umV')
+    tank = PandasTank(f)  # pragma: no cover
     sp = tank.spikes
-    thr = sp.threshold(4 * sp.std())
-    clr = thr.clear_refrac(thr)
+    thr = sp.threshold(4 * sp.std())  # pragma: no cover
+    clr = thr.clear_refrac(thr)  # pragma: no cover
     binned = clr.resample('S', how='sum')
-    xc = clr.xcorr(binned)
+    xc = clr.xcorr(binned)  # pragma: no cover
