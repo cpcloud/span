@@ -1,4 +1,3 @@
-from unittest import TestCase
 import itertools as itools
 
 import numpy as np
@@ -6,7 +5,6 @@ from numpy.random import rand, randint
 from numpy.testing.decorators import slow
 
 import pandas as pd
-from pandas import MultiIndex
 from pandas.util.testing import assert_frame_equal
 
 
@@ -121,32 +119,30 @@ class TestSpikeDataFrame(object):
         sortlevels = 'shank i', 'channel i', 'shank j', 'channel j'
         sortlevels += tuple(xrange(len(sortlevels)))
         nan_autos = True, False
-        lag_names = 'a',
 
         args = itools.product(maxlags, detrends, scale_types, sortlevels,
-                              nan_autos, lag_names)
+                              nan_autos)
 
-        for maxlag, detrend, scale_type, level, nan_auto, lag_name in args:
+        for maxlag, detrend, scale_type, level, nan_auto in args:
             yield (self.xcorr_builder, maxlag, detrend, scale_type, level,
-                   nan_auto, lag_name)
+                   nan_auto)
 
-    def xcorr_builder(self, maxlag, detrend, scale_type, level, nan_auto,
-                      lag_name):
+    def xcorr_builder(self, maxlag, detrend, scale_type, level, nan_auto):
         thr = self.spikes.threshold(self.spikes.std())
         clr = self.spikes.clear_refrac(thr)
         binned = clr.resample('L', how='sum')
         xc = self.spikes.xcorr(binned, maxlag, detrend, scale_type, level,
-                               nan_auto, lag_name)
+                               nan_auto)
         assert isinstance(xc, pd.DataFrame)
 
         weird_levels = 'asdfalsdj', 2342, object()
 
         for level in weird_levels:
             assert_raises(Exception, self.spikes.xcorr, binned, maxlag,
-                          detrend, scale_type, level, nan_auto, lag_name)
+                          detrend, scale_type, level, nan_auto)
         assert_raises(AssertionError, self.spikes.xcorr, binned,
                       binned.shape[0] + 10, detrend, scale_type, level,
-                      nan_auto, lag_name)
+                      nan_auto)
 
     def test_jitter(self):
         jittered = self.spikes.jitter()

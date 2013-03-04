@@ -1,131 +1,128 @@
-from unittest import TestCase
-import numbers
-import itertools as itools
-import copy
+import unittest
+import nose
 
-import numpy as np
-from numpy.random import randint
+from numpy.random import permutation, randint
+from numpy import ndarray
 
-from span.tdt import distance_map, ElectrodeMap
-from span.testing import create_spike_df, knownfailure
+from span.tdt.recording import ElectrodeMap, distance_map
+from pandas import Series
 
 
-class TestDistanceMap(TestCase):
+class TestDistanceMap(unittest.TestCase):
     def test_distance_map(self):
-        nshanks = tuple(np.r_[:9])
-        elecs = copy.deepcopy(nshanks)
+        nshanks = randint(1, 10)
+        electrodes_per_shank = randint(1, 10)
+        within_shank = randint(20, 100)
+        metric = 'wminkowski'
+        p = 2.0
 
-        between = 25, 50
-        within = copy.deepcopy(between)
-
-        metrics = 'wminkowski',
-        ps = 1, 2, np.inf
-
-        arg_sets = itools.product(nshanks, elecs, within, between, metrics, ps)
-
-        def _tester(nsh, nelec, wthn, btwn, metr, p):
-            if not (nsh and nelec):
-                self.assertRaises(AssertionError, distance_map, nsh, nelec,
-                                  wthn, btwn, metr, p)
-            else:
-                if nelec == 1:
-                    nsh = 1
-
-                if nsh == 1:
-                    btwn = 0
-
-                if nsh > 1 and nelec > 1:
-                    dm = distance_map(nsh, nelec, btwn, wthn, metr, p)
-                    self.assertEqual(dm.size, (nsh * nelec) ** 2)
-
-        for arg_set in arg_sets:
-            _tester(*arg_set)
+        if nshanks == 1:
+            between_shank = 0
+            dm = distance_map(nshanks, electrodes_per_shank, within_shank,
+                              between_shank, metric, p)
+            self.assertRaises(
+                AssertionError, distance_map,
+                nshanks, electrodes_per_shank, within_shank,
+                1, metric, p)
+        else:
+            between_shank = randint(20, 100)
+            dm = distance_map(nshanks, electrodes_per_shank, within_shank,
+                              between_shank, metric, p)
+        self.assertIsInstance(dm, ndarray)
 
 
-class TestElectrodeMap(TestCase):
-    def setUp(self):
-        self.b = np.arange(1, 101, 25)
-        self.w = self.b.copy()
-        self.nelecs = np.arange(64) + 1
-
+        # self.assertEqual(expected, dm)
+@nose.tools.nottest
+class TestElectrodeMap(unittest.TestCase):
     def tearDown(self):
-        del self.nelecs, self.w, self.b
+        del self.p, self.metric, self.map_, self.between_shank
+        del self.within_shank, self.newshape, self.channels_per_shank
+        del self.nshank, self.nchannel
 
-    def test_nchans(self):
-        b, w, nelecs = self.b, self.w, self.nelecs
-        arg_sets = itools.product(b, w, nelecs)
+    def test___bytes__(self):
+        electrode_map = ElectrodeMap(self.map_, self.within_shank,
+                                     self.between_shank)
+        b = electrode_map.__bytes__()
+        # self.assertEqual(expected, electrode_map.__bytes__())
 
-        for bb, ww, nelec, in arg_sets:
-            nshanks = randint(1, 9)
-            a = randint(1, nelec + 1, size=(nelec, nshanks))
-            em = ElectrodeMap(a)
-            self.assert_(hasattr(em, 'nchans'))
-            self.assertIsInstance(em.nchans, numbers.Integral)
+    def test___init__(self):
+        self.em = ElectrodeMap(self.map_)
 
-    def test_1d_map(self):
-        for n in self.nelecs:
-            a = randint(1, n + 1, size=n)
-            em = ElectrodeMap(a)
-            self.assertIsNotNone(em)
+    def test___unicode__(self):
+        electrode_map = ElectrodeMap(self.map_, self.within_shank,
+                                     self.between_shank)
+        u = electrode_map.__unicode__()
+        # self.assertEqual(expected, electrode_map.__unicode__())
 
-    def test_2d_map(self):
-        nshanks = xrange(2, 9)
-        for nelec, nshank in itools.product(self.nelecs + 1, nshanks):
-            a = randint(1, nelec + 1, size=(nelec, nshank))
-            em = ElectrodeMap(a)
-            self.assertIsNotNone(em)
+    def test_channel(self):
+        electrode_map = ElectrodeMap(self.map_, self.within_shank,
+                                     self.between_shank)
+        # self.assertEqual(expected, electrode_map.channel)
+        self.assertIsInstance(electrode_map.channel, ndarray)
 
-    @knownfailure
-    def test_distance_map_1d(self):
-        b, w, nelecs = self.b, self.w, self.nelecs
-        arg_sets = itools.product(b, w, nelecs)
+    def test_distance_map(self):
+        electrode_map = ElectrodeMap(self.map_, self.within_shank,
+                                     self.between_shank)
+        dm = electrode_map.distance_map(self.metric, self.p)
+        self.assertIsInstance(dm, Series)
 
-        for bb, ww, n in arg_sets:
-            a = randint(1, n + 1, size=n)
-            em = ElectrodeMap(a)
+    def test_nchannel(self):
+        electrode_map = ElectrodeMap(self.map_, self.within_shank,
+                                     self.between_shank)
+        expected = self.nchannel
+        self.assertEqual(expected, electrode_map.nchannel)
 
-            if ww and bb and em.values.size > 1:
-                dm = em.distance_map(ww, bb)
-                self.assertIsNotNone(dm)
-            else:
-                self.assertRaises(ValueError, em.distance_map, ww, bb)
+    def test_nshank(self):
+        electrode_map = ElectrodeMap(self.map_, self.within_shank,
+                                     self.between_shank)
+        expected = self.nshank
+        self.assertEqual(expected, electrode_map.nshank)
 
-    def test_distance_map_2d(self):
-        nshanks = randint(2, 8)
-        b, w, nelecs = self.b, np.zeros_like(self.b), self.nelecs
-        arg_sets = itools.product(b, w, nelecs, [nshanks])
+    def test_original(self):
+        electrode_map = ElectrodeMap(self.map_, self.within_shank,
+                                     self.between_shank)
+        orig = electrode_map.original
+        # self.assertEqual(expected, electrode_map.original)
 
-        for bb, ww, n, nsh in arg_sets:
-            a = randint(1, n + 1, size=(n, nsh))
+    def test_raw(self):
+        electrode_map = ElectrodeMap(self.map_, self.within_shank,
+                                     self.between_shank)
+        r = electrode_map.raw
+        # self.assertEqual(expected, electrode_map.raw)
 
-            em = ElectrodeMap(a)
-
-            if ww and bb:
-                dm = em.distance_map(ww, bb)
-                self.assertIsNotNone(dm)
-            else:
-                self.assertRaises(AssertionError, em.distance_map, ww, bb)
-
-            self.assertIsNotNone(em)
+    def test_shank(self):
+        electrode_map = ElectrodeMap(self.map_, self.within_shank,
+                                     self.between_shank)
+        self.assertIsInstance(electrode_map.shank, ndarray)
 
 
-class TestDistanceMapWithCrossCorrelation(TestCase):
+@nose.tools.istest
+class TestElectrodeMap1D(TestElectrodeMap):
     def setUp(self):
-        sp = create_spike_df()
-        thr = sp.threshold(4 * sp.std())
-        clr = sp.clear_refrac(thr)
-        binned = clr.resample('L', how='sum')
-        self.xc = sp.xcorr(binned, maxlags=10)
+        self.nchannel, self.nshank = 16, 1
+        self.channels_per_shank = self.nchannel // self.nshank
+        self.newshape = self.channels_per_shank, self.nshank
+        self.within_shank = randint(20, 101)
+        self.between_shank = 0
+        self.map_ = permutation(self.nchannel).reshape(self.newshape,
+                                                       order='F')
+        self.metric = 'wminkowski'
+        self.p = 2.0
 
-        rawmap = np.array([1, 3, 2, 6,
-                           7, 4, 8, 5,
-                           13, 10, 12, 9,
-                           14, 16, 11, 15]).reshape(4, 4)
-        self.elecmap = ElectrodeMap(rawmap)
-        self.dm = self.elecmap.distance_map(50, 125)
 
-    def test_set_index(self):
-        xcc = self.xc.T.set_index(self.dm, append=True).T
-        lag0_tmp = xcc.ix[0].dropna().sortlevel(level=4)
-        lag0 = lag0_tmp.reset_index(level=range(5), drop=True)
-        self.assertIsNotNone(lag0)
+@nose.tools.istest
+class TestElectrodeMap2D(TestElectrodeMap):
+    def setUp(self):
+        self.nchannel, self.nshank = 16, 4
+        self.channels_per_shank = self.nchannel // self.nshank
+        self.newshape = self.channels_per_shank, self.nshank
+        self.within_shank = randint(20, 101)
+        self.between_shank = randint(20, 101)
+        self.map_ = permutation(self.nchannel).reshape(self.newshape,
+                                                       order='F')
+        self.metric = 'wminkowski'
+        self.p = 2.0
+
+
+if __name__ == '__main__':
+    unittest.main()

@@ -19,26 +19,14 @@
 # You should have received a copy of the GNU General Public License
 # along with this program. If not, see <http://www.gnu.org/licenses/>.
 
-import itertools
-import string
-
 import numpy as np
-from pandas import Series, DataFrame, MultiIndex
+from pandas import Series, DataFrame
 from six.moves import xrange
 
 
-from span.utils import get_fft_funcs, isvector, nextpow2, compose, cartesian
+from span.utils import get_fft_funcs, isvector, nextpow2, compose
+from span.utils import create_repeating_multi_index, _diag_inds_n
 from span.xcorr._mult_mat_xcorr import _mult_mat_xcorr_parallel
-
-
-def _diag_inds_n(n):
-    return (n + 1) * np.arange(n)
-
-
-def _diag_inds(x):
-    m, n = x.shape
-    assert m == n, 'x is not square, diagonal is not defined'
-    return _diag_inds_n(n)
 
 
 def _mult_mat_xcorr_cython_parallel(X, Xc, c, n):
@@ -417,7 +405,7 @@ def xcorr(x, y=None, maxlags=None, detrend=None, scale_type=None):
     if isinstance(x, Series):
         return_type = lambda y: Series(y, lags)
     elif isinstance(x, DataFrame):
-        columns = _create_xcorr_inds(x.columns)
+        columns = create_repeating_multi_index(x.columns)
         return_type = lambda y: DataFrame(y, lags, columns)
     elif isinstance(x, np.ndarray):
         return_type = lambda x: np.asanyarray(x)
@@ -428,79 +416,15 @@ def xcorr(x, y=None, maxlags=None, detrend=None, scale_type=None):
     return ret_func(ctmp.take(lags, axis=0), x, y, lags, lsize)
 
 
-# TODO: hack to make it so nans are allowed when creating indices
-def _create_xcorr_inds(columns, index_start_string='i'):
-    """Create an appropriate index for cross correlation.
-
-    Parameters
-    ----------
-    columns : MultiIndex
-    index_start_string : basestring
-
-    Returns
-    -------
-    mi : MultiIndex
-
-    Notes
-    -----
-    I'm not sure if this is actually slick, or just insane seems like
-    functional idioms are so concise as to be confusing sometimes,
-    although maybe I'm just slow.
-
-    This absolutely does not handle the case where there are more than
-    52 levels in the index, because i haven't had a chance to think
-    about it yet..
-    """
-    if not isinstance(columns, MultiIndex):
-        try:
-            inp = columns.values, columns.values
-        except AttributeError:
-            inp = columns, columns
-
-        f = MultiIndex.from_arrays
-        return f(cartesian(inp).T)
-
-    colnames = columns.names
-
-    # get the index of the starting index string provided
-    letters = string.ascii_letters
-    first_ind = letters.index(index_start_string)
-
-    # repeat endlessly
-    cycle_letters = itertools.cycle(letters)
-
-    # slice from the index of the first letter to that plus the number
-    # of names
-    sliced = itertools.islice(cycle_letters, first_ind, first_ind +
-                              len(colnames))
-
-    # alternate names and index letter
-    srt = sorted(itertools.product(colnames, sliced), key=lambda x: x[-1])
-    names = itertools.imap(' '.join, srt)
-
-    # number of columns
-    ncols = len(columns)
-
-    # number levels
-    nlevels = len(columns.levels)
-
-    # {0, ..., ncols - 1} ^ nlevels
-    xrs = itertools.product(*itertools.repeat(xrange(ncols), nlevels))
-
-    all_inds = tuple(tuple(itertools.chain.from_iterable(columns[i]
-                                                         for i in inds))
-                     for inds in xrs)
-
-    return MultiIndex.from_tuples(all_inds, names=list(names))
-
-
 if __name__ == '__main__':
     from span import PandasTank
-    f = ('/home/phillip/Data/xcorr_data/Spont_Spikes_091210_p17rat_s4_'
-         '657umV/Spont_Spikes_091210_p17rat_s4_657umV')
-    tank = PandasTank(f)
+    import os
+    span_data_path = os.environ['SPAN_DATA_PATH']  # pragma: no cover
+    f = os.path.join(span_data_path, 'correlation_paper', 'Spont_Spikes_'
+                     '091210_p17rat_s4_657umV')
+    tank = PandasTank(f)  # pragma: no cover
     sp = tank.spikes
-    thr = sp.threshold(4 * sp.std())
-    clr = thr.clear_refrac(thr)
+    thr = sp.threshold(4 * sp.std())  # pragma: no cover
+    clr = thr.clear_refrac(thr)  # pragma: no cover
     binned = clr.resample('S', how='sum')
-    xc = clr.xcorr(binned)
+    xc = clr.xcorr(binned)  # pragma: no cover

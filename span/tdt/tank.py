@@ -31,17 +31,14 @@ Examples
 import os
 import abc
 import re
-import itertools
 import collections
 import numbers
 import warnings
-from collections import OrderedDict
 
 import numpy as np
 from numpy import nan as NA
 from pandas import DataFrame, DatetimeIndex, Series
 import pandas as pd
-from six.moves import xrange
 from pytz import UnknownTimeZoneError
 
 from span.tdt.spikeglobals import Indexer, EventTypes, DataTypes
@@ -49,21 +46,15 @@ from span.tdt.spikedataframe import SpikeDataFrame
 from span.tdt._read_tev import _read_tev_raw
 
 from span.utils import (thunkify, cached_property, fromtimestamp,
-                        assert_nonzero_existing_file, ispower2, num2name)
+                        assert_nonzero_existing_file, ispower2, OrderedDict,
+                        num2name)
 
 
-def _python_read_tev_serial(filename, grouped, block_size, spikes):
-    dt = spikes.dtype
-    nblocks, nchannels = grouped.shape
-    iprod = itertools.product
-    izip = itertools.izip
-
+def _python_read_tev_raw(filename, fp_locs, block_size, spikes):
     with open(filename, 'rb') as f:
-        for (c, b), gbc in izip(iprod(xrange(nchannels), xrange(nblocks)),
-                                grouped.flat):
-            f.seek(gbc)
-            ks = slice(b * block_size, (b + 1) * block_size)
-            spikes[ks, c] = np.fromfile(f, dt, block_size)
+        for i, loc in enumerate(fp_locs):
+            f.seek(loc)
+            spikes[i] = np.fromfile(f, spikes.dtype, block_size)
 
 
 class TdtTankAbstractBase(object):
@@ -229,14 +220,14 @@ class TdtTankBase(TdtTankAbstractBase):
         self.path = path
         self.name = os.path.basename(path)
 
-        def _first_group_int(regex, string):
+        def _first_int_group(regex, name):
             try:
-                return int(regex.search(string).group(1))
-            except (AttributeError, TypeError):
+                return int(regex.search(name).group(1))
+            except (TypeError, ValueError):  # pragma: no cover
                 return None
 
-        self.age = _first_group_int(self._age_re, self.name)
-        self.site = _first_group_int(self._site_re, self.name)
+        self.age = _first_int_group(self._age_re, self.name)
+        self.site = _first_int_group(self._site_re, self.name)
 
         not_na_ts = self.raw.timestamp.dropna()
         tstart = pd.datetime.fromtimestamp(not_na_ts.head(1).item())
@@ -356,7 +347,7 @@ class PandasTank(TdtTankBase):
         nsamples = nblocks * block_size // nchannels
 
         # raw ndarray for data
-        spikes = np.empty((nblocks, block_size), dtype=dtype)
+        spikes = DataFrame(np.empty((nblocks, block_size), dtype=dtype))
 
         tev_name = self.path + os.extsep + self._raw_ext
         meta.reset_index(drop=True, inplace=True)
@@ -364,17 +355,10 @@ class PandasTank(TdtTankBase):
         # convert timestamps to datetime objects (vectorized)
         meta.timestamp = fromtimestamp(meta.timestamp)
 
-        try:
-            index = _create_ns_datetime_index(self.datetime,
-                                              self.fs[event_name],
-                                              nsamples)
-        except ValueError:
-            index = pd.Index(np.arange(nsamples))
-
-        no_na_fp_loc = meta.fp_loc.dropna().astype(int).reset_index(drop=True)
-        return _read_tev(tev_name, no_na_fp_loc, block_size, meta.channel,
-                         meta.shank, DataFrame(spikes), index,
-                         columns.reorder_levels((1, 0)))
+        index = _create_ns_datetime_index(self.datetime, self.fs, nsamples)
+        return _read_tev(tev_name, meta.fp_loc.values, block_size,
+                         meta.channel.values, meta.shank.values,
+                         spikes, index, columns.reorder_levels((1, 0)))
 
 
 def _create_ns_datetime_index(start, fs, nsamples):
@@ -397,7 +381,7 @@ def _create_ns_datetime_index(start, fs, nsamples):
     try:
         return DatetimeIndex(dt, freq=ns * pd.datetools.Nano(), name='time',
                              tz='US/Eastern')
-    except UnknownTimeZoneError:
+    except UnknownTimeZoneError:  # pragma: no cover
         warnings.warn('Time zone not found, you might need to reinstall '
                       'pytz or matplotlib or both', RuntimeWarning)
         return DatetimeIndex(dt, freq=ns * pd.datetools.Nano(), name='time')
@@ -425,8 +409,7 @@ def _read_tev(filename, fp_locs, block_size, channel, shank, spikes,
     assert isinstance(shank, (np.ndarray, collections.Sequence)), \
         'shank must be a sequence'
     assert len(channel) == len(shank), 'len(channel) != len(shank)'
-    assert isinstance(spikes, (np.ndarray, DataFrame)), \
-        'spikes must be an ndarray or a DataFrame'
+    assert isinstance(spikes, DataFrame), 'spikes must be a DataFrame'
     assert spikes.shape[1] == block_size, \
         'number of columns of spikes must equal block_size'
     assert isinstance(index, pd.Index), 'index must be an instance of Index'
@@ -436,9 +419,12 @@ def _read_tev(filename, fp_locs, block_size, channel, shank, spikes,
                           spikes, index, columns)
 
 
+_raw_reader = _read_tev_raw
+
+
 def _read_tev_impl(filename, fp_locs, block_size, channel, shank, spikes,
                    index, columns):
-    _read_tev_raw(filename, fp_locs, block_size, spikes.values)
+    _raw_reader(filename, fp_locs, block_size, spikes.values)
 
     items = spikes.groupby(channel).indices.items()
     items.sort()
@@ -451,7 +437,7 @@ def _read_tev_impl(filename, fp_locs, block_size, channel, shank, spikes,
 
 
 if __name__ == '__main__':
-    f = ('/home/phillip/Data/xcorr_data/Spont_Spikes_091210_p17rat_s4_'
-         '657umV/Spont_Spikes_091210_p17rat_s4_657umV')
+    span_data_path = os.environ['SPAN_DATA_PATH']
+    f = os.path.join(span_data_path, 'Spont_Spikes_091210_p17rat_s4_657umV')
     tank = PandasTank(f)
     sp = tank.Spik

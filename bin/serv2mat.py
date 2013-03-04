@@ -63,8 +63,12 @@ def parse_args():
 
 
 def main():
-    dn = parse_args()#.dirname.rstrip(os.sep)
-    print dn
+    dn = parse_args()
+
+    try:
+        dn = dn.dirname.rstrip(os.sep)
+    except:
+        pass
 
     if not os.path.exists(dn):
         raise OSError('%s does NOT exist, make sure you typed the name of '

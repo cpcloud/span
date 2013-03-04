@@ -32,7 +32,7 @@ from string import ascii_letters as _LETTERS
 import numpy as np
 from numpy.fft import fft, ifft, rfft, irfft
 
-from pandas import datetime
+from pandas import datetime, MultiIndex
 from six.moves import map
 
 from span.utils._clear_refrac import _clear_refrac as _clear_refrac_cython
@@ -179,10 +179,10 @@ def isvector(x):
 
 
 def assert_nonzero_existing_file(f):
-    assert os.path.exists(f), '%s does not exist'
-    assert os.path.isfile(f), '%s is not a file'
+    assert os.path.exists(f), '%s does not exist' % f
+    assert os.path.isfile(f), '%s is not a file' % f
     assert os.path.getsize(f) > 0, \
-        '%s exists and is a file, but it has a size of 0'
+        '%s exists and is a file, but it has a size of 0' % f
 
 
 def clear_refrac(a, window):
@@ -214,3 +214,71 @@ def ispower2(x):
     b = np.log2(x)
     e, m = np.modf(b)
     return 0 if e else m
+
+
+def create_repeating_multi_index(columns, index_start_string='i'):
+    """Create an appropriate index for cross correlation.
+
+    Parameters
+    ----------
+    columns : MultiIndex
+    index_start_string : basestring
+
+    Returns
+    -------
+    mi : MultiIndex
+
+    Notes
+    -----
+    I'm not sure if this is actually slick, or just insane seems like
+    functional idioms are so concise as to be confusing sometimes,
+    although maybe I'm just slow.
+
+    This absolutely does not handle the case where there are more than
+    52 levels in the index, because i haven't had a chance to think
+    about it yet..
+    """
+    if not isinstance(columns, MultiIndex):
+        try:
+            inp = columns.values, columns.values
+        except AttributeError:
+            inp = columns, columns
+
+        f = MultiIndex.from_arrays
+        return f(cartesian(inp).T)
+
+    colnames = columns.names
+
+    # get the index of the starting index string provided
+    letters = string.ascii_letters
+    first_ind = letters.index(index_start_string)
+
+    # repeat endlessly
+    cycle_letters = itertools.cycle(letters)
+
+    # slice from the index of the first letter to that plus the number
+    # of names
+    sliced = itertools.islice(cycle_letters, first_ind, first_ind +
+                              len(colnames))
+
+    # alternate names and index letter
+    srt = sorted(itertools.product(colnames, sliced), key=lambda x: x[-1])
+    names = itertools.imap(' '.join, srt)
+
+    # number of columns
+    ncols = len(columns)
+
+    # number levels
+    nlevels = len(columns.levels)
+
+    # {0, ..., ncols - 1} ^ nlevels
+    xrs = itertools.product(*itertools.repeat(xrange(ncols), nlevels))
+
+    all_inds = (tuple(itertools.chain.from_iterable(columns[i] for i in inds))
+                for inds in xrs)
+
+    return MultiIndex.from_tuples(tuple(all_inds), names=list(names))
+
+
+def _diag_inds_n(n):
+    return (n + 1) * np.arange(n)

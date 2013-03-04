@@ -11,17 +11,9 @@ from six.moves import zip, map
 
 from span.utils import (nextpow2, name2num, isvector,
                         iscomplex, get_fft_funcs,
-                        assert_nonzero_existing_file)
+                        assert_nonzero_existing_file, _diag_inds_n)
 
-from span.testing import assert_allclose
-
-
-def rand_array_delegate(func, n, ndims):
-    return func(*randint(n, size=ndims).tolist())
-
-
-def randn_array(n=50, ndims=3):
-    return rand_array_delegate(randn, n, ndims)
+from span.testing import assert_allclose, assert_array_equal
 
 
 def rand_int_tuple(high=5, n=10):
@@ -138,3 +130,11 @@ class TestIsPower2(unittest.TestCase):
 
     def tearDown(self):
         pass
+
+
+class TestDiagIndsN(unittest.TestCase):
+    def test_diag_inds_n(self):
+        n = randint(2, 10)
+        x = np.arange(n * n).reshape(n, n)
+        inds = _diag_inds_n(n)
+        assert_array_equal(inds, np.diag(x))
