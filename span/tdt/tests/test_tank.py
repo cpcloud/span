@@ -149,7 +149,7 @@ class TestPandasTank(unittest.TestCase):
     @slow
     def test_tev(self):
         for name in self.names:
-            self.assertIsNotNone(self.tank.tev(name))
+            self.assertIsNotNone(self.tank._tev(name))
 
     @slow
     def test_spikes(self):

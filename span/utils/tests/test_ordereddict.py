@@ -37,16 +37,16 @@ class TestOrderedDict(unittest.TestCase):
     def test_update(self):
         with self.assertRaises(TypeError):
             OrderedDict().update([('a', 1), (
-                        'b', 2)], None)
+                'b', 2)], None)
         pairs = [('a', 1), ('b', 2), ('c', 3), ('d', 4), ('e', 5)]
         od = OrderedDict()
         od.update(dict(pairs))
         self.assertEqual(sorted(
-                od.items()), pairs)
+            od.items()), pairs)
         od = OrderedDict()
         od.update(**dict(pairs))
         self.assertEqual(sorted(
-                od.items()), pairs)
+            od.items()), pairs)
         od = OrderedDict()
         od.update(pairs)
         self.assertEqual(list(od.items()), pairs)

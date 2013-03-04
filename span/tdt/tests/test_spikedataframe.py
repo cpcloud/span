@@ -132,7 +132,7 @@ class TestSpikeDataFrame(object):
         clr = self.spik.clear_refrac(thr)
         binned = clr.resample('L', how='sum')
         xc = self.spik.xcorr(binned, maxlag, detrend, scale_type, level,
-                               nan_auto)
+                             nan_auto)
         assert isinstance(xc, pd.DataFrame)
 
         weird_levels = 'asdfalsdj', 2342, object()
