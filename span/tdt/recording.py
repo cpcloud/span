@@ -21,20 +21,18 @@
 
 
 """
-``recording.py`` is a module for encapsulating information about the
-electrode array(s) used in an experiment.
+A module for encapsulating information about the electrode array used
+in an experiment.
 """
 
-from six.moves import zip, map
-
 import numbers
-import operator
 
 import numpy as np
-from pandas import DataFrame,  MultiIndex
-
-from span.utils import ndtuples, compose
 from scipy.spatial.distance import squareform, pdist
+
+from pandas import DataFrame, MultiIndex, Series, Index
+
+from span.utils import ndtuples, create_repeating_multi_index
 
 
 def distance_map(nshanks, electrodes_per_shank, within_shank, between_shank,
@@ -48,7 +46,8 @@ def distance_map(nshanks, electrodes_per_shank, within_shank, between_shank,
     within_shank, between_shank : float
 
     metric : str or callable, optional
-        The distance measure to use to compute the distance between electrodes.
+        The distance measure to use to compute the distance between
+        electrodes.
 
     p : number, optional
         See :py:mod:`scipy.spatial.distance` for more details.
@@ -66,100 +65,115 @@ def distance_map(nshanks, electrodes_per_shank, within_shank, between_shank,
     dists : DataFrame
         DataFrame of pairwise distances between electrodes.
     """
-    assert nshanks >= 1, 'must have at least one shank, gave %i' % nshanks
-    assert isinstance(nshanks, numbers.Integral), 'nshanks must be an integer'
+    assert nshanks >= 1, 'must have at least one shank'
+    assert isinstance(nshanks, (numbers.Integral, np.integer)), \
+        'nshanks must be an integer'
     assert electrodes_per_shank >= 1, \
         'must have at least one electrode per shank'
-    assert isinstance(electrodes_per_shank, numbers.Integral), \
+    assert isinstance(electrodes_per_shank, (numbers.Integral, np.integer)), \
         '"electrodes_per_shank" must be an integer'
     assert isinstance(metric, basestring) or callable(metric), \
         '"metric" must be a string or callable'
-    assert isinstance(p, numbers.Real) and p > 0, \
-        '"p" must be a positive real number'
+    assert isinstance(p, (numbers.Real, np.floating)), \
+        '"p" must be a real number'
+    assert p > 0, '"p" must be a positive number'
 
-    locs = ndtuples(electrodes_per_shank, nshanks)
+    args = [electrodes_per_shank]
 
-    if locs.ndim == 1:
-        locs = locs[:, np.newaxis]
+    if nshanks > 1:
+        args += [nshanks]
 
-    w = np.asanyarray((between_shank, within_shank), dtype=float)
+    locs = ndtuples(*args)
 
+    if nshanks == 1:
+        locs = np.column_stack((locs, locs))
+
+    w = np.asanyarray((between_shank, within_shank), dtype=np.float64)
     return squareform(pdist(locs, metric=metric, p=p, w=w))
 
 
-class ElectrodeMap1D(Series):
-    """
-    """
-    def __init__(self, *args, **kwargs):
-        super(ElectrodeMap1D, self).__init__(*args, **kwargs)
+class ElectrodeMap(object):
+    """Encapsulate the geometry of an electrode map."""
 
-    @property
-    def _constructor(self):
-        return ElectrodeMap1D
+    __slots__ = ('__original', '__nshank', '__channel', '__shank',
+                 'within_shank', 'between_shank', '__nchannel')
 
-    @property
-    def nshanks(self):
-        return 1
-
-    @property
-    def nchans(self):
-        return self.size
-
-    def distance_map(self, within, between=0, metric='wminkowski', p=2.0):
-        pass
-
-
-class ElectrodeMap2D(DataFrame):
-    """Encapsulate the geometry of the electrode map used in a recording.
-
-    Parameters
-    ----------
-    map_ : array_like
-        The electrode configuration. Can have an arbitrary integer base.
-
-    Attributes
-    ----------
-    nshanks : int
-        Number of shanks.
-
-    nchans : int
-        Number of channels.
-    """
-    def __init__(self, map_):
-        map_ = np.atleast_1d(np.asanyarray(map_).squeeze())
+    def __init__(self, map_, within_shank=None, between_shank=None):
+        super(ElectrodeMap, self).__init__()
 
         try:
-            m, n = map_.shape
-            s = np.repeat(np.arange(n), m)
-        except ValueError:
-            m, = map_.shape
-            s = np.ones(m, dtype=int)
+            channels_per_shank, self.__nshank = map_.shape
+        except ValueError:  # passed a vector
+            channels_per_shank, = map_.shape
+            self.__nshank = 1
 
-        data = {'channel': map_.ravel(), 'shank': s}
-        df = DataFrame(data).sort('shank').reset_index(drop=True)
-        df.index = df.pop('shank')
+            assert between_shank is None or between_shank == 0, \
+                ('between_shank must be 0 or None for single shank electrode '
+                 'maps')
 
-        super(ElectrodeMap, self).__init__(df.sort())
+            if between_shank is None:
+                between_shank = 0
+
+        self.__nchannel = map_.size
+
+        self.__channel = map_.ravel(order='K')
+        self.__shank = np.repeat(np.arange(self.nshank), channels_per_shank)
+        self.within_shank = within_shank
+        self.between_shank = between_shank
+        self.__original = np.column_stack([np.squeeze(map_.copy())])
 
     @property
-    def nshanks(self):
-        return self.index.unique().size
+    def channel(self):
+        return Index(self.__channel, name='channel')
 
     @property
-    def nchans(self):
-        return self.channel.unique().size
+    def shank(self):
+        return Index(self.__shank, name='shank')
 
-    def distance_map(self, within, between, metric='wminkowski', p=2.0):
+    @property
+    def nshank(self):
+        return self.__nshank
+
+    @property
+    def nchannel(self):
+        return self.__nchannel
+
+    @property
+    def raw(self):
+        return DataFrame(self.shank.values, index=self.channel,
+                         columns=['shank'])
+
+    @property
+    def original(self):
+        df = DataFrame(self.__original, copy=True)
+        df.index.name = 'channel'
+        df.columns.name = 'shank'
+        return df
+
+    def __unicode__(self):
+        df = self.original
+        df += 1
+        df.index += 1
+        df.columns += 1
+        r = repr(df)
+        mu = u'\u03bc'
+        r += u'\nwthn: {0} {2}m\nbtwn: {1} {2}m'
+        return r.format(self.within_shank, self.between_shank, mu)
+
+    def __bytes__(self):
+        return unicode(self).encode('UTF-8', 'replace')
+
+    __repr__ = __str__ = __bytes__
+
+    @property
+    def _electrodes_per_shank(self):
+        return self.nchannel // self.nshank
+
+    def distance_map(self, metric='wminkowski', p=2.0):
         r"""Create a distance map from the current electrode configuration.
-
-        This method performs some type checking on its arguments.
 
         Parameters
         ----------
-        within, between : number
-            `between` is the distance between shanks and `within` is the
-            distance between electrodes on any given shank.
-
         metric : str or callable, optional
             Metric to use to calculate the distance between electrodes/shanks.
             Defaults to a weighted Minkowski distance
@@ -170,6 +184,8 @@ class ElectrodeMap2D(DataFrame):
 
         Notes
         -----
+        This method performs some type checking on its arguments.
+
         The default `metric` of ``'wminkowski'`` and the default `p` of ``2.0``
         combine to give a weighted Euclidean distance metric. The weighted
         Minkowski distance between two points
@@ -182,9 +198,8 @@ class ElectrodeMap2D(DataFrame):
         Raises
         ------
         AssertionError
-            * If `within` is not an instance of ``numbers.Real``
-            * If `between` is not an instance of ``numbers.Real``
-            * If `p` is not an instance of ``numbers.Real``
+            * If `p` is not an instance of ``numbers.Real`` or
+              ``numpy.floating``
             * If metric is not an instance of ``basestring`` or a callable
 
         Returns
@@ -193,46 +208,17 @@ class ElectrodeMap2D(DataFrame):
             A dataframe with pairwise distances between electrodes, indexed by
             channel, shank.
         """
-        assert isinstance(within, numbers.Real) and within > 0, \
-            '"within" must be a positive real number'
-        assert isinstance(between, numbers.Real) and between > 0, \
-            '"between" must be a positive real number'
         assert isinstance(metric, basestring) or callable(metric), \
             '"metric" must be a callable object or a string'
-        assert isinstance(p, numbers.Real) and p > 0, \
+        assert isinstance(p, (numbers.Real, np.floating)) and p > 0, \
             'p must be a real number greater than 0'
 
-        dm = distance_map(self.nshanks, self.nchans / self.nshanks, within,
-                          between, metric=metric, p=p)
-        s = self.sort()
-        cols = s.index, s.channel
+        # import ipdb; ipdb.set_trace()
+        dm = distance_map(self.nshank, self._electrodes_per_shank,
+                          self.within_shank, self.between_shank,
+                          metric=metric, p=p)
+        mi = MultiIndex.from_arrays(np.flipud(self.raw.reset_index().values.T),
+                                    names=('shank', 'channel'))
+        rmi = create_repeating_multi_index(mi)
 
-        values_getter = operator.attrgetter('values')
-        cols = tuple(map(values_getter, cols))
-        names = 'shank', 'channel'
-
-        # index = _label_maker('i', names)
-        # columns = _label_maker('j', names)
-        # df = DataFrame(dm, index=index, columns=columns)
-
-        columns = _label_maker('i', names)
-        index = _label_maker('j', names)
-        df = DataFrame(dm, index=index, columns=columns)
-
-        nnames = len(names)
-        ninds = len(index)
-        nlevels = nnames * ninds
-
-        zipped = zip(xrange(nnames), xrange(nnames, nlevels))
-        reordering = tuple(reduce(operator.add, zipped))
-
-        # for _ in xrange(nnames - 1):
-        #     s = s.stack(0)
-
-        # s.name = r'$d\left(i, j\right)$'
-
-        # return s.reorder_levels(reordering)
-        return dm
-
-        return s.reorder_levels(reordering)
-        # return df
+        return Series(dm.ravel(), index=rmi, name='distance').sort_index()
