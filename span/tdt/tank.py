@@ -41,7 +41,7 @@ from pandas import DataFrame, DatetimeIndex, Series
 import pandas as pd
 from pytz import UnknownTimeZoneError
 
-from span.tdt.spikeglobals import Indexer, EventTypes, DataTypes
+from span.tdt.spikeglobals import Indexer, EventTypes, RawDataTypes
 from span.tdt.spikedataframe import SpikeDataFrame
 from span.tdt._read_tev import _read_tev_raw
 
@@ -92,7 +92,7 @@ class TdtTankAbstractBase(object):
         tsq.channel[tsq.channel == -1.0] = NA
 
         tsq.type = EventTypes[tsq.type].values
-        tsq.format = DataTypes[tsq.format].values
+        tsq.format = RawDataTypes[tsq.format].values
 
         tsq.timestamp[np.logical_not(tsq.timestamp)] = NA
         tsq.fs[np.logical_not(tsq.fs)] = NA
