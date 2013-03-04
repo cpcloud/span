@@ -16,32 +16,11 @@ from six.moves import map
 from span.xcorr.xcorr import (xcorr, _mult_mat_xcorr,
                               _mult_mat_xcorr_cython_parallel,
                               _mult_mat_xcorr_python,
-                              _create_xcorr_inds)
+                              create_repeating_multi_index)
 from span.utils import (nextpow2, get_fft_funcs, detrend_mean, detrend_none,
                         detrend_linear, cartesian)
 from span.testing import (assert_array_equal, knownfailure, assert_raises,
                           create_spike_df)
-
-
-def is_symmetric(x):
-    return np.array_equal(x, x.T)
-
-
-def assert_symmetric(x):
-    methods = {DataFrame: assert_frame_equal,
-               np.ndarray: assert_array_equal}
-    method = methods[type(x)]
-    return method(x, x.T)
-
-
-def row(x):
-    m = x.shape[0]
-    return np.tile(np.r_[:m][:, np.newaxis], m)
-
-
-def col(x):
-    n = x.shape[1]
-    return np.tile(np.r_[:n][np.newaxis], (n, 1))
 
 
 def correlate1d(x, y):
@@ -192,22 +171,22 @@ class TestMultMatXcorr(unittest.TestCase):
         assert_allclose(_mult_mat_xcorr(self.X, self.Xc), self.ground_truth)
 
 
-class TestCreateXCorrInds(unittest.TestCase):
+class TestCreateRepeatingMultiIndex(unittest.TestCase):
     def setUp(self):
         self.spikes = create_spike_df()
 
     def tearDown(self):
         del self.spikes
 
-    def test_create_xcorr_inds(self):
+    def test_create_repeating_multi_index(self):
         thr = self.spikes.threshold(self.spikes.std())
         clr = self.spikes.clear_refrac(thr)
         binned = clr.resample('L', how='sum')
-        inds = _create_xcorr_inds(binned.columns)
+        inds = create_repeating_multi_index(binned.columns)
         self.assertIsInstance(inds, MultiIndex)
 
         chan = binned.columns.labels[1]
-        inds = _create_xcorr_inds(chan)
+        inds = create_repeating_multi_index(chan)
         self.assertIsInstance(inds, MultiIndex)
 
         received = np.column_stack([level[label]

@@ -4,37 +4,32 @@ import numbers
 import unittest
 import datetime
 import warnings
-import glob
 
 import numpy as np
 import pandas as pd
 
 from six.moves import zip
 
-from span.tdt.tank import TdtTankBase, PandasTank
+from span.tdt.tank import (TdtTankBase, PandasTank, _python_read_tev_raw,
+                           _create_ns_datetime_index, _reshape_spikes,
+                           _raw_reader)
 from span.tdt import SpikeDataFrame
-from span.testing import slow
+from span.testing import slow, create_stsq
+from span.utils import OrderedDict
 
 
 class TestReadTev(object):
     def setUp(self):
-        path = os.getenv('SPAN_DATA_PATH')
+        span_data_path = os.environ['SPAN_DATA_PATH']
+        assert os.path.isdir(span_data_path)
+        self.filename = os.path.join(span_data_path,
+                                     'Spont_Spikes_091210_p17rat_s4_657umV')
 
-        assert os.path.isdir(path)
-
-        gettev = glob.glob(os.path.join(path, '*%stev' % os.extsep))
-
-        if len(gettev) == 1:
-            self.path, = gettev
-        else:
-            self.path = gettev[0]
-
-        self.filename, _ = os.path.splitext(self.path)
         self.tank = PandasTank(self.filename)
         self.names = 'Spik', 'LFPs'
 
     def tearDown(self):
-        del self.names, self.tank, self.filename, self.path
+        del self.names, self.tank, self.filename
 
     def _reader_builder(self, reader):
         for name in self.names:
@@ -43,26 +38,50 @@ class TestReadTev(object):
             with warnings.catch_warnings():
                 warnings.simplefilter('ignore', FutureWarning)
                 tsq.reset_index(drop=True, inplace=True)
+
             fp_locs = tsq.fp_loc
 
             assert np.dtype(np.int64) == fp_locs.dtype
 
             chunk_size = tsq.size.unique().max()
-            grouped = pd.DataFrame(tsq.groupby('channel').groups)
-            grouped_locs = fp_locs.values.take(grouped.values)
 
-            spikes = np.empty((grouped_locs.shape[0] * chunk_size,
-                               grouped_locs.shape[1]), np.float32)
+            spikes = np.empty((tsq.shape[0], chunk_size), np.float32)
 
-            reader(self.path, grouped_locs, chunk_size, spikes)
+            reader(self.filename + os.extsep + 'tev', fp_locs, chunk_size,
+                   spikes)
 
             # mean should be at least on the order of millivolts if not less
             mag = np.log10(np.abs(spikes).mean())
             assert mag <= -3.0
 
     def test_read_tev(self):
-        for reader in {}:
+        for reader in {_python_read_tev_raw, _raw_reader}:
             yield self._reader_builder, reader
+
+
+def test_create_ns_datetime_index():
+    start, fs, nsamples = datetime.datetime.now().date(), 103.342, 10
+    index = _create_ns_datetime_index(start, fs, nsamples)
+    assert isinstance(index, pd.DatetimeIndex)
+    assert int(1e9 / fs) == index.freq.n
+    assert index.size == nsamples
+
+
+def test_reshape_spikes():
+    meta = create_stsq(size=64, samples_per_channel=17)
+    nblocks, block_size = meta.shape[0], meta.size[0]
+    df = pd.DataFrame(np.empty((nblocks, block_size)))
+    items = df.groupby(meta.channel.values).indices.items()
+    items.sort()
+    group_inds = np.column_stack(OrderedDict(items).itervalues())
+    nchannels = group_inds.shape[1]
+    nsamples = nblocks * block_size // nchannels
+    reshaped = _reshape_spikes(df.values, group_inds)
+
+    a, b = reshaped.shape, (nsamples, nchannels)
+    print 'reshaped.shape == {0}'.format(a)
+    print '(nsamples, nchannels) == {0}'.format(b)
+    assert a == b
 
 
 class TestTdtTankBase(unittest.TestCase):
@@ -73,10 +92,9 @@ class TestTdtTankBase(unittest.TestCase):
 class TestPandasTank(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
-        tankname = os.path.join(os.path.expanduser('~'), 'Data', 'xcorr_data',
+        tankname = os.path.join(os.environ['SPAN_DATA_PATH'],
                                 'Spont_Spikes_091210_p17rat_s4_657umV')
-        tn = os.path.join(tankname, os.path.basename(tankname))
-        cls.tank = PandasTank(tn)
+        cls.tank = PandasTank(tankname)
 
     @classmethod
     def tearDownClass(cls):
