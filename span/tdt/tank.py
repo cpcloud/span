@@ -257,9 +257,9 @@ class TdtTankBase(TdtTankAbstractBase):
 
         fs_nona = self.raw.fs.dropna()
         name_nona = self.raw.name.dropna()
-        self.fs = Series(dict((name,
-                               _try_get_na(fs_nona[name_nona == name].head(1)))
-                              for name in self.names.dropna().values))
+        diter = ((name,  _try_get_na(fs_nona[name_nona == name].head(1)))
+                 for name in self.names.dropna().values)
+        self.fs = Series(dict(diter))
 
     def __repr__(self):
         objr = repr(self.__class__)
