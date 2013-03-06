@@ -10,6 +10,8 @@ install: build
 clean:
 	python setup.py clean --all
 
+cleanbuild: clean build
+
 check: build
 	./test.sh c
 
