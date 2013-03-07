@@ -107,12 +107,14 @@ class TdtTankAbstractBase(object):
 
         tsq['shank'] = shank
 
-        for key in set(['channel', 'shank', 'sort_code', 'fp_loc']):
+        not_null_strobe = tsq.strobe.notnull()
+
+        for key in ('channel', 'shank', 'sort_code', 'fp_loc'):
             try:
-                tsq[key][tsq.strobe.notnull()] = NA
+                tsq[key][not_null_strobe] = NA
             except ValueError:
                 tsq[key] = tsq[key].astype(float)
-                tsq[key][tsq.strobe.notnull()] = NA
+                tsq[key][not_null_strobe] = NA
 
         return tsq
 
