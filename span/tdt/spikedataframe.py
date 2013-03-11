@@ -28,17 +28,16 @@ Examples
 >>> sp = tank.spik
 >>> assert isinstance(sp, span.tdt.SpikeDataFrame)
 """
-
-import numbers
-import types
 import abc
 import functools
+import numbers
+import types
 
 import numpy as np
-from pandas import Series, DataFrame
-
+from pandas import Series, DataFrame, DatetimeIndex
+from span.utils import samples_per_ms, clear_refrac, LOCAL_TZ
 from span.xcorr import xcorr as _xcorr
-from span.utils import samples_per_ms, clear_refrac
+import six
 
 
 class SpikeDataFrameBase(DataFrame):
@@ -109,7 +108,7 @@ class SpikeDataFrame(SpikeDataFrameBase):
         if np.isscalar(threshes):
             threshes = np.repeat(threshes, self.nchannels)
 
-        assert threshes.size == 1 or threshes.size == self.nchannels, \
+        assert threshes.size == self.nchannels, \
             'number of threshold values must be 1 (same for all channels) or '\
             '{0}, different threshold for each channel'.format(self.nchannels)
 
@@ -223,7 +222,7 @@ class SpikeDataFrame(SpikeDataFrameBase):
         assert callable(detrend) or detrend is None, ('detrend must be a '
                                                       'callable class or '
                                                       'function or None')
-        assert isinstance(scale_type, basestring) or scale_type is None, \
+        assert isinstance(scale_type, six.string_types + types.NoneType), \
             'scale_type must be a string or None'
 
         xc = _xcorr(binned, maxlags=maxlags, detrend=detrend,
@@ -243,18 +242,47 @@ class SpikeDataFrame(SpikeDataFrameBase):
         return xc
 
     def jitter(self, window=100, unit='ms'):
+        """Jitter samples by some window in units of `unit`.
+
+        Parameters
+        ----------
+        window : int
+            The size of the jitter window.
+        unit : str
+            The time units of the jitter window.
+
+        Returns
+        -------
+        df : SpikeDataFrame
+        """
+        new_index = self._jitter_index(window, unit)
+        df = self._constructor(self.values, new_index, self.columns)
+        df.sort_index(inplace=True)
+        return df
+
+    def _jitter_index(self, window, unit):
+        # raw datetime ndarray
         index = self.index.values
+
+        # datetime units
         dt = index.dtype
-        beg = np.floor(index.astype(int) / window)
+
+        # start of the window-length window
+        beg = np.floor(index.astype(int, copy=False) / window)
         start = (window * beg).astype(dt, copy=False)
+
+        # timedelta unit
         td_unit = 'timedelta64[%s]' % unit
-        shifted = start + (np.random.rand(self.nsamples) *
-                           window).astype(td_unit, copy=False)
-        return self._constructor(self.values, shifted,
-                                 self.columns).sort_index()
+
+        # shift from beginning of jitter window by U * window
+        rt = np.random.rand(self.nsamples) * window
+        rand_time = rt.astype(td_unit, copy=False)
+        shifted = start + rand_time
+
+        return DatetimeIndex(shifted, tz=LOCAL_TZ)
 
 
 spike_xcorr = SpikeDataFrame.xcorr
 
 if __name__ == '__main__':
-    pass
+    print "Hello, world!"
