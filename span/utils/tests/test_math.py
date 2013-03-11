@@ -2,7 +2,7 @@ from unittest import TestCase
 import itertools as itools
 
 import numpy as np
-from numpy.random import randn, randint, rand
+from numpy.random import randn, randint
 from numpy.testing import assert_allclose, assert_array_equal
 
 from pandas import Series, DataFrame, Panel, Panel4D
@@ -136,7 +136,7 @@ class TestDetrend(TestCase):
         dtx = detrend_linear(x)
         m = dtx.mean()
         s = dtx.std()
-        ord_mag = int(np.floor(np.log10(n)))
+        #ord_mag = int(np.floor(np.log10(n)))
         assert_allclose(m, 0.0, atol=self.eps * 5)
         assert_allclose(s, 0.0, atol=self.eps * 5)
 
@@ -146,7 +146,7 @@ class TestCartesian(TestCase):
         ncols = randint(2, 3)
         sizes = [randint(2, 4) for _ in xrange(ncols)]
         prod_arrays = list(map(randn, sizes))
-        c = cartesian(prod_arrays)
+        c = cartesian(*prod_arrays)
         self.assertEqual(c.size, np.prod(sizes) * ncols)
 
 

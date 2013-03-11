@@ -116,7 +116,7 @@ def detrend_linear(y):
     return y - np.dot(a, x)
 
 
-def cartesian(arrays, out=None, dtype=None):
+def cartesian(*xs):
     r"""Returns the Cartesian product of arrays.
 
     The Cartesian product is defined as
@@ -140,26 +140,16 @@ def cartesian(arrays, out=None, dtype=None):
     -------
     out : array_like
     """
-    arrays = tuple(map(np.asanyarray, arrays))
-    dtypes = tuple(map(operator.attrgetter('dtype'), arrays))
-    all_dtypes_same = all(map(operator.eq, dtypes, itools.repeat(dtypes[0])))
-    dtype = dtypes[0] if all_dtypes_same else object
+    bcasted = np.broadcast_arrays(*np.ix_(*xs))
+    rows, cols = reduce(operator.mul, bcasted[0].shape), len(bcasted)
+    out = np.empty(rows * cols, dtype=bcasted[0].dtype)
+    start, end = 0, rows
 
-    n = np.prod(tuple(map(operator.attrgetter('size'), arrays)))
+    for x in bcasted:
+        out[start:end] = x.reshape(-1)
+        start, end = end, end + rows
 
-    if out is None:
-        out = np.empty((n, len(arrays)), dtype=dtype)
-
-    m = n / arrays[0].size
-    out[:, 0] = np.repeat(arrays[0], m)
-
-    if arrays[1:]:
-        cartesian(arrays[1:], out=out[:m, 1:])
-
-        for j in xrange(1, arrays[0].size):
-            out[j * m:(j + 1) * m, 1:] = out[:m, 1:]
-
-    return out
+    return out.reshape(cols, rows).T
 
 
 def nextpow2(n):

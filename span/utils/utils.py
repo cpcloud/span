@@ -67,24 +67,7 @@ def ndtuples(*dims):
     span.utils.math.cartesian
         `ndtuples` is a special case of the Cartesian product
     """
-    assert dims, 'no arguments given'
-    assert all(map(lambda x: isinstance(x, (numbers.Integral)), dims)), \
-        'all arguments must be integers'
-    assert all(map(lambda x: x > 0, dims)), \
-        'all arguments must be greater than 0'
-
-    dims = list(dims)
-    n = dims.pop()
-    cur = np.arange(n)[:, np.newaxis]
-
-    while dims:
-        d = dims.pop()
-        cur = np.kron(np.ones((d, 1), int), cur)
-        front = np.arange(d).repeat(n)[:, np.newaxis]
-        cur = np.hstack((front, cur))
-        n *= d
-
-    return cur.squeeze()
+    return cartesian(*map(np.arange, dims))
 
 
 def name2num(name, base=256):
@@ -104,12 +87,12 @@ def name2num(name, base=256):
         The number corresponding to TDT's numerical representation of an event
         type string.
     """
-    return (base ** np.r_[:len(name)]).dot(tuple(map(ord, name)))
+    return np.dot(base ** np.arange(len(name)), [ord(c) for c in name])
 
 
 _ORDS = list(map(ord, _LETTERS))
 _MAXLEN = 4
-_BIG_ORDS = cartesian([_ORDS] * _MAXLEN)
+_BIG_ORDS = cartesian(*([_ORDS] * _MAXLEN))
 
 
 def num2name(num, base=256, maxlen=_MAXLEN):
