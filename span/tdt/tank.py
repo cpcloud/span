@@ -27,28 +27,23 @@ Examples
 >>> path = 'some/path/to/a/tank/file'
 >>> tank = span.tdt.PandasTank(path)
 """
-
-import os
 import abc
-import re
 import collections
 import numbers
-import warnings
+import os
+import re
 
 import numpy as np
+import pandas as pd
 from numpy import nan as NA
 from pandas import DataFrame, DatetimeIndex, Series
-import pandas as pd
-from pytz import UnknownTimeZoneError
-from dateutil.tz import tzlocal
 
-from span.tdt.spikeglobals import Indexer, EventTypes, RawDataTypes
-from span.tdt.spikedataframe import SpikeDataFrame
 from span.tdt._read_tev import _read_tev_raw
-
+from span.tdt.spikedataframe import SpikeDataFrame
+from span.tdt.spikeglobals import Indexer, EventTypes, RawDataTypes
 from span.utils import (thunkify, cached_property, fromtimestamp,
                         assert_nonzero_existing_file, ispower2, OrderedDict,
-                        num2name)
+                        num2name, LOCAL_TZ)
 
 
 def _python_read_tev_raw(filename, fp_locs, block_size, spikes):
@@ -260,7 +255,7 @@ class TdtTankBase(TdtTankAbstractBase):
 
         fs_nona = self.raw.fs.dropna()
         name_nona = self.raw.name.dropna()
-        diter = ((name,  _try_get_na(fs_nona[name_nona == name].head(1)))
+        diter = ((name, _try_get_na(fs_nona[name_nona == name].head(1)))
                  for name in self.names.dropna().values)
         self.fs = Series(dict(diter))
 
@@ -383,15 +378,8 @@ def _create_ns_datetime_index(start, fs, nsamples):
     ns = int(1e9 / fs)
     dtstart = np.datetime64(start)
     dt = dtstart + np.arange(nsamples) * np.timedelta64(ns, 'ns')
-    tz = None
-
-    try:
-        tz = pd.datetime.now(tzlocal()).tzname()
-    except UnknownTimeZoneError:
-        warnings.warn('time zone not found, you might need to reinstall '
-                      'pytz or matplotlib or both', RuntimeWarning)
-
-    return DatetimeIndex(dt, freq=ns * pd.datetools.Nano(), name='time', tz=tz)
+    return DatetimeIndex(dt, freq=ns * pd.datetools.Nano(), nam='time',
+                         tz=LOCAL_TZ)
 
 
 def _reshape_spikes(df, group_inds):

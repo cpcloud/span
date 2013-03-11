@@ -266,3 +266,20 @@ def create_repeating_multi_index(columns, index_start_string='i'):
 
 def _diag_inds_n(n):
     return (n + 1) * np.arange(n)
+
+
+def _get_current_tz():
+    tznames = list(time.tzname)
+
+    while tznames:
+        try:
+            return pytz.timezone(tznames.pop()).zone
+        except pytz.UnknownTimeZoneError:
+            pass
+    else:
+        warnings.warn('No time zone found, you may need to reinstall '
+                      'pytz or matplotlib or both')
+        return None
+
+
+LOCAL_TZ = _get_current_tz()
