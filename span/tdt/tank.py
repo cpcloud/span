@@ -40,6 +40,7 @@ from numpy import nan as NA
 from pandas import DataFrame, DatetimeIndex, Series
 import pandas as pd
 from pytz import UnknownTimeZoneError
+from dateutil.tz import tzlocal
 
 from span.tdt.spikeglobals import Indexer, EventTypes, RawDataTypes
 from span.tdt.spikedataframe import SpikeDataFrame
@@ -382,14 +383,15 @@ def _create_ns_datetime_index(start, fs, nsamples):
     ns = int(1e9 / fs)
     dtstart = np.datetime64(start)
     dt = dtstart + np.arange(nsamples) * np.timedelta64(ns, 'ns')
+    tz = None
 
     try:
-        return DatetimeIndex(dt, freq=ns * pd.datetools.Nano(), name='time',
-                             tz='US/Eastern')
-    except UnknownTimeZoneError:  # pragma: no cover
+        tz = pd.datetime.now(tzlocal()).tzname()
+    except UnknownTimeZoneError:
         warnings.warn('time zone not found, you might need to reinstall '
                       'pytz or matplotlib or both', RuntimeWarning)
-        return DatetimeIndex(dt, freq=ns * pd.datetools.Nano(), name='time')
+
+    return DatetimeIndex(dt, freq=ns * pd.datetools.Nano(), name='time', tz=tz)
 
 
 def _reshape_spikes(df, group_inds):
