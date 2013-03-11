@@ -366,15 +366,15 @@ class PandasTank(TdtTankBase):
 
 
 def _create_ns_datetime_index(start, fs, nsamples):
-    """Create a datetime index in nanoseconds
+    """Create a DatetimeIndex in nanoseconds
 
     Parameters
     ----------
-    start : datetime_like
+    start : datetime
     fs : Series
     nsamples : int
 
-    Returns
+    returns
     -------
     index : DatetimeIndex
     """
@@ -386,13 +386,13 @@ def _create_ns_datetime_index(start, fs, nsamples):
         return DatetimeIndex(dt, freq=ns * pd.datetools.Nano(), name='time',
                              tz='US/Eastern')
     except UnknownTimeZoneError:  # pragma: no cover
-        warnings.warn('Time zone not found, you might need to reinstall '
+        warnings.warn('time zone not found, you might need to reinstall '
                       'pytz or matplotlib or both', RuntimeWarning)
         return DatetimeIndex(dt, freq=ns * pd.datetools.Nano(), name='time')
 
 
 def _reshape_spikes(df, group_inds):
-    reshaped = df.take(group_inds, axis=0)
+    reshaped = df.take(group_inds, axis=-1)
     shp = reshaped.shape
     shpsrt = np.argsort(reshaped.shape)[::-1]
     nchannels = shp[shpsrt[-1]]
