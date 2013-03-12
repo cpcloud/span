@@ -8,8 +8,7 @@ from numpy.testing import assert_allclose
 
 from scipy.signal import fftconvolve as fftconv
 
-from pandas import DataFrame, Series, MultiIndex, Int64Index
-from pandas.util.testing import assert_frame_equal
+from pandas import DataFrame, Series, MultiIndex
 
 from six.moves import map
 
@@ -192,5 +191,5 @@ class TestCreateRepeatingMultiIndex(unittest.TestCase):
         received = np.column_stack([level[label]
                                     for level, label in
                                     zip(inds.levels, inds.labels)])
-        expected = cartesian((chan, chan))
+        expected = cartesian(chan, chan)
         assert_array_equal(received, expected)
