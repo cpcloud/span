@@ -1,19 +1,23 @@
-import unittest
-import string
-import random
 import os
+import random
+import string
+import types
+import unittest
+import copy
+import time
 
 import numpy as np
+import six
 from numpy.random import randint, randn
-
 from pandas import Series, DataFrame
 from six.moves import zip, map
 
+from span.testing import assert_allclose, assert_array_equal
 from span.utils import (nextpow2, name2num, isvector,
                         iscomplex, get_fft_funcs,
-                        assert_nonzero_existing_file, _diag_inds_n)
-
-from span.testing import assert_allclose, assert_array_equal
+                        assert_nonzero_existing_file, LOCAL_TZ,
+                        ispower2)
+from span.utils.utils import _diag_inds_n, _get_local_tz
 
 
 def rand_int_tuple(high=5, n=10):
@@ -131,6 +135,13 @@ class TestIsPower2(unittest.TestCase):
     def tearDown(self):
         pass
 
+    def test_ispower2(self):
+        assert ispower2(2) == 1
+        self.assertEqual(ispower2(2), 1)
+        self.assertEqual(ispower2(1), 0)
+        self.assertEqual(ispower2(3), 0)
+        self.assertEqual(ispower2(16), 4)
+
 
 class TestDiagIndsN(unittest.TestCase):
     def test_diag_inds_n(self):
@@ -138,3 +149,19 @@ class TestDiagIndsN(unittest.TestCase):
         x = np.arange(n * n).reshape(n, n)
         inds = _diag_inds_n(n)
         assert_array_equal(inds, np.diag(x))
+
+
+class TestGetLocalTz(unittest.TestCase):
+    def test_get_local_tz(self):
+        self.assertIsInstance(LOCAL_TZ, (types.NoneType,) + six.string_types)
+        self.assertIsInstance(_get_local_tz(),
+                              (types.NoneType,) + six.string_types)
+
+    def test_get_local_tz_fail(self):
+        old_tzs = copy.deepcopy(time.tzname)
+        new_tzs = 'asdfasdf',
+        time.tzname = new_tzs
+        self.assertIsNone(_get_local_tz())
+        time.tzname = old_tzs
+        self.assertIsInstance(_get_local_tz(),
+                              (types.NoneType,) + six.string_types)

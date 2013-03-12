@@ -21,23 +21,25 @@
 
 
 """A collection of utility functions."""
-
-import os
-import operator
-import itertools
 import functools
+import itertools
 import numbers
+import operator
+import os
 import string
 from string import ascii_letters as _LETTERS
+import time
+import warnings
 
 import numpy as np
 from numpy.fft import fft, ifft, rfft, irfft
-
 from pandas import datetime, MultiIndex
 from six.moves import map
+import pytz
 
 from span.utils._clear_refrac import _clear_refrac as _clear_refrac_cython
 from span.utils.math import cartesian
+
 
 fromtimestamp = np.vectorize(datetime.fromtimestamp)
 
@@ -197,7 +199,7 @@ def clear_refrac(a, window):
 def ispower2(x):
     b = np.log2(x)
     e, m = np.modf(b)
-    return 0 if e else m
+    return 0 if e or not m else m
 
 
 def create_repeating_multi_index(columns, index_start_string='i'):
@@ -229,7 +231,7 @@ def create_repeating_multi_index(columns, index_start_string='i'):
             inp = columns, columns
 
         f = MultiIndex.from_arrays
-        return f(cartesian(inp).T)
+        return f(cartesian(*inp).T)
 
     colnames = columns.names
 
@@ -268,7 +270,7 @@ def _diag_inds_n(n):
     return (n + 1) * np.arange(n)
 
 
-def _get_current_tz():
+def _get_local_tz():
     tznames = list(time.tzname)
 
     while tznames:
@@ -282,4 +284,4 @@ def _get_current_tz():
         return None
 
 
-LOCAL_TZ = _get_current_tz()
+LOCAL_TZ = _get_local_tz()
