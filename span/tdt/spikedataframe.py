@@ -222,7 +222,7 @@ class SpikeDataFrame(SpikeDataFrameBase):
         assert callable(detrend) or detrend is None, ('detrend must be a '
                                                       'callable class or '
                                                       'function or None')
-        assert isinstance(scale_type, six.string_types + types.NoneType), \
+        assert isinstance(scale_type, six.string_types + (types.NoneType,)), \
             'scale_type must be a string or None'
 
         xc = _xcorr(binned, maxlags=maxlags, detrend=detrend,
