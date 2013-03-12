@@ -18,15 +18,20 @@ from six.moves import map
 
 class TestNdtuples(TestCase):
     def test_ndtuples_0(self):
-        zdims = 0, False, [], (), {}, np.array([])
+        zdims = 0, -1, False
 
-        for zdim in zdims:
-            self.assertRaises(AssertionError, ndtuples, zdim)
+        for zdim_null in zdims:
+            self.assertEqual(ndtuples(zdim_null).size, np.array([]).size)
+
+        zdims = {}, [], (), np.array([])
+
+        for zdim_type_error in zdims:
+            self.assertRaises(TypeError, ndtuples, zdim_type_error)
 
     def test_ndtuples_1(self):
         n = randint(1, 3)
         x = ndtuples(n)
-        assert_array_equal(x, np.arange(n))
+        assert_array_equal(x.ravel(), np.arange(n))
 
     def test_ndtuples_2(self):
         m, n = randint(2, 5), randint(2, 4)
@@ -44,7 +49,7 @@ def test_ndtuples():
     k = ndtuples(*t)
     uk = np.unique(k.ravel())
     uk.sort()
-    assert_array_equal(uk, np.arange(max(t)))
+    assert_array_equal(uk.ravel(), np.arange(max(t)))
 
 
 class TestDetrend(TestCase):
