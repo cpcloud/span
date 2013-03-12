@@ -9,6 +9,7 @@ import numpy as np
 import pandas as pd
 
 from six.moves import zip
+import six
 
 from span.tdt.tank import (TdtTankBase, PandasTank, _python_read_tev_raw,
                            _create_ns_datetime_index, _reshape_spikes,
@@ -101,7 +102,7 @@ class TestPandasTank(unittest.TestCase):
     def test_properties(self):
         names = ('fs', 'name', 'age', 'site', 'date', 'time', 'datetime',
                  'duration')
-        typs = ((numbers.Real, np.floating), basestring,
+        typs = ((numbers.Real, np.floating), six.string_types,
                 (numbers.Integral, np.integer),
                 (numbers.Integral, np.integer), datetime.date, datetime.time,
                 pd.datetime, np.timedelta64)
@@ -152,9 +153,7 @@ class TestPandasTank(unittest.TestCase):
             self.assertIsNotNone(self.tank._tev(name))
 
     @slow
-    def test_spikes(self):
-        self.assertIsNotNone(self.tank.spik)
-
-    @slow
-    def test_lfps(self):
-        self.assertIsNotNone(self.tank.lfps)
+    def test_events(self):
+        for name in self.names:
+            self.assertIsInstance(getattr(self.tank, name.lower()),
+                                  SpikeDataFrame)
