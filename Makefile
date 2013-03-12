@@ -4,16 +4,15 @@ inplace:
 build: inplace
 	python setup.py build
 
-install: build
+install:
 	python setup.py install
 
 clean:
 	python setup.py clean --all
 
-cleanbuild: clean build
+check: inplace
+	nosetests --nologcapture -s -w ./span --with-coverage --cover-package=span \
+		--cover-branches --cover-html
 
-check: build
-	./test.sh c
-
-checkfast: build
+checkfast: inplace
 	./test_fast.sh
