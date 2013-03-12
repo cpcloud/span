@@ -383,12 +383,11 @@ def _create_ns_datetime_index(start, fs, nsamples):
 
 
 def _reshape_spikes(df, group_inds):
-    reshaped = df.take(group_inds, axis=0)
-    shp = reshaped.shape
-    shpsrt = np.argsort(reshaped.shape)[::-1]
+    out = df.take(group_inds, axis=0)
+    shp = out.shape
+    shpsrt = np.argsort(shp)[::-1]
     nchannels = shp[shpsrt[-1]]
-    newshp = reshaped.size // nchannels, nchannels
-    return reshaped.transpose(shpsrt).reshape(newshp)
+    return out.transpose(shpsrt).reshape(out.size // nchannels, -1)
 
 
 def _read_tev(filename, fp_locs, block_size, channel, shank, spikes,
