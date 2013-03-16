@@ -199,7 +199,7 @@ class TdtTankBase(TdtTankAbstractBase):
     dtype = np.dtype({'names': _names, 'formats': _formats,
                       'offsets': _offsets}, align=True)
 
-    _site_re = re.compile(r'(?:.*s(?:ite)?(?:|_)?(\d+))?')
+    _site_re = re.compile(r'(?:.*s(?:ite)?_?(\d+))?')
     _age_re = re.compile(r'.*[pP](\d+).*')
 
     _header_ext = 'tsq'
