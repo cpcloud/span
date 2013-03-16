@@ -27,7 +27,6 @@ Examples
 >>> path = 'some/path/to/a/tank/file'
 >>> tank = span.tdt.PandasTank(path)
 """
-import abc
 import collections
 import numbers
 import os
@@ -53,121 +52,14 @@ def _python_read_tev_raw(filename, fp_locs, block_size, spikes):
             spikes[i] = np.fromfile(f, spikes.dtype, block_size)
 
 
-class TdtTankAbstractBase(object):
-    """Interface to tank reading methods.
-
-    Attributes
-    ----------
-    tsq (pandas.DataFrame) : Recording metadata
-    """
-
-    __metaclass__ = abc.ABCMeta
-
-    def __init__(self):
-        super(TdtTankAbstractBase, self).__init__()
-
-    @abc.abstractmethod
-    def _read_tev(self, event_name):
-        pass  # pragma: no cover
-
-    @thunkify
-    def _raw_tsq(self):
-        # create the path name
-        tsq_name = self.path + os.extsep + self._header_ext
-
-        # read in the raw data as a numpy rec array and convert to
-        # DataFrame
-        tsq = DataFrame(np.fromfile(tsq_name, self.dtype))
-        inds = tsq.strobe <= np.finfo(np.float64).eps
-        tsq.strobe[inds] = NA
-
-        # zero based indexing
-        tsq.channel -= 1.0
-
-        # -1s are invalid
-        tsq.channel[tsq.channel == -1.0] = NA
-
-        tsq.type = EventTypes[tsq.type].values
-        tsq.format = RawDataTypes[tsq.format].values
-
-        tsq.timestamp[np.logical_not(tsq.timestamp)] = NA
-        tsq.fs[np.logical_not(tsq.fs)] = NA
-
-        # trim the fat
-        tsq.size.ix[2:] -= self.dtype.itemsize / tsq.size.dtype.itemsize
-
-        # create some new indices based on the electrode array
-        srt = Indexer.sort('channel')
-        srt.reset_index(drop=True, inplace=True)
-        shank = srt.shank[tsq.channel].values
-
-        tsq['shank'] = shank
-
-        not_null_strobe = tsq.strobe.notnull()
-
-        for key in ('channel', 'shank', 'sort_code', 'fp_loc'):
-            try:
-                tsq[key][not_null_strobe] = NA
-            except ValueError:
-                tsq[key] = tsq[key].astype(float)
-                tsq[key][not_null_strobe] = NA
-
-        return tsq
-
-    @thunkify
-    def _get_tsq_event(self, event_name):
-        """Read the metadata (TSQ) file of a TDT Tank.
-
-        Returns
-        -------
-        b : pandas.DataFrame
-            Recording metadata
-        """
-        tsq = self.raw
-
-        # make sure there's at least one event
-        p = self.path
-
-        # get the row of the metadata where its value equals the name-number
-        row = tsq.name.isin([event_name])
-        assert row.any(), 'no event named %s in tank: %s' % (event_name, p)
-
-        # get all the metadata for those events
-        tsq = tsq[row]
-
-        # convert to integer where possible
-        try:
-            tsq.channel = tsq.channel.astype(int)
-            tsq.shank = tsq.shank.astype(int)
-        except ValueError:
-            pass
-
-        return tsq, row.argmax()
-
-    def tsq(self, event_name):
-        return self._get_tsq_event(event_name)()
-
-    @cached_property
-    def raw(self):
-        return self._raw_tsq()()
-
-    def _tev(self, event_name):
-        """Return the data from a particular event.
-
-        Parameters
-        ----------
-        event_name : str
-            The name of the event whose data you'd like to retrieve.
-
-        Returns
-        -------
-        tev : SpikeDataFrame
-            The raw data from the TEV file
-        """
-        return self._read_tev(event_name)()
+def _first_int_group(regex, name):
+    try:
+        return int(regex.search(name).group(1))
+    except (TypeError, ValueError):  # pragma: no cover
+        return None
 
 
-class TdtTankBase(TdtTankAbstractBase):
+class TdtTank(object):
     """Base class encapsulating methods for reading a TDT Tank.
 
     Parameters
@@ -199,14 +91,14 @@ class TdtTankBase(TdtTankAbstractBase):
     dtype = np.dtype({'names': _names, 'formats': _formats,
                       'offsets': _offsets}, align=True)
 
-    _site_re = re.compile(r'(?:.*s(?:ite)?_?(\d+))?')
-    _age_re = re.compile(r'.*[pP](\d+).*')
+    _site_re = re.compile(r'(?:.*s(?:ite)?_?(\d{1,2}))?')
+    _age_re = re.compile(r'(?<=_)[pP](\d+)')
 
     _header_ext = 'tsq'
     _raw_ext = 'tev'
 
     def __init__(self, path):
-        super(TdtTankBase, self).__init__()
+        super(TdtTank, self).__init__()
 
         tank_with_ext = path + os.extsep
         tev_path = tank_with_ext + self._raw_ext
@@ -217,12 +109,6 @@ class TdtTankBase(TdtTankAbstractBase):
 
         self.path = path
         self.name = os.path.basename(path)
-
-        def _first_int_group(regex, name):
-            try:
-                return int(regex.search(name).group(1))
-            except (TypeError, ValueError):  # pragma: no cover
-                return None
 
         self.age = _first_int_group(self._age_re, self.name)
         self.site = _first_int_group(self._site_re, self.name)
@@ -278,8 +164,7 @@ class TdtTankBase(TdtTankAbstractBase):
         return self.__datetime.to_pydatetime()
 
     def __getattr__(self, name):
-        # try:
-        mapper = super(TdtTankBase, self).__getattribute__('_name_mapper')
+        mapper = super(TdtTank, self).__getattribute__('_name_mapper')
 
         # check to see if something similar was given
         lowered_name = name.lower()
@@ -290,26 +175,107 @@ class TdtTankBase(TdtTankAbstractBase):
                                  % (name, lowered_name))
 
         return self._tev(mapper[name])
-        # except (AssertionError, KeyError):
-        # except AssertionError:
-            # return super(TdtTankBase, self).__getattribute__(name)
 
+    @thunkify
+    def _raw_tsq(self):
+        # create the path name
+        tsq_name = self.path + os.extsep + self._header_ext
 
-class PandasTank(TdtTankBase):
-    """Implements the abstract methods from TdtTankBase.
+        # read in the raw data as a numpy rec array and convert to
+        # DataFrame
+        tsq = DataFrame(np.fromfile(tsq_name, self.dtype))
+        inds = tsq.strobe <= np.finfo(np.float64).eps
+        tsq.strobe[inds] = NA
 
-    Parameters
-    ----------
-    path : str
-        Name of the tank files sans extension.
+        # zero based indexing
+        tsq.channel -= 1.0
 
-    See Also
-    --------
-    TdtTankBase
-        Base class implementing TSQ reading.
-    """
-    def __init__(self, path):
-        super(PandasTank, self).__init__(path)
+        # -1s are invalid
+        tsq.channel[tsq.channel == -1.0] = NA
+
+        tsq.type = EventTypes[tsq.type].values
+        tsq.format = RawDataTypes[tsq.format].values
+
+        tsq.timestamp[np.logical_not(tsq.timestamp)] = NA
+        tsq.fs[np.logical_not(tsq.fs)] = NA
+
+        # trim the fat
+        tsq.size.ix[2:] -= self.dtype.itemsize / tsq.size.dtype.itemsize
+
+        # create some new indices based on the electrode array
+        srt = Indexer.sort('channel')
+        srt.reset_index(drop=True, inplace=True)
+        shank = srt.shank[tsq.channel].values
+
+        tsq['shank'] = shank
+
+        not_null_strobe = tsq.strobe.notnull()
+
+        for key in ('channel', 'shank', 'sort_code', 'fp_loc'):
+            try:
+                tsq[key][not_null_strobe] = NA
+            except ValueError:
+                tsq[key] = tsq[key].astype(float)
+                tsq[key][not_null_strobe] = NA
+
+        return tsq
+
+    @thunkify
+    def _get_tsq_event(self, event_name):
+        """Read the metadata (TSQ) file of a TDT Tank.
+
+        Parameters
+        ----------
+        event_name : str
+
+        Returns
+        -------
+        b : pandas.DataFrame
+            Recording metadata
+        """
+        tsq = self.raw
+
+        # make sure there's at least one event
+        p = self.path
+
+        # get the row of the metadata where its value equals the name-number
+        row = tsq.name.isin([event_name])
+        assert row.any(), 'no event named %s in tank: %s' % (event_name, p)
+
+        # get all the metadata for those events
+        tsq = tsq[row]
+
+        # convert to integer where possible
+        try:
+            tsq.channel = tsq.channel.astype(int)
+            tsq.shank = tsq.shank.astype(int)
+        except ValueError:
+            pass
+
+        first_row = row.argmax()
+        return tsq, tsq.format[first_row], tsq.size[first_row]
+
+    def tsq(self, event_name):
+        return self._get_tsq_event(event_name)()
+
+    @cached_property
+    def raw(self):
+        return self._raw_tsq()()
+
+    def _tev(self, event_name):
+        """Return the data from a particular event.
+
+        Parameters
+        ----------
+        event_name : str
+            The name of the event whose data you'd like to retrieve.
+
+        Returns
+        -------
+        tev : SpikeDataFrame
+            The raw data from the TEV file
+        """
+        return self._read_tev(event_name)()
 
     @thunkify
     def _read_tev(self, event_name, group='channel'):
@@ -335,13 +301,8 @@ class PandasTank(TdtTankBase):
         # TODO: implement a way to use electrode maps with this
         from span.tdt.spikeglobals import ChannelIndex as columns
 
-        meta, first_row = self.tsq(event_name)
+        meta, dtype, block_size = self.tsq(event_name)
 
-        # data type of this event
-        dtype = meta.format[first_row]
-
-        # number of samples per chunk
-        block_size = meta.size[first_row]
         nchannels = meta.channel.dropna().nunique()
         nblocks = meta.shape[0]
         nsamples = nblocks * block_size // nchannels
@@ -354,12 +315,16 @@ class PandasTank(TdtTankBase):
 
         # convert timestamps to datetime objects (vectorized)
         meta.timestamp = fromtimestamp(meta.timestamp)
+        meta.fp_loc = meta.fp_loc.astype(int)
 
         index = _create_ns_datetime_index(self.datetime, self.fs[event_name],
                                           nsamples)
-        return _read_tev(tev_name, meta.fp_loc.astype(int).values, block_size,
-                         meta.channel.values, meta.shank.values,
-                         spikes, index, columns.reorder_levels((1, 0)))
+        return _read_tev(tev_name, meta.fp_loc, block_size, meta.channel,
+                         meta.shank, spikes, index,
+                         columns.reorder_levels((1, 0)))
+
+
+PandasTank = TdtTank
 
 
 def _create_ns_datetime_index(start, fs, nsamples):
@@ -378,7 +343,7 @@ def _create_ns_datetime_index(start, fs, nsamples):
     ns = int(1e9 / fs)
     dtstart = np.datetime64(start)
     dt = dtstart + np.arange(nsamples) * np.timedelta64(ns, 'ns')
-    return DatetimeIndex(dt, freq=ns * pd.datetools.Nano(), nam='time',
+    return DatetimeIndex(dt, freq=ns * pd.datetools.Nano(), name='time',
                          tz=LOCAL_TZ)
 
 
@@ -416,6 +381,14 @@ def _read_tev(filename, fp_locs, block_size, channel, shank, spikes,
 _raw_reader = _read_tev_raw
 
 
+def _remove_noise_variance(x):
+    c = x.cov()
+    w, v = np.linalg.eig(c)
+    v = v[:, w.argmax()]
+    return x.dot(np.eye(v.size) - np.outer(v, v))
+
+
+
 def _read_tev_impl(filename, fp_locs, block_size, channel, shank, spikes,
                    index, columns):
     _raw_reader(filename, fp_locs, block_size, spikes.values)
@@ -434,4 +407,4 @@ if __name__ == '__main__':
     span_data_path = os.environ['SPAN_DATA_PATH']
     f = os.path.join(span_data_path, 'Spont_Spikes_091210_p17rat_s4_657umV')
     tank = PandasTank(f)
-    sp = tank.Spik
+    sp = tank.spik
