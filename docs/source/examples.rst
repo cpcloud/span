@@ -35,7 +35,7 @@ Clear the refractory period
 .. code-block:: python
 
     # clear the refractory period of any spikes
-    clr = sp.clear_refrac(thr)
+    clr = thr.clear_refrac()
 
 ------------
 Bin the data
