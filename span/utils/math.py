@@ -26,6 +26,7 @@ import functools as fntools
 
 
 import numpy as np
+import scipy.linalg
 from pandas import Series, DataFrame, Panel, Panel4D
 from six.moves import map
 
@@ -246,3 +247,31 @@ def composemap(*args):
     assert all(map(callable, args)), 'all arguments must be callable'
     maps = itools.repeat(map, len(args))
     return fntools.reduce(compose2, map(fntools.partial, maps, args))
+
+
+def _cov(x):
+    try:
+        c = x.cov()
+    except AttributeError:
+        c = np.cov(x.T)
+    return c
+
+
+def _first_pc(x):
+    c = _cov(x)
+    w, v = scipy.linalg.eig(c)
+    return v[:, w.argmax()]
+
+
+def _first_pc_cleaner_matrix(x):
+    v = _first_pc(x)
+    p = np.eye(v.size) - np.outer(v, v)
+
+    try:
+        return type(x)(p, x.columns, x.columns)
+    except AttributeError:
+        return p
+
+
+def remove_first_pc(x):
+    return x.dot(_first_pc_cleaner_matrix(x))

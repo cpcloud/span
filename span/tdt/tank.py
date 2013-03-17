@@ -42,7 +42,7 @@ from span.tdt.spikedataframe import SpikeDataFrame
 from span.tdt.spikeglobals import Indexer, EventTypes, RawDataTypes
 from span.utils import (thunkify, cached_property, fromtimestamp,
                         assert_nonzero_existing_file, ispower2, OrderedDict,
-                        num2name, LOCAL_TZ)
+                        num2name, LOCAL_TZ, remove_first_pc)
 
 
 def _python_read_tev_raw(filename, fp_locs, block_size, spikes):
@@ -97,7 +97,7 @@ class TdtTank(object):
     _header_ext = 'tsq'
     _raw_ext = 'tev'
 
-    def __init__(self, path):
+    def __init__(self, path, clean=True):
         super(TdtTank, self).__init__()
 
         tank_with_ext = path + os.extsep
@@ -144,6 +144,7 @@ class TdtTank(object):
         diter = ((name, _try_get_na(fs_nona[name_nona == name].head(1)))
                  for name in self.names.dropna().values)
         self.fs = Series(dict(diter))
+        self.clean = clean
 
     def __repr__(self):
         objr = repr(self.__class__)
@@ -174,7 +175,7 @@ class TdtTank(object):
                                  '\'%s\', did you mean \'%s\'?'
                                  % (name, lowered_name))
 
-        return self._tev(mapper[name])
+        return self._tev(mapper[name], self.clean)
 
     @thunkify
     def _raw_tsq(self):
@@ -262,7 +263,7 @@ class TdtTank(object):
     def raw(self):
         return self._raw_tsq()()
 
-    def _tev(self, event_name):
+    def _tev(self, event_name, clean=True):
         """Return the data from a particular event.
 
         Parameters
@@ -275,10 +276,10 @@ class TdtTank(object):
         tev : SpikeDataFrame
             The raw data from the TEV file
         """
-        return self._read_tev(event_name)()
+        return self._read_tev(event_name, clean)()
 
     @thunkify
-    def _read_tev(self, event_name, group='channel'):
+    def _read_tev(self, event_name, clean):
         """Read an event from a TDT Tank tev file.
 
         Parameters
@@ -321,7 +322,7 @@ class TdtTank(object):
                                           nsamples)
         return _read_tev(tev_name, meta.fp_loc, block_size, meta.channel,
                          meta.shank, spikes, index,
-                         columns.reorder_levels((1, 0)))
+                         columns.reorder_levels((1, 0)), clean)
 
 
 PandasTank = TdtTank
@@ -356,7 +357,7 @@ def _reshape_spikes(df, group_inds):
 
 
 def _read_tev(filename, fp_locs, block_size, channel, shank, spikes,
-              index, columns):
+              index, columns, clean):
     assert isinstance(filename, basestring), 'filename must be a string'
     assert isinstance(fp_locs, (np.ndarray, collections.Sequence)), \
         'fp_locs must be a sequence'
@@ -374,23 +375,17 @@ def _read_tev(filename, fp_locs, block_size, channel, shank, spikes,
     assert isinstance(index, pd.Index), 'index must be an instance of Index'
     assert isinstance(columns, pd.Index), \
         'columns must be an instance of Index'
+    assert clean in (0, 1, False, True), 'clean must be a boolean or 0 or 1'
+
     return _read_tev_impl(filename, fp_locs, block_size, channel, shank,
-                          spikes, index, columns)
+                          spikes, index, columns, clean)
 
 
 _raw_reader = _read_tev_raw
 
 
-def _remove_noise_variance(x):
-    c = x.cov()
-    w, v = np.linalg.eig(c)
-    v = v[:, w.argmax()]
-    return x.dot(np.eye(v.size) - np.outer(v, v))
-
-
-
 def _read_tev_impl(filename, fp_locs, block_size, channel, shank, spikes,
-                   index, columns):
+                   index, columns, clean):
     _raw_reader(filename, fp_locs, block_size, spikes.values)
 
     items = spikes.groupby(channel).indices.items()
@@ -398,9 +393,12 @@ def _read_tev_impl(filename, fp_locs, block_size, channel, shank, spikes,
 
     group_inds = np.column_stack(OrderedDict(items).itervalues())
     reshaped = _reshape_spikes(spikes.values, group_inds)
+
     d = DataFrame(reshaped, index, columns)
     d.sort_index(axis=1, inplace=True)
-    return SpikeDataFrame(d, dtype=float)
+
+    df = SpikeDataFrame(d, dtype=float)
+    return remove_first_pc(df) if clean else df
 
 
 if __name__ == '__main__':
