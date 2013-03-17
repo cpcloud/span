@@ -30,3 +30,9 @@ TODO
 ----
 * Flesh out the ``PandasTank`` interface.
 * Incorporate the classes from ``recording.py`` into ``tank.py`` and ``spikedataframe.py``.
+
+----
+Done
+----
+* ``recording.py`` passes tests
+*

@@ -16,7 +16,7 @@ Read a TDT file
     import span
     tankname = 'some/path/to/a/tdt/tank/file'
     tank = span.tdt.PandasTank(tankname)
-    sp = tank.spikes # spikes is a computed property that is cached
+    sp = tank.spik # spikes is a computed property that is cached
 
 ------------------
 Threshold the data
@@ -43,7 +43,7 @@ Bin the data
 
 .. code-block:: python
 
-    # bin the data in 1000 millisecond bins
+    # bin the data in 1 second bins
     binned = clr.resample('S', how='sum')
 
 -----------------------------
@@ -65,8 +65,8 @@ Full Code Block
 
     import span
     tankname = 'some/path/to/a/tdt/tank/file'
-    tank = span.tdt.PandasTank(tankname)
-    sp = tank.spikes
+    tank = span.tdt.TdtTank(tankname)
+    sp = tank.spik
 
     # create an array of bools indicating which spikes have voltage values
     # greater than 4 standard deviations
