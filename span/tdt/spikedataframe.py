@@ -126,7 +126,7 @@ class SpikeDataFrame(SpikeDataFrameBase):
     def _constructor(self):
         return type(self)
 
-    def clear_refrac(self, threshed, ms=2):
+    def clear_refrac(self, ms=2, inplace=False):
         """Remove spikes from the refractory period of all channels.
 
         Parameters
@@ -148,23 +148,25 @@ class SpikeDataFrame(SpikeDataFrameBase):
         r : SpikeDataFrame
             The thresholded and refractory-period-cleared array of booleans
             indicating the sample point at which a spike was above threshold.
+
+        Notes
+        -----
+        This method DOES NOT modify the object inplace by default.
         """
-        assert isinstance(ms, (numbers.Integral, types.NoneType)), \
+        assert isinstance(ms, (np.integer, numbers.Integral,
+                               types.NoneType)), \
             '"ms" must be an integer or None'
         assert ms >= 0 or ms is None, \
             'refractory period must be a nonnegative integer or None'
 
-        clr = threshed
+        obj = self if inplace else self.copy()
 
         if ms:
-            # copy so we don't write over the values of threshed
-            clr = clr.copy()
-
             # get the number of samples in ms milliseconds
             ms_fs = samples_per_ms(self.fs, ms)
-            clear_refrac(clr.values, ms_fs)
+            clear_refrac(obj.values, ms_fs)
 
-        return clr
+        return obj
 
     @classmethod
     def xcorr(cls, binned, maxlags=None, detrend=None, scale_type=None,
