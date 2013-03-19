@@ -36,7 +36,9 @@ def serv2mat(df, fs, output_filename):
     df : DataFrame
     output_filename : str
     """
-    scipy.io.savemat(output_filename, {'data': df, 'fs': fs})
+    with warnings.catch_warnings():
+        warnings.simplefilter('ignore', FutureWarning)
+        scipy.io.savemat(output_filename, {'data': df, 'fs': fs})
 
 
 def convert_and_save(filename):
@@ -56,9 +58,12 @@ def convert_and_save(filename):
     print 'Done!'
 
 
-def convert_and_save_multiple(filenames):
+def convert_and_save_multiple(filenames, dry_run):
     for filename in filenames:
-        convert_and_save(filename)
+        if dry_run:
+            print filename
+        else:
+            convert_and_save(filename)
 
 
 def parse_args():
@@ -68,9 +73,12 @@ def parse_args():
     parser.add_argument('filenames', nargs='*',
                         help='A file name or group of file names from the '
                         'server that contains the data of interest')
+    parser.add_argument('-d', '--dry-run', action='store_true',
+                        help='Perform a dry run to make sure arguments are '
+                        'correct')
     return parser.parse_args()
 
 
 if __name__ == '__main__':
     args = parse_args()
-    convert_and_save_multiple(args.filenames)
+    convert_and_save_multiple(args.filenames, args.dry_run)
