@@ -21,66 +21,47 @@
 
 
 import os
-import glob
-
-try:
-    from argparse import ArgumentParser
-except ImportError:
-    from optparse import OptionParser as ArgumentParser
+import argparse
 
 import scipy.io
 import span
 
 
-def serv2mat(raw, output_filename, name='data'):
+def serv2mat(df, output_filename):
     """Wrapper for `scipy.io.savemat`.
 
     Parameters
     ----------
-    raw : array_like
+    df : DataFrame
     output_filename : str
-    name : str, optional
-        Name of the array when loaded into MATLAB.
     """
-    scipy.io.savemat(output_filename, {name: raw}, oned_as='row')
+    scipy.io.savemat(output_filename, {'data': df.values, 'fs': df.fs})
+
+
+def convert_and_save(filename):
+    base_filename, _ = os.path.splitext(filename)
+
+    print '\nConverting TDT Tank to MATLAB: {0}'.format(base_filename)
+    sp = span.PandasTank(base_filename).spik.reorder_levels((1, 0))
+    sp.sort_index(axis=1, inplace=True)
+    serv2mat(sp, base_filename)
+    print 'Done!'
+
+
+def convert_and_save_multiple(filenames):
+    for filename in filenames:
+        convert_and_save(filename)
 
 
 def parse_args():
     """Parse command line arguments."""
-    parser = ArgumentParser(description='convert TDT to MATLAB')
-    try:
-        parser.add_argument('dirname', metavar='DIRNAME', type=str,
-                            help='a directory name from the server')
-    except AttributeError:
-        pass
-
-    try:
-        _, args = parser.parse_args()
-        args = args[0]
-    except (TypeError, ValueError):
-        args = parser.parse_args()
-    return args
-
-
-def main():
-    dn = parse_args()
-
-    try:
-        dn = dn.dirname.rstrip(os.sep)
-    except:
-        pass
-
-    if not os.path.exists(dn):
-        raise OSError('%s does NOT exist, make sure you typed the name of '
-                      'the directory correctly' % dn)
-    tev, = glob.glob(os.path.join(dn, '*.tev'))
-    tev_name, _ = os.path.splitext(tev)
-    mat_filename = os.path.join(tev_name + os.extsep + 'mat')
-    print '\nConverting TDT Tank to MATLAB: {0}'.format(mat_filename)
-    serv2mat(span.tdt.PandasTank(tev_name).spik.values,
-             mat_filename)
-    print 'Done!'
+    parser = argparse.ArgumentParser(description='convert TDT to MATLAB')
+    parser.add_argument('filenames', nargs='*',
+                        help='A file name or group of file names from the '
+                        'server that contains the data of interest')
+    return parser.parse_args()
 
 
 if __name__ == '__main__':
-    main()
+    args = parse_args()
+    convert_and_save_multiple(args.filenames)
