@@ -32,6 +32,7 @@ import abc
 import functools
 import numbers
 import types
+import warnings
 
 import numpy as np
 from pandas import Series, DataFrame, DatetimeIndex
@@ -240,7 +241,10 @@ class SpikeDataFrame(SpikeDataFrameBase):
             selector = lambda x: x[chi_ind] == x[chj_ind]
             xc.ix[0, xc0.select(selector).index] = np.nan
 
-        xc.sortlevel(level=sortlevel, axis=1, inplace=True)
+        with warnings.catch_warnings():
+            warnings.simplefilter('ignore', FutureWarning)
+            xc.sortlevel(level=sortlevel, axis=1, inplace=True)
+
         return xc
 
     def jitter(self, window=100, unit='ms'):
@@ -259,7 +263,11 @@ class SpikeDataFrame(SpikeDataFrameBase):
         """
         new_index = self._jitter_index(window, unit)
         df = self._constructor(self.values, new_index, self.columns)
-        df.sort_index(inplace=True)
+
+        with warnings.catch_warnings():
+            warnings.simplefilter('ignore', FutureWarning)
+            df.sort_index(inplace=True)
+
         return df
 
     def _jitter_index(self, window, unit):

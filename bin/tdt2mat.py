@@ -22,6 +22,7 @@
 
 import os
 import argparse
+import warnings
 
 import scipy.io
 import span
@@ -46,7 +47,11 @@ def convert_and_save(filename):
     sp = tank.spik
     fs = tank.fs['Spik']
     sp = sp.reorder_levels((1, 0), axis=1)
-    sp.sort_index(axis=1, inplace=True)
+
+    with warnings.catch_warnings():
+        warnings.simplefilter('ignore', FutureWarning)
+        sp.sort_index(axis=1, inplace=True)
+
     serv2mat(sp.values, fs, base_filename)
     print 'Done!'
 

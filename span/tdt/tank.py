@@ -31,6 +31,7 @@ import collections
 import numbers
 import os
 import re
+import warnings
 
 import numpy as np
 import pandas as pd
@@ -205,7 +206,11 @@ class TdtTank(object):
 
         # create some new indices based on the electrode array
         srt = Indexer.sort('channel')
-        srt.reset_index(drop=True, inplace=True)
+
+        with warnings.catch_warnings():
+            warnings.simplefilter('ignore', FutureWarning)
+            srt.reset_index(drop=True, inplace=True)
+
         shank = srt.shank[tsq.channel].values
 
         tsq['shank'] = shank
@@ -312,7 +317,10 @@ class TdtTank(object):
         spikes = DataFrame(np.empty((nblocks, block_size), dtype=dtype))
 
         tev_name = self.path + os.extsep + self._raw_ext
-        meta.reset_index(drop=True, inplace=True)
+
+        with warnings.catch_warnings():
+            warnings.simplefilter('ignore', FutureWarning)
+            meta.reset_index(drop=True, inplace=True)
 
         # convert timestamps to datetime objects (vectorized)
         meta.timestamp = fromtimestamp(meta.timestamp)
@@ -395,7 +403,10 @@ def _read_tev_impl(filename, fp_locs, block_size, channel, shank, spikes,
     reshaped = _reshape_spikes(spikes.values, group_inds)
 
     d = DataFrame(reshaped, index, columns)
-    d.sort_index(axis=1, inplace=True)
+
+    with warnings.catch_warnings():
+        warnings.simplefilter('ignore', FutureWarning)
+        d.sort_index(axis=1, inplace=True)
 
     df = SpikeDataFrame(d, dtype=float)
     return remove_first_pc(df) if clean else df
