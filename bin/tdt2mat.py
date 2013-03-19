@@ -27,7 +27,7 @@ import scipy.io
 import span
 
 
-def serv2mat(df, output_filename):
+def serv2mat(df, fs, output_filename):
     """Wrapper for `scipy.io.savemat`.
 
     Parameters
@@ -35,16 +35,18 @@ def serv2mat(df, output_filename):
     df : DataFrame
     output_filename : str
     """
-    scipy.io.savemat(output_filename, {'data': df.values, 'fs': df.fs})
+    scipy.io.savemat(output_filename, {'data': df, 'fs': fs})
 
 
 def convert_and_save(filename):
     base_filename, _ = os.path.splitext(filename)
 
     print '\nConverting TDT Tank to MATLAB: {0}'.format(base_filename)
-    sp = span.PandasTank(base_filename).spik.reorder_levels((1, 0), axis=1)
+    sp = span.PandasTank(base_filename).spik
+    fs = sp.fs
+    sp = sp.reorder_levels((1, 0), axis=1)
     sp.sort_index(axis=1, inplace=True)
-    serv2mat(sp, base_filename)
+    serv2mat(sp.values, fs, base_filename)
     print 'Done!'
 
 
