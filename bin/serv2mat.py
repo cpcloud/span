@@ -55,7 +55,8 @@ def convert_and_save_multiple(filenames):
 
 def parse_args():
     """Parse command line arguments."""
-    parser = argparse.ArgumentParser(description='convert TDT to MATLAB')
+    parser = argparse.ArgumentParser(
+        description='Convert TDT tank files to MATLAB arrays')
     parser.add_argument('filenames', nargs='*',
                         help='A file name or group of file names from the '
                         'server that contains the data of interest')
