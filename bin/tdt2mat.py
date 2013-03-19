@@ -42,8 +42,9 @@ def convert_and_save(filename):
     base_filename, _ = os.path.splitext(filename)
 
     print '\nConverting TDT Tank to MATLAB: {0}'.format(base_filename)
-    sp = span.PandasTank(base_filename).spik
-    fs = sp.fs
+    tank = span.PandasTank(base_filename)
+    sp = tank.spik
+    fs = tank.fs['Spik']
     sp = sp.reorder_levels((1, 0), axis=1)
     sp.sort_index(axis=1, inplace=True)
     serv2mat(sp.values, fs, base_filename)
