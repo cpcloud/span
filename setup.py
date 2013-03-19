@@ -94,7 +94,7 @@ if __name__ == '__main__':
           author_email='cpcloud@gmail.com',
           packages=['span', 'span.tdt', 'span.utils', 'span.xcorr',
                     'span.stats'],
-          scripts=[os.path.join('bin', 'serv2mat.py')],
+          scripts=glob.glob(os.path.join('bin', '*')),
           ext_modules=ext_modules,
           license='LICENSE.txt',
           description='Spike train analysis',
