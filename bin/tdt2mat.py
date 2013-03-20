@@ -21,8 +21,11 @@
 
 
 import os
-import argparse
 import warnings
+
+with warnings.catch_warnings():
+    warnings.simplefilter('ignore', UserWarning)
+    import argparse
 
 import scipy.io
 import span
