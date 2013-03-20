@@ -291,6 +291,10 @@ class SpikeDataFrame(SpikeDataFrameBase):
 
         return DatetimeIndex(shifted, tz=LOCAL_TZ)
 
+    def dot(self, *args, **kwargs):
+        super_dot = super(SpikeDataFrame, self).dot
+        return self._constructor(super_dot(*args, **kwargs))
+
 
 spike_xcorr = SpikeDataFrame.xcorr
 
