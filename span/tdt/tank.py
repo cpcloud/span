@@ -47,10 +47,11 @@ from span.utils import (thunkify, cached_property, fromtimestamp,
 
 
 def _python_read_tev_raw(filename, fp_locs, block_size, spikes):
+    dt = spikes.dtype
     with open(filename, 'rb') as f:
         for i, loc in enumerate(fp_locs):
             f.seek(loc)
-            spikes[i] = np.fromfile(f, spikes.dtype, block_size)
+            spikes[i] = np.fromfile(f, dt, block_size)
 
 
 def _first_int_group(regex, name):
@@ -402,14 +403,13 @@ def _read_tev_impl(filename, fp_locs, block_size, channel, shank, spikes,
     group_inds = np.column_stack(OrderedDict(items).itervalues())
     reshaped = _reshape_spikes(spikes.values, group_inds)
 
-    d = DataFrame(reshaped, index, columns)
+    df = DataFrame(reshaped, index, columns)
 
     with warnings.catch_warnings():
         warnings.simplefilter('ignore', FutureWarning)
-        d.sort_index(axis=1, inplace=True)
+        df.sort_index(axis=1, inplace=True)
 
-    df = SpikeDataFrame(d, dtype=float)
-    return remove_first_pc(df) if clean else df
+    return SpikeDataFrame(remove_first_pc(df) if clean else df, dtype=float)
 
 
 if __name__ == '__main__':
