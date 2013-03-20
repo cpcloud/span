@@ -62,6 +62,7 @@ def convert_and_save_multiple(filenames, dry_run):
     for filename in filenames:
         if dry_run:
             print filename
+            assert os.path.exists(filename)
         else:
             convert_and_save(filename)
 
