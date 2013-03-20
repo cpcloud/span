@@ -403,13 +403,13 @@ def _read_tev_impl(filename, fp_locs, block_size, channel, shank, spikes,
     group_inds = np.column_stack(OrderedDict(items).itervalues())
     reshaped = _reshape_spikes(spikes.values, group_inds)
 
-    df = DataFrame(reshaped, index, columns)
+    df = SpikeDataFrame(reshaped, index, columns, dtype=float)
 
     with warnings.catch_warnings():
         warnings.simplefilter('ignore', FutureWarning)
         df.sort_index(axis=1, inplace=True)
 
-    return SpikeDataFrame(remove_first_pc(df) if clean else df, dtype=float)
+    return remove_first_pc(df) if clean else df
 
 
 if __name__ == '__main__':
