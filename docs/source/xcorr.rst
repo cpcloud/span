@@ -2,7 +2,7 @@
 Cross-correlation
 =================
 
-Roughly, cross-correlation is useful for determining the lag at which
+Cross-correlation is useful for determining the lag at which
 the maximum correlation between two processes lies.
 
 Formally, it is
