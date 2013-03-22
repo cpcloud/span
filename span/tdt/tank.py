@@ -138,7 +138,7 @@ class TdtTank(object):
         def _try_get_na(x):
             try:
                 return x.item()
-            except ValueError:
+            except (ValueError, IndexError):
                 return NA
 
         fs_nona = self.raw.fs.dropna()
@@ -203,7 +203,7 @@ class TdtTank(object):
         tsq.fs[np.logical_not(tsq.fs)] = NA
 
         # trim the fat
-        tsq.size.ix[2:] -= self.dtype.itemsize / tsq.size.dtype.itemsize
+        tsq.size.ix[2:] -= self.dtype.itemsize / self.dtype['size'].itemsize
 
         # create some new indices based on the electrode array
         srt = Indexer.sort('channel')
