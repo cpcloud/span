@@ -41,7 +41,7 @@ def serv2mat(df, fs, output_filename):
     """
     with warnings.catch_warnings():
         warnings.simplefilter('ignore', FutureWarning)
-        scipy.io.savemat(output_filename, {'data': df, 'fs': fs})
+        scipy.io.savemat(output_filename + '_' + str(fs), {'data': df})
 
 
 def convert_and_save(filename):
