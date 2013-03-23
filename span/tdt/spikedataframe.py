@@ -76,6 +76,7 @@ class SpikeDataFrame(SpikeDataFrameBase):
     """
     def __init__(self, *args, **kwargs):
         super(SpikeDataFrame, self).__init__(*args, **kwargs)
+        self.__isclean = False
 
     @property
     def nchannels(self):
@@ -295,9 +296,13 @@ class SpikeDataFrame(SpikeDataFrameBase):
         super_dot = super(SpikeDataFrame, self).dot
         return self._constructor(super_dot(*args, **kwargs))
 
+    @property
+    def isclean(self):
+        return self.__isclean
+
+    @isclean.setter
+    def isclean(self, isclean):
+        self.__isclean = isclean
+
 
 spike_xcorr = SpikeDataFrame.xcorr
-
-
-if __name__ == '__main__':
-    print "Hello, world!"

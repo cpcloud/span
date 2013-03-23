@@ -329,9 +329,11 @@ class TdtTank(object):
 
         index = _create_ns_datetime_index(self.datetime, self.fs[event_name],
                                           nsamples)
-        return _read_tev(tev_name, meta.fp_loc.values, block_size,
-                         meta.channel.values, meta.shank.values, spikes, index,
-                         columns.reorder_levels((1, 0)), clean)
+        sdf = _read_tev(tev_name, meta.fp_loc.values, block_size,
+                        meta.channel.values, meta.shank.values, spikes, index,
+                        columns.reorder_levels((1, 0)), clean)
+        sdf.isclean = clean
+        return sdf
 
 
 PandasTank = TdtTank
