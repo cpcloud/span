@@ -20,35 +20,17 @@
 # along with this program. If not, see <http://www.gnu.org/licenses/>.
 
 
-from functools import partial
-
 import numpy as np
 import pandas as pd
-from six.moves import zip
-
-from span.tdt.recording import distance_map
 
 
-ElectrodeMap = pd.Series(np.array([[1, 3, 2, 6],
-                                   [7, 4, 5, 8],
-                                   [13, 12, 10, 9],
-                                   [14, 16, 11, 15]]).ravel() - 1,
-                         name='Electrode Map')
+NeuroNexusMap = pd.DataFrame(np.array([[1,  3,  2,  6],
+                                       [7,  4,  5,  8],
+                                       [13, 12, 10,  9],
+                                       [14, 16, 11, 15]]).T)
 
-NShanks = 4
-ElectrodesPerShank = 4
-NSides = NShanks * 2
-ShankMap = pd.Series(np.outer(np.arange(NShanks),
-                              np.ones(NShanks)).astype(int).ravel(),
-                     name='Shank Map')
-Indexer = pd.DataFrame(dict(zip(('channel', 'shank'),
-                                (ElectrodeMap, ShankMap))))
 
-SortedIndexer = Indexer.sort('channel').reset_index(drop=True)
-ChannelIndex = pd.MultiIndex.from_arrays((SortedIndexer.channel,
-                                          SortedIndexer.shank))
-
-EventTypes = pd.Series({
+TdtEventTypes = pd.Series({
     0x0: 'unknown',
     0x101: 'strobe_on',
     0x102: 'strobe_off',
@@ -57,18 +39,13 @@ EventTypes = pd.Series({
     0x8201: 'snip',
     0x8801: 'mark',
     0x8000: 'hasdata'
-}, name='Event Types')
-
-DistanceMap = partial(distance_map, NShanks, ElectrodesPerShank)
+}, name='TDT Event Types')
 
 
-def _dtype_mapper(raw, attr='name'):
-    return getattr(np.dtype(raw), attr)
-
-RawDataTypes = pd.Series({
-    0: np.float32,
-    1: np.int32,
-    2: np.int16,
-    3: np.int8,
-    4: np.float64,
-}, name='Raw Data Types').map(_dtype_mapper)
+TdtDataTypes = pd.Series({
+    0: 'float32',
+    1: 'int32',
+    2: 'int16',
+    3: 'int8',
+    4: 'float64',
+}, name='TDT Data Types')
