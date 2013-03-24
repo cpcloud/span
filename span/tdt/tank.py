@@ -394,9 +394,9 @@ def _read_tev_impl(filename, meta, block_size, spikes, index, electrode_map,
 
     group_inds = np.column_stack(d.itervalues())
     reshaped = _reshape_spikes(spikes.values, group_inds)
+    raw = reshaped.take(electrode_map.channel, axis=1)
 
-    df = SpikeDataFrame(reshaped.take(electrode_map.channel, axis=1), index,
-                        electrode_map.index, dtype=float)
+    df = SpikeDataFrame(raw, index, electrode_map.index, dtype=float)
 
     return remove_first_pc(df) if clean else df
 
