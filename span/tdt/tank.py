@@ -404,6 +404,7 @@ def _read_tev_impl(filename, fp_locs, block_size, channel, shank, spikes,
 
     group_inds = np.column_stack(OrderedDict(items).itervalues())
     reshaped = _reshape_spikes(spikes.values, group_inds)
+    np.save('reshaped_old.npy', reshaped)
 
     df = SpikeDataFrame(reshaped, index, columns, dtype=float)
 
