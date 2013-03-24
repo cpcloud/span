@@ -130,10 +130,10 @@ class TdtTank(object):
         unames = self.raw.name.unique()
         raw_names = map(lambda x: NA if not x else x, map(num2name, unames))
         self.names = Series(list(raw_names), index=unames)
+        names = self.names
 
-        self.raw.name = self.names[self.raw.name].reset_index(drop=True)
-        self._name_mapper = dict(zip(self.names.str.lower().values,
-                                     self.names.values))
+        self.raw.name = names[self.raw.name].reset_index(drop=True)
+        self._name_mapper = dict(zip(names.str.lower(), names))
 
         def _try_get_na(x):
             try:
@@ -203,7 +203,9 @@ class TdtTank(object):
         tsq.fs[np.logical_not(tsq.fs)] = NA
 
         # trim the fat
-        tsq.size.ix[2:] -= self.dtype.itemsize / self.dtype['size'].itemsize
+        dt = self.dtype
+        stream = tsq.type == 'stream'
+        tsq.size.ix[stream] -= dt.itemsize / dt['size'].itemsize
 
         # create some new indices based on the electrode array
         srt = Indexer.sort('channel')
@@ -212,9 +214,7 @@ class TdtTank(object):
             warnings.simplefilter('ignore', FutureWarning)
             srt.reset_index(drop=True, inplace=True)
 
-        shank = srt.shank[tsq.channel].values
-
-        tsq['shank'] = shank
+        tsq['shank'] = srt.shank[tsq.channel].values
 
         not_null_strobe = tsq.strobe.notnull()
 
