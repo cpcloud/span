@@ -144,6 +144,12 @@ class ElectrodeMap(object):
                          columns=['shank'])
 
     @property
+    def index(self):
+        names = [self.shank.name, self.channel.name]
+        inds = np.row_stack((self.shank, self.channel))
+        return MultiIndex.from_arrays(inds, names=names)
+
+    @property
     def original(self):
         df = DataFrame(self.__original, copy=True)
         df.index.name = 'channel'
