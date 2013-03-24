@@ -248,21 +248,21 @@ class SpikeDataFrame(SpikeDataFrameBase):
 
         return xc
 
-    def jitter(self, window=100, unit='ms'):
-        """Jitter samples by some window in units of `unit`.
+    def basic_jitter(self, window=100, unit='ms'):
+        """Basic jitter samples by some window in units of `unit`.
 
         Parameters
         ----------
-        window : int
+        window : int, optional
             The size of the jitter window.
-        unit : str
+        unit : str, optional
             The time units of the jitter window.
 
         Returns
         -------
         df : SpikeDataFrame
         """
-        new_index = self._jitter_index(window, unit)
+        new_index = self._basic_jitter_reindex(window, unit)
         df = self._constructor(self.values, new_index, self.columns)
 
         with warnings.catch_warnings():
@@ -271,7 +271,7 @@ class SpikeDataFrame(SpikeDataFrameBase):
 
         return df
 
-    def _jitter_index(self, window, unit):
+    def _basic_jitter_reindex(self, window, unit):
         # raw datetime ndarray
         index = self.index.values
 
