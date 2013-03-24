@@ -394,6 +394,7 @@ def _read_tev_impl(filename, meta, block_size, spikes, index, electrode_map,
 
     group_inds = np.column_stack(d.itervalues())
     reshaped = _reshape_spikes(spikes.values, group_inds)
+    np.save('reshaped_new.npy', reshaped)
     raw = reshaped.take(electrode_map.channel, axis=1)
 
     df = SpikeDataFrame(raw, index, electrode_map.index, dtype=float)
