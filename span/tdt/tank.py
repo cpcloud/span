@@ -321,7 +321,7 @@ class TdtTank(object):
             warnings.simplefilter('ignore', FutureWarning)
             meta.reset_index(drop=True, inplace=True)
 
-        # convert timestamps to datetime objects (vectorized)
+        # convert timestamps to datetime objects
         meta.timestamp = fromtimestamp(meta.timestamp)
         meta.fp_loc = meta.fp_loc.astype(int)
 
@@ -344,6 +344,7 @@ def _create_ns_datetime_index(start, fs, nsamples, name='datetime'):
     start : datetime
     fs : float
     nsamples : int
+    name : str, optional
 
     returns
     -------
@@ -396,10 +397,6 @@ def _read_tev_impl(filename, meta, block_size, spikes, index, electrode_map,
     reshaped = _reshape_spikes(spikes.values, group_inds)
     raw = reshaped.take(electrode_map.channel, axis=1)
     df = SpikeDataFrame(raw, index, electrode_map.index, dtype=float)
-
-    with warnings.catch_warnings():
-        warnings.simplefilter('ignore', FutureWarning)
-        df.sort_index(axis=1, inplace=True)
 
     return remove_first_pc(df) if clean else df
 
