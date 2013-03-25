@@ -11,12 +11,13 @@ import pandas as pd
 from six.moves import zip
 import six
 
-from span.tdt.tank import (TdtTankBase, PandasTank, _python_read_tev_raw,
+from span.tdt.tank import (TdtTank, PandasTank, _python_read_tev_raw,
                            _create_ns_datetime_index, _reshape_spikes,
                            _raw_reader)
 from span.tdt import SpikeDataFrame
 from span.testing import slow, create_stsq
 from span.utils import OrderedDict
+from span import ElectrodeMap, NeuroNexusMap
 
 
 class TestReadTev(object):
@@ -26,7 +27,8 @@ class TestReadTev(object):
         self.filename = os.path.join(span_data_path,
                                      'Spont_Spikes_091210_p17rat_s4_657umV')
 
-        self.tank = PandasTank(self.filename)
+        self.tank = PandasTank(self.filename, ElectrodeMap(NeuroNexusMap,
+                                                           50, 125))
         self.names = 'Spik', 'LFPs'
 
     def tearDown(self):
@@ -81,11 +83,6 @@ def test_reshape_spikes():
 
     a, b = reshaped.shape, (nsamples, nchannels)
     assert a == b
-
-
-class TestTdtTankBase(unittest.TestCase):
-    def test_init(self):
-        self.assertRaises(TypeError, TdtTankBase, pd.util.testing.rands(10))
 
 
 class TestPandasTank(unittest.TestCase):

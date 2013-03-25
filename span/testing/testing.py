@@ -16,7 +16,6 @@ from numpy.random import uniform as randrange, randint
 
 import span
 from span.tdt import SpikeDataFrame
-from span.tdt.spikeglobals import Indexer
 
 
 def assert_all_dtypes(df, dtype, msg='dtypes not all the same'):
@@ -33,9 +32,9 @@ def skip(test):
 
 
 def create_stsq(size=None, typ='stream',
-                name=span.utils.name2num('Spik'), nchannels=16, sort_code=0,
-                fmt=np.float32, fs=1000,
-                samples_per_channel=None, strobe=None):
+                name=span.utils.name2num('Spik'), nchannels=16, nshanks=4,
+                sort_code=0, fmt=np.float32, fs=1000, samples_per_channel=None,
+                strobe=None):
     if size is None:
         size = 8
 
@@ -53,6 +52,8 @@ def create_stsq(size=None, typ='stream',
     channel = Series(np.tile(np.arange(nchannels),
                              (samples_per_channel, 1))[:, ::-1].ravel(),
                      index=index, name='channel')
+    shank = Series(np.repeat(np.arange(nshanks), nchannels // nshanks),
+                   name='shank').ix[channel]
     sort_code = Series(sort_code, index=index, name='sort_code')
     fp_loc = Series(index, name='fp_loc')
     fmt = Series([fmt] * index.size, index=index, name='format')
@@ -62,8 +63,7 @@ def create_stsq(size=None, typ='stream',
     ts = np.tile(ts, (nchannels, 1)).T.ravel()
     timestamp = Series(ts, index=index, name='timestamp')
 
-    srt = Indexer.sort('channel').reset_index(drop=True)
-    shank = srt.shank[channel].reset_index(drop=True)
+    fs = np.repeat(fs, timestamp.size)
 
     data = (size, typ, name, channel, sort_code, timestamp, fp_loc, fmt, fs,
             shank)
@@ -71,11 +71,23 @@ def create_stsq(size=None, typ='stream',
     return DataFrame(dict(zip(names, data)))
 
 
+def create_elec_map(channels_per_shank, nshanks):
+    nchannels = channels_per_shank * nshanks
+    wthn = randint(20, 100)
+    btwn = randint(20, 100)
+    return ElectrodeMap(np.arange(nchannels).reshape(-1, nshanks), wthn, btwn)
+
+
+def create_random_elec_map():
+    channels_per_shank = randint(4, 9)
+    nshanks = randint(4, 9)
+    return create_elec_map(channels_per_shank, nshanks)
+
+
 def create_spike_df(size=None, typ='stream', name=span.utils.name2num('Spik'),
-                    nchannels=16, sort_code=0, fmt=np.float32, fs=4882.8125,
-                    samples_per_channel=None):
-    from span.tdt.spikeglobals import ChannelIndex as columns
-    tsq = create_stsq(size, typ, name, nchannels, sort_code, fmt, fs,
+                    nchannels=16, nshanks=4, sort_code=0, fmt=np.float32,
+                    fs=4882.8125, samples_per_channel=None):
+    tsq = create_stsq(size, typ, name, nchannels, nshanks, sort_code, fmt, fs,
                       samples_per_channel)
 
     tsq.timestamp = span.utils.fromtimestamp(tsq.timestamp)
@@ -88,8 +100,7 @@ def create_spike_df(size=None, typ='stream', name=span.utils.name2num('Spik'),
     dt = dtstart + np.arange(spikes.shape[0]) * np.timedelta64(ns, 'ns')
     index = DatetimeIndex(dt, freq=ns * pd.datetools.Nano(), name='time',
                           tz='US/Eastern')
-    columns = columns.swaplevel(1, 0)
-    return SpikeDataFrame(DataFrame(spikes, index, columns).sort_index(axis=1))
+    return SpikeDataFrame(DataFrame(spikes, index).sort_index(axis=1))
 
 
 def knownfailure(test):

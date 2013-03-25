@@ -116,19 +116,23 @@ class ElectrodeMap(object):
 
         self.__nchannel = map_.size
 
-        self.__channel = map_.ravel(order='K')
-        self.__shank = np.repeat(np.arange(self.nshank), channels_per_shank)
+        self.__channel = Index(map_.ravel(order='K'), name='channel')
+        self.__shank = Index(np.repeat(np.arange(self.nshank),
+                                       channels_per_shank), name='shank')
         self.within_shank = within_shank
         self.between_shank = between_shank
         self.__original = np.column_stack([np.squeeze(map_.copy())])
 
+    def _get_labels(self, name):
+        return self.index.labels[self.index.names.index(name)]
+
     @property
     def channel(self):
-        return Index(self.__channel, name='channel')
+        return self._get_labels(self.__channel.name)
 
     @property
     def shank(self):
-        return Index(self.__shank, name='shank')
+        return self._get_labels(self.__shank.name)
 
     @property
     def nshank(self):
@@ -140,14 +144,15 @@ class ElectrodeMap(object):
 
     @property
     def raw(self):
-        return DataFrame(self.shank.values, index=self.channel,
-                         columns=['shank'])
+        return DataFrame(self.shank, index=self.channel, columns=['shank'])
 
     @property
     def index(self):
-        names = [self.shank.name, self.channel.name]
-        inds = np.row_stack((self.shank, self.channel))
-        return MultiIndex.from_arrays(inds, names=names)
+        shank, channel = self.__shank, self.__channel
+        names = [shank.name, channel.name]
+        inds = zip(shank, channel)
+        inds.sort()
+        return MultiIndex.from_tuples(inds, names=names)
 
     @property
     def original(self):
