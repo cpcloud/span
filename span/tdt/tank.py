@@ -396,7 +396,7 @@ def _read_tev_impl(filename, meta, block_size, spikes, index, electrode_map,
     reshaped = _reshape_spikes(spikes.values, group_inds)
     raw = reshaped.take(electrode_map.channel, axis=1)
 
-    np.save('reshaped_new.npy', raw.values)
+    np.save('reshaped_new.npy', raw)
     df = SpikeDataFrame(raw, index, electrode_map.index, dtype=float)
 
     return remove_first_pc(df) if clean else df
