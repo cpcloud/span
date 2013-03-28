@@ -163,7 +163,7 @@ Reading the TSQ file into `NumPy`_ is, fortunately, **much** easier than this.
                           'offsets': offsets}, align=True)
     tsq_name = 'name/of/file.tsq'
     tsq = np.fromfile(tsq_name, dtype=tsq_dtype)
-    df = DataFrame.from_records(tsq)
+    df = DataFrame(tsq)
 
 
 ``tsq`` is a `NumPy record array
@@ -207,7 +207,7 @@ from the tev file.
 
 
 You can see here that this part of the
-:py:func:`span.tdt._read_tev._read_tev` function skips to the point in
+:py:func:`span.tdt._read_tev._read_tev_raw` function skips to the point in
 the file where the next chunk lies and placing it in the array
 ``spikes``.
 
