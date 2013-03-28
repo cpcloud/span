@@ -161,18 +161,40 @@ class ElectrodeMap(object):
         df.columns.name = 'shank'
         return df
 
-    def __unicode__(self):
-        df = self.original
-        df += 1
-        df.index += 1
-        df.columns += 1
-        r = repr(df)
+    def _build_unicode_map(self):
+        channels_per_shank = self.nchannel // self.nshank
+        _bars = [u'\u2502'] * channels_per_shank
+        _top = [u' '] * channels_per_shank
+        _mid = [u'\u2500'] * channels_per_shank
+        bars = [_top * 2] + ([_bars * 2] * self.nshank)
+
+        joiner = lambda x, y: [u'{0}{1:>2}{2}'.format(xi, ch, xj)
+                               for xi, xj, ch in zip(x[::2], x[1::2], y)]
+        joiner_nopad = lambda x, y: [u'{0}{1:\u2500>2}{2}'.format(xi, ch, xj)
+                                     for xi, xj, ch in zip(x[::2], x[1::2],
+                                                           y)]
+        _bars = map(joiner, bars[1:], self.original.values)
+        bars = map(joiner, bars[:1], [xrange(self.nshank)])
+        bars += map(joiner_nopad, [_mid * 2],
+                    [[u'\u2500'] * self.nshank]) + _bars
+        s = u'\n'.join(map(lambda x: u' '.join(x), bars))
+        bottom = (u' ' * 3).join([u'\u2572\u2571'] * self.nshank)
+        btop = u' '.join([u'\u2570\u2500\u2500\u256f'] * self.nshank)
+        s += u'\n' + btop + u'\n ' + bottom
         mu = u'\u03bc'
-        r += u'\nwthn: {0} {2}m\nbtwn: {1} {2}m'
-        return r.format(self.within_shank, self.between_shank, mu)
+        s += u'\n\nwthn: {0} {2}m\nbtwn: {1} {2}m'.format(self.within_shank,
+                                                          self.between_shank,
+                                                          mu)
+        return s
+
+    def __unicode__(self):
+        try:
+            return self._build_unicode_map()
+        except:
+            return unicode(self.original)
 
     def __bytes__(self):
-        return unicode(self).encode('UTF-8', 'replace')
+        return unicode(self).encode('utf8', 'replace')
 
     __repr__ = __str__ = __bytes__
 
