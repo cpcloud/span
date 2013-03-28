@@ -38,6 +38,7 @@ from six.moves import map
 import pytz
 
 from span.utils._clear_refrac import _clear_refrac as _clear_refrac_cython
+from span.utils._utils import absmax
 from span.utils.math import cartesian
 
 
@@ -285,3 +286,17 @@ def _get_local_tz():
 
 
 LOCAL_TZ = _get_local_tz()
+
+
+def to_neuroscope(x, precision):
+    try:
+        v = x.values
+    except AttributeError:
+        v = x
+
+    const = (2 ** precision - 1) / absmax(v.ravel())
+    return np.around(v * const).astype('int%d' % precision)
+
+
+def write_neuroscope(filename, x, precision=16):
+    to_neuroscope(x, precision).tofile(filename)
