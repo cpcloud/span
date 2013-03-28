@@ -7,48 +7,48 @@ analysis.
 All of the following steps assume that you've executed ``import span``
 in a Python interpreter.
 
----------------
-Read a TDT file
----------------
+------------------
+1. Read a TDT file
+------------------
 
 .. code-block:: python
 
     import span
-    tankname = 'some/path/to/a/tdt/tank/file'
+    tankname = 'some/path/to/a/tdt/tank/file' [#f1]_
     tank = span.tdt.PandasTank(tankname)
-    sp = tank.spik # spikes is a computed property that is cached
+    sp = tank.spik # spikes is a computed property based on the names of events
 
-------------------
-Threshold the data
-------------------
+---------------------
+2. Threshold the data
+---------------------
 
 .. code-block:: python
 
     # create an array of bools indicating which spikes have voltage values
-    # greater than 4 standard deviations
+    # greater than 4 standard deviations from the mean
     thr = sp.threshold(4 * sp.std())
 
----------------------------
-Clear the refractory period
----------------------------
+------------------------------
+3. Clear the refractory period
+------------------------------
 
 .. code-block:: python
 
-    # clear the refractory period of any spikes
-    clr = thr.clear_refrac()
+    # clear the refractory period of any spikes; in place to save memory
+    thr.clear_refrac(inplace=True)
 
-------------
-Bin the data
-------------
+---------------
+4. Bin the data
+---------------
 
 .. code-block:: python
 
     # bin the data in 1 second bins
     binned = clr.resample('S', how='sum')
 
------------------------------
-Compute the cross correlation
------------------------------
+--------------------------------
+5. Compute the cross correlation
+--------------------------------
 
 .. code-block:: python
 
@@ -73,7 +73,7 @@ Full Code Block
     thr = sp.threshold(4 * sp.std())
 
     # clear the refractory period of any spikes
-    clr = sp.clear_refrac(thr)
+    thr.clear_refrac(inplace=True)
 
     # binned the data in 1 second bins
     binned = clr.resample('S', how='sum')
