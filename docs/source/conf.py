@@ -20,6 +20,7 @@ import os
 # documentation root, use os.path.abspath to make it absolute, like shown here.
 sys.path.insert(0, os.path.abspath(os.path.join(os.pardir, os.pardir)))
 
+
 class Mock(object):
     def __init__(self, *args, **kwargs):
         super(Mock, self).__init__()
