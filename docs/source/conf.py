@@ -20,6 +20,31 @@ import os
 # documentation root, use os.path.abspath to make it absolute, like shown here.
 sys.path.insert(0, os.path.abspath(os.path.join(os.pardir, os.pardir)))
 
+class Mock(object):
+    def __init__(self, *args, **kwargs):
+        super(Mock, self).__init__()
+
+    def __call__(self, *args, **kwargs):
+        return Mock()
+
+    @classmethod
+    def __getattr__(cls, name):
+        if name in ('__file__', '__path__'):
+            return os.sep + os.path.join('dev', 'null')
+        elif name[0] == name[0].upper():
+            mock_type = type(name, (), {})
+            mock_type.__module__ = __name__
+            return mock_type
+        else:
+            return Mock()
+
+MOCK_MODULES = ['span.xcorr._mult_mat_xcorr', 'span.utils._clear_refrac',
+                'span.utils._utils', 'span.tdt._read_tev']
+
+for mod_name in MOCK_MODULES:
+    sys.modules[mod_name] = Mock()
+
+
 # -- General configuration
 # -- -----------------------------------------------------
 
