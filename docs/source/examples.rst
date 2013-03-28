@@ -14,7 +14,7 @@ in a Python interpreter.
 .. code-block:: python
 
     import span
-    tankname = 'some/path/to/a/tdt/tank/file' [#f1]_
+    tankname = 'some/path/to/a/tdt/tank/file'
     tank = span.tdt.PandasTank(tankname)
     sp = tank.spik # spikes is a computed property based on the names of events
 
