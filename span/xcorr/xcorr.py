@@ -21,70 +21,20 @@
 
 import numpy as np
 from pandas import Series, DataFrame
-from six.moves import xrange
-
+import numba
 
 from span.utils import get_fft_funcs, isvector, nextpow2, compose
 from span.utils import create_repeating_multi_index, _diag_inds_n
-from span.xcorr._mult_mat_xcorr import _mult_mat_xcorr_parallel
 
 
-def _mult_mat_xcorr_cython_parallel(X, Xc, c, n):
-    """Perform the necessary matrix-vector multiplication and fill the cross-
-    correlation array. Slightly faster than pure Python.
-
-    Parameters
-    ----------
-    X, Xc, c : c16[:, :]
-    n : ip
-
-    Raises
-    ------
-    AssertionError
-       If n <= 0 or nx <= 0
-    """
-    nx = c.shape[1]
-    _mult_mat_xcorr_parallel(X, Xc, c, n, nx)
-
-
-def _mult_mat_xcorr_python(X, Xc, c, n):
-    """Perform the necessary matrix-vector multiplication and fill the cross-
-    correlation array. Slightly slower than cython.
-
-    Parameters
-    ----------
-    X, Xc, c : c16[:, :]
-    n : ip
-
-    Raises
-    ------
-    AssertionError
-       If n <= 0 or nx <= 0
-    """
-    for i in xrange(n):
-        c[i * n:(i + 1) * n] = X[i] * Xc
-
-
+@numba.autojit
 def _mult_mat_xcorr(X, Xc):
-    """Perform the necessary matrix-vector multiplication and fill the cross-
-    correlation array. Slightly faster than pure Python.
-
-    Parameters
-    ----------
-    X, Xc, c : c16[:, :]
-    n : ip
-
-    Raises
-    ------
-    AssertionError
-       If n <= 0 or nx <= 0
-    """
-    assert X is not None, '1st argument "X" must not be None'
-    assert Xc is not None, '2nd argument "Xc" must not be None'
-
     n, nx = X.shape
     c = np.empty((n * n, nx), dtype=X.dtype)
-    _mult_mat_xcorr_cython_parallel(X, Xc, c, n)
+
+    for i in range(n):
+        c[i * n:(i + 1) * n] = X[i] * Xc
+
     return c
 
 

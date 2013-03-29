@@ -23,7 +23,6 @@
 """A collection of utility functions."""
 import functools
 import itertools
-import numbers
 import operator
 import os
 import string
@@ -36,8 +35,9 @@ from numpy.fft import fft, ifft, rfft, irfft
 from pandas import datetime, MultiIndex
 from six.moves import map
 import pytz
+import numba
+from numba import autojit, void
 
-from span.utils._clear_refrac import _clear_refrac as _clear_refrac_cython
 from span.utils.math import cartesian
 
 
@@ -171,31 +171,6 @@ def assert_nonzero_existing_file(f):
         '%s exists and is a file, but it has a size of 0' % f
 
 
-def clear_refrac(a, window):
-    """Clear the refractory period of a boolean array.
-
-    Parameters
-    ----------
-    a : array_like
-    window : npy_intp
-
-    Notes
-    -----
-    If ``a.dtype == np.bool_`` in Python then this function will not work
-    unless ``a.view(uint8)`` is passed.
-
-    Raises
-    ------
-    AssertionError
-    If `window` is less than or equal to 0
-    """
-    assert isinstance(a, np.ndarray), 'a must be a numpy array'
-    assert isinstance(window, (numbers.Integral, np.integer)), \
-        '"window" must be an integer'
-    assert window > 0, '"window" must be greater than 0'
-    _clear_refrac_cython(a.view(np.int8), window)
-
-
 def ispower2(x):
     b = np.log2(x)
     e, m = np.modf(b)
@@ -285,3 +260,21 @@ def _get_local_tz():
 
 
 LOCAL_TZ = _get_local_tz()
+
+_T, _U = map(numba.template, ('_T', '_U'))
+
+
+@autojit(void(_T[:, :], _U))
+def clear_refrac(a, window):
+    nsamples, nchannels = a.shape
+
+    for channel in range(nchannels):
+        sample = 0
+
+        while sample + window < nsamples:
+            if a[sample, channel]:
+                sp1 = sample + 1
+                a[sp1:sp1 + window, channel] = False
+                sample += window
+
+            sample += 1

@@ -37,8 +37,8 @@ import numpy as np
 import pandas as pd
 from numpy import nan as NA
 from pandas import DataFrame, DatetimeIndex, Series
+from numba import autojit
 
-from span.tdt._read_tev import _read_tev_raw
 from span.tdt.spikedataframe import SpikeDataFrame
 from span.tdt.spikeglobals import Indexer, EventTypes, RawDataTypes
 from span.utils import (thunkify, cached_property, fromtimestamp,
@@ -46,12 +46,17 @@ from span.utils import (thunkify, cached_property, fromtimestamp,
                         num2name, LOCAL_TZ, remove_first_pc)
 
 
+@autojit
 def _python_read_tev_raw(filename, fp_locs, block_size, spikes):
     dt = spikes.dtype
-    with open(filename, 'rb') as f:
-        for i, loc in enumerate(fp_locs):
-            f.seek(loc)
-            spikes[i] = np.fromfile(f, dt, block_size)
+    nlocs = fp_locs.size
+    f = open(filename, 'rb')
+
+    for i in range(nlocs):
+        f.seek(fp_locs[i])
+        spikes[i] = np.fromfile(f, dt, block_size)
+
+    f.close()
 
 
 def _first_int_group(regex, name):
@@ -392,7 +397,7 @@ def _read_tev(filename, fp_locs, block_size, channel, shank, spikes,
                           spikes, index, columns, clean)
 
 
-_raw_reader = _read_tev_raw
+_raw_reader = _python_read_tev_raw
 
 
 def _read_tev_impl(filename, fp_locs, block_size, channel, shank, spikes,

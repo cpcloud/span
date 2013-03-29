@@ -249,16 +249,17 @@ def composemap(*args):
     return fntools.reduce(compose2, map(fntools.partial, maps, args))
 
 
-def _cov(x):
+def _raw_cov(x):
     try:
         c = x.cov()
     except AttributeError:
         c = np.cov(x.T)
+
     return c
 
 
 def _first_pc(x):
-    c = _cov(x)
+    c = _raw_cov(x)
     w, v = scipy.linalg.eig(c)
     return v[:, w.argmax()]
 
