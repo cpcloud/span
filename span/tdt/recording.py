@@ -35,6 +35,19 @@ from pandas import DataFrame, MultiIndex, Series, Index
 from span.utils import ndtuples, create_repeating_multi_index
 
 
+V_BAR = u'\u2502'
+H_BAR = u'\u2500'
+DOWN_AND_RIGHT_ARC = u'\u2570'
+DOWN_AND_LEFT_ARC = u'\u256f'
+MU = u'\u03bc'
+F_SLASH = u'\u2572'
+B_SLASH = u'\u2571'
+DWARD_POINT = u'%s%s' % (F_SLASH, B_SLASH)
+EMPTY_STRING = u''
+SPACE = u' '
+NEWLINE = u'\n'
+
+
 def distance_map(nshanks, electrodes_per_shank, within_shank, between_shank,
                  metric='wminkowski', p=2.0):
     """Create an electrode distance map.
@@ -149,7 +162,7 @@ class ElectrodeMap(object):
     @property
     def index(self):
         shank, channel = self.__shank, self.__channel
-        names = [shank.name, channel.name]
+        names = shank.name, channel.name
         inds = zip(shank, channel)
         inds.sort()
         return MultiIndex.from_tuples(inds, names=names)
@@ -161,42 +174,71 @@ class ElectrodeMap(object):
         df.columns.name = 'shank'
         return df
 
-    def _build_unicode_map(self):
-        channels_per_shank = self.nchannel // self.nshank
-        _bars = [u'\u2502'] * channels_per_shank
-        _top = [u' '] * channels_per_shank
-        _mid = [u'\u2500'] * channels_per_shank
-        bars = [_top * 2] + ([_bars * 2] * self.nshank)
+    @property
+    def _repr_pad(self):
+        p = len(str(self.nchannel))
 
-        joiner = lambda x, y: [u'{0}{1:>2}{2}'.format(xi, ch, xj)
-                               for xi, xj, ch in zip(x[::2], x[1::2], y)]
-        joiner_nopad = lambda x, y: [u'{0}{1:\u2500>2}{2}'.format(xi, ch, xj)
-                                     for xi, xj, ch in zip(x[::2], x[1::2],
-                                                           y)]
-        _bars = map(joiner, bars[1:], self.original.values)
-        bars = map(joiner, bars[:1], [xrange(self.nshank)])
-        bars += map(joiner_nopad, [_mid * 2],
-                    [[u'\u2500'] * self.nshank]) + _bars
-        s = u'\n'.join(map(lambda x: u' '.join(x), bars))
-        bottom = (u' ' * 3).join([u'\u2572\u2571'] * self.nshank)
-        btop = u' '.join([u'\u2570\u2500\u2500\u256f'] * self.nshank)
-        s += u'\n' + btop + u'\n ' + bottom
-        mu = u'\u03bc'
-        s += u'\n\nwthn: {0} {2}m\nbtwn: {1} {2}m'.format(self.within_shank,
-                                                          self.between_shank,
-                                                          mu)
-        return s
+        if p == 1:
+            p += 1
+
+        return p
+
+    def _build_unicode_repr(self):
+        orig = self.original
+        columns = orig.columns
+        nshank = self.nshank
+        repr_pad = self._repr_pad
+
+        # build the shank labels that sit on top of the array
+        fmt_s = u'{0}{1:>{pad}}{2}'
+        shank_row = SPACE.join(fmt_s.format(SPACE, shank, SPACE, pad=repr_pad)
+                               for shank in columns)
+
+        # now the horizontal bars underneath the shank labels
+        fmt_s = u'{0}{1:{2}>{pad}}{3}'
+        horz_bar_row = SPACE.join(fmt_s.format(*([H_BAR] * 4), pad=repr_pad)
+                                  for shank in columns)
+
+        # build the cells with just the vertical bars
+        fmt_s = u'{0}{1:>{pad}}{2}'
+        cells = []
+
+        # for each row of channels fill in the channel number
+        for _, row in orig.iterrows():
+            cells.append([fmt_s.format(V_BAR, channel, V_BAR, pad=repr_pad)
+                          for channel in row])
+
+        cell_s = NEWLINE.join(map(SPACE.join, cells))
+
+        # build the rounded out bottom
+        _sb = ([DOWN_AND_RIGHT_ARC] + ([H_BAR] * repr_pad) +
+               [DOWN_AND_LEFT_ARC])
+        sb = EMPTY_STRING.join(_sb)
+        shank_bottom = SPACE.join([sb] * nshank)
+
+        # build the sharps
+        numspaces = 3 if nshank > 1 else 1
+        sharps = SPACE + (SPACE * numspaces).join([DWARD_POINT] * nshank)
+
+        # make the within and between shank measurement strings
+        wthn = u'{0} within:  {1} {2}m'.format(NEWLINE, self.within_shank, MU)
+        btwn = u'between: {0} {1}m'.format(self.between_shank, MU)
+
+        # the final string
+        components = (shank_row, horz_bar_row, cell_s, shank_bottom, sharps,
+                      wthn, btwn)
+        return NEWLINE.join(components)
 
     def __unicode__(self):
         try:
-            return self._build_unicode_map()
+            return self._build_unicode_repr()
         except:
             return unicode(self.original)
 
     def __bytes__(self):
         return unicode(self).encode('utf8', 'replace')
 
-    __repr__ = __str__ = __bytes__
+    __repr__ = __bytes__
 
     @property
     def _electrodes_per_shank(self):
