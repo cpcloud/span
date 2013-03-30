@@ -100,27 +100,24 @@ class TestTdtTank(unittest.TestCase):
 
     def test_properties(self):
         names = ('fs', 'name', 'age', 'site', 'date', 'time', 'datetime',
-                 'duration')
-        typs = ((numbers.Real, np.floating), six.string_types,
+                 'duration', 'values', 'raw')
+        typs = (pd.Series, six.string_types,
                 (numbers.Integral, np.integer),
                 (numbers.Integral, np.integer), datetime.date, datetime.time,
-                pd.datetime, np.timedelta64)
+                pd.datetime, np.timedelta64, np.ndarray, pd.DataFrame)
 
         for name, typ in zip(names, typs):
             self.assert_(hasattr(self.tank, name))
 
             for event_name in self.names:
                 attr = getattr(self.tank, name)
+                self.assertIsInstance(attr, (types.NoneType, typ))
 
-                try:
-                    tester = attr[event_name]
-                except (TypeError, IndexError):
-                    tester = attr
-
-                self.assertIsInstance(tester, (types.NoneType, typ))
+        for name in self.names:
+            self.assertRaises(AttributeError, getattr, self.tank, name)
 
     def setUp(self):
-        self.names = 'Spik', 'LFPs'
+        self.names = self.tank.data_names
 
     def tearDown(self):
         del self.names
@@ -149,10 +146,9 @@ class TestTdtTank(unittest.TestCase):
     @slow
     def test_tev(self):
         for name, clean in itertools.product(self.names, (True, False)):
-            self.assertIsNotNone(self.tank._tev(name, clean))
-
-    @slow
-    def test_events(self):
-        for name in self.names:
-            self.assertIsInstance(getattr(self.tank, name.lower()),
-                                  SpikeDataFrame)
+            if np.isnan(self.tank.fs[name]):
+                self.assertRaises(AssertionError, self.tank._tev, name, clean)
+            else:
+                v = self.tank._tev(name, clean)
+                self.assertIsNotNone(v)
+                self.assertIsInstance(v, SpikeDataFrame)
