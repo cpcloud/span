@@ -21,12 +21,12 @@
 
 
 """
-Examples
---------
+Example
+-------
 >>> import span
->>> tank = span.tdt.PandasTank('basename/of/some/tank/file/folder')
+>>> tank = span.TdtTank('basename/of/some/tank/file')
 >>> sp = tank.spik
->>> assert isinstance(sp, span.tdt.SpikeDataFrame)
+>>> assert isinstance(sp, span.SpikeDataFrame)
 """
 import abc
 import functools
@@ -75,7 +75,7 @@ class SpikeDataFrame(SpikeDataFrameBase):
     See the pandas DataFrame documentation for constructor details.
     """
     def __init__(self, *args, **kwargs):
-        super(SpikeDataFrame, self).__init__(*args, **kwargs)
+        self.super.__init__(*args, **kwargs)
         self.isclean = False
 
     @property
@@ -161,14 +161,17 @@ class SpikeDataFrame(SpikeDataFrameBase):
         assert ms >= 0 or ms is None, \
             'refractory period must be a nonnegative integer or None'
 
-        obj = self if inplace else self.copy()
-
-        if ms:
-            # get the number of samples in ms milliseconds
+        if not ms:
+            return None if inplace else self
+        else:
             ms_fs = samples_per_ms(self.fs, ms)
-            clear_refrac(obj.values, ms_fs)
 
-        return obj
+            if inplace:
+                clear_refrac(self.values, ms_fs)
+            else:
+                v = self.copy()
+                clear_refrac(v.values, ms_fs)
+                return v
 
     @classmethod
     def xcorr(cls, binned, maxlags=None, detrend=None, scale_type=None,
