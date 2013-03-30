@@ -40,6 +40,8 @@ import pytz
 from span.utils._clear_refrac import _clear_refrac as _clear_refrac_cython
 from span.utils.math import cartesian
 
+from span.utils._utils import _num2name
+
 
 fromtimestamp = np.vectorize(datetime.fromtimestamp)
 
@@ -92,18 +94,18 @@ def name2num(name, base=256):
     return np.dot(base ** np.arange(len(name)), [ord(c) for c in name])
 
 
-_ORDS = list(map(ord, _LETTERS))
-_MAXLEN = 4
-_BIG_ORDS = cartesian(*([_ORDS] * _MAXLEN))
-
-
-def num2name(num, base=256, maxlen=_MAXLEN):
+def num2name(num, base=256, maxlen=4):
     # if the number could not possibly be a name
-    if (num < _BIG_ORDS[0]).all():
+    ords = np.array(list(map(ord, _LETTERS)))
+    rhs = base ** np.arange(maxlen)
+    l = np.sum(min(ords) * rhs)
+    u = np.sum(max(ords) * rhs)
+
+    if not (l <= num <= u):
         return ''
 
-    rhs = base ** np.arange(maxlen)
-    out = _BIG_ORDS[_BIG_ORDS.dot(rhs) == num].ravel()
+    out = np.empty(maxlen, dtype=np.int64)
+    _num2name(num, rhs, ords, out)
     return ''.join(map(chr, out))
 
 
