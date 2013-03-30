@@ -76,7 +76,7 @@ class SpikeDataFrame(SpikeDataFrameBase):
     """
     def __init__(self, *args, **kwargs):
         super(SpikeDataFrame, self).__init__(*args, **kwargs)
-        self.__isclean = False
+        self.isclean = False
 
     @property
     def nchannels(self):
@@ -292,17 +292,21 @@ class SpikeDataFrame(SpikeDataFrameBase):
 
         return DatetimeIndex(shifted, tz=LOCAL_TZ)
 
-    def dot(self, *args, **kwargs):
-        super_dot = super(SpikeDataFrame, self).dot
-        return self._constructor(super_dot(*args, **kwargs))
-
+    ## reimplement methods that pandas dataframe doesn't correctly construct
+    #  after calling
     @property
-    def isclean(self):
-        return self.__isclean
+    def super(self):
+        return super(SpikeDataFrame, self)
 
-    @isclean.setter
-    def isclean(self, isclean):
-        self.__isclean = isclean
+    def _call_super_method(self, method_name, *args, **kwargs):
+        method = getattr(self.super, method_name)
+        return self._constructor(method(*args, **kwargs))
+
+    def dot(self, *args, **kwargs):
+        return self._call_super_method('dot', *args, **kwargs)
+
+    def sort_index(self, *args, **kwargs):
+        return self._call_super_method('sort_index', *args, **kwargs)
 
 
 spike_xcorr = SpikeDataFrame.xcorr

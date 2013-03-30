@@ -4,6 +4,7 @@ import numbers
 import unittest
 import datetime
 import warnings
+import itertools
 
 import numpy as np
 import pandas as pd
@@ -11,7 +12,7 @@ import pandas as pd
 from six.moves import zip
 import six
 
-from span.tdt.tank import (TdtTank, PandasTank, _python_read_tev_raw,
+from span.tdt.tank import (TdtTank, _python_read_tev_raw,
                            _create_ns_datetime_index, _reshape_spikes,
                            _raw_reader)
 from span.tdt import SpikeDataFrame
@@ -27,8 +28,8 @@ class TestReadTev(object):
         self.filename = os.path.join(span_data_path,
                                      'Spont_Spikes_091210_p17rat_s4_657umV')
 
-        self.tank = PandasTank(self.filename, ElectrodeMap(NeuroNexusMap,
-                                                           50, 125))
+        self.tank = TdtTank(self.filename,
+                            ElectrodeMap(NeuroNexusMap.values - 1, 50, 125))
         self.names = 'Spik', 'LFPs'
 
     def tearDown(self):
@@ -36,7 +37,7 @@ class TestReadTev(object):
 
     def _reader_builder(self, reader):
         for name in self.names:
-            tsq, _ = self.tank.tsq(name)
+            tsq, _, _ = self.tank.tsq(name)
 
             with warnings.catch_warnings():
                 warnings.simplefilter('ignore', FutureWarning)
@@ -85,12 +86,13 @@ def test_reshape_spikes():
     assert a == b
 
 
-class TestPandasTank(unittest.TestCase):
+class TestTdtTank(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         tankname = os.path.join(os.environ['SPAN_DATA_PATH'],
                                 'Spont_Spikes_091210_p17rat_s4_657umV')
-        cls.tank = PandasTank(tankname)
+        cls.tank = TdtTank(tankname, ElectrodeMap(NeuroNexusMap.values - 1, 50,
+                                                  125))
 
     @classmethod
     def tearDownClass(cls):
@@ -129,14 +131,14 @@ class TestPandasTank(unittest.TestCase):
 
     @slow
     def test_read_tev(self):
-        for name in self.names:
-            tev = self.tank._read_tev(name)()
+        for name, clean in itertools.product(self.names, (True, False)):
+            tev = self.tank._read_tev(name, clean)()
             self.assertIsNotNone(tev)
             self.assertIsInstance(tev, SpikeDataFrame)
 
     def test_read_tsq(self):
         for name in self.names:
-            tsq, _ = self.tank._get_tsq_event(name)()
+            tsq, _, _ = self.tank._get_tsq_event(name)()
             self.assertIsNotNone(tsq)
             self.assertIsInstance(tsq, pd.DataFrame)
 
@@ -146,8 +148,8 @@ class TestPandasTank(unittest.TestCase):
 
     @slow
     def test_tev(self):
-        for name in self.names:
-            self.assertIsNotNone(self.tank._tev(name))
+        for name, clean in itertools.product(self.names, (True, False)):
+            self.assertIsNotNone(self.tank._tev(name, clean))
 
     @slow
     def test_events(self):
