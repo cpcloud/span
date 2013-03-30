@@ -146,6 +146,7 @@ class TdtTank(object):
         diter = ((name, _try_get_na(fs_nona[name_nona == name].head(1)))
                  for name in self.names.dropna().values)
         self.fs = Series(dict(diter))
+        self.data_names = self.fs.dropna().index.values.astype(np.str_)
         self.clean = clean
 
     def __repr__(self):
@@ -252,11 +253,7 @@ class TdtTank(object):
         # convert to integer where possible
         try:
             tsq.channel = tsq.channel.astype(int)
-
-            try:
-                tsq.shank = tsq.shank.astype(int)
-            except AttributeError:
-                pass
+            tsq.shank = tsq.shank.astype(int)
         except ValueError:
             pass
 
