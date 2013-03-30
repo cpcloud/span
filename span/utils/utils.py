@@ -35,8 +35,7 @@ from numpy.fft import fft, ifft, rfft, irfft
 from pandas import datetime, MultiIndex
 from six.moves import map
 import pytz
-import numba
-from numba import autojit, void
+import numba as nb
 
 from span.utils.math import cartesian
 
@@ -261,10 +260,10 @@ def _get_local_tz():
 
 LOCAL_TZ = _get_local_tz()
 
-_T, _U = map(numba.template, ('_T', '_U'))
+_T, _U = map(nb.template, ('_T', '_U'))
 
 
-@autojit(void(_T[:, :], _U))
+@nb.autojit(nb.void(_T[:, :], _U), locals=dict(sp1=nb.int_))
 def clear_refrac(a, window):
     nsamples, nchannels = a.shape
 

@@ -21,19 +21,25 @@
 
 import numpy as np
 from pandas import Series, DataFrame
-import numba
+import numba as nb
 
 from span.utils import get_fft_funcs, isvector, nextpow2, compose
 from span.utils import create_repeating_multi_index, _diag_inds_n
 
 
-@numba.autojit
+@nb.autojit
 def _mult_mat_xcorr(X, Xc):
     n, nx = X.shape
     c = np.empty((n * n, nx), dtype=X.dtype)
 
     for i in range(n):
-        c[i * n:(i + 1) * n] = X[i] * Xc
+        r = 0
+
+        for j in range(i * n, (i + 1) * n):
+            for k in range(nx):
+                c[j, k] = X[i, k] * Xc[r, k]
+
+            r += 1
 
     return c
 
