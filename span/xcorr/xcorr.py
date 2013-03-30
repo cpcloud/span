@@ -27,11 +27,11 @@ from span.utils import get_fft_funcs, isvector, nextpow2, compose
 from span.utils import create_repeating_multi_index, _diag_inds_n
 
 
-@nb.autojit
-def _mult_mat_xcorr(X, Xc):
-    n, nx = X.shape
-    c = np.empty((n * n, nx), dtype=X.dtype)
+_T = nb.template('_T')
 
+
+@nb.autojit(nb.void(_T[:, :], _T[:, :], _T[:, :], nb.int_, nb.int_))
+def _mult_mat_xcorr_impl(X, Xc, c, n, nx):
     for i in range(n):
         r = 0
 
@@ -41,6 +41,14 @@ def _mult_mat_xcorr(X, Xc):
 
             r += 1
 
+    return c
+
+
+@nb.autojit(_T[:, :](_T[:, :], _T[:, :]))
+def _mult_mat_xcorr(X, Xc):
+    n, nx = X.shape
+    c = np.empty((n * n, nx), dtype=X.dtype)
+    _mult_mat_xcorr_impl(X, Xc, c, n, nx)
     return c
 
 
