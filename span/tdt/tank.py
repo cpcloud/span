@@ -37,19 +37,21 @@ import numpy as np
 import pandas as pd
 from numpy import nan as NA
 from pandas import DataFrame, DatetimeIndex, Series
-from numba import autojit
+import numba as nb
 
 from span.tdt.spikedataframe import SpikeDataFrame
 from span.tdt.spikeglobals import Indexer, EventTypes, RawDataTypes
 from span.utils import (thunkify, cached_property, fromtimestamp,
                         assert_nonzero_existing_file, ispower2, OrderedDict,
                         num2name, LOCAL_TZ, remove_first_pc)
+from span.tdt._read_tev import _read_tev_raw
 
 
-@autojit
+@nb.autojit
 def _python_read_tev_raw(filename, fp_locs, block_size, spikes):
     dt = spikes.dtype
-    nlocs = fp_locs.size
+    nlocs = fp_locs.shape[0]
+
     f = open(filename, 'rb')
 
     for i in range(nlocs):
@@ -61,7 +63,7 @@ def _python_read_tev_raw(filename, fp_locs, block_size, spikes):
 
 def _first_int_group(regex, name):
     try:
-        return int(regex.search(name).group(1))
+        return np.int_(regex.search(name).group(1))
     except (TypeError, ValueError):  # pragma: no cover
         return None
 
@@ -192,7 +194,7 @@ class TdtTank(object):
         # read in the raw data as a numpy rec array and convert to
         # DataFrame
         tsq = DataFrame(np.fromfile(tsq_name, self.dtype))
-        inds = tsq.strobe <= np.finfo(np.float64).eps
+        inds = tsq.strobe <= np.finfo(np.float_).eps
         tsq.strobe[inds] = NA
 
         # zero based indexing
@@ -227,7 +229,7 @@ class TdtTank(object):
             try:
                 tsq[key][not_null_strobe] = NA
             except ValueError:
-                tsq[key] = tsq[key].astype(float)
+                tsq[key] = tsq[key].astype(np.float_)
                 tsq[key][not_null_strobe] = NA
 
         return tsq
@@ -259,8 +261,8 @@ class TdtTank(object):
 
         # convert to integer where possible
         try:
-            tsq.channel = tsq.channel.astype(int)
-            tsq.shank = tsq.shank.astype(int)
+            tsq.channel = tsq.channel.astype(np.int_)
+            tsq.shank = tsq.shank.astype(np.int_)
         except ValueError:
             pass
 
@@ -274,7 +276,7 @@ class TdtTank(object):
     def raw(self):
         return self._raw_tsq()()
 
-    def _tev(self, event_name, clean=True):
+    def _tev(self, event_name, clean):
         """Return the data from a particular event.
 
         Parameters
@@ -330,12 +332,12 @@ class TdtTank(object):
 
         # convert timestamps to datetime objects (vectorized)
         meta.timestamp = fromtimestamp(meta.timestamp)
-        meta.fp_loc = meta.fp_loc.astype(int)
+        meta.fp_loc = meta.fp_loc.astype(np.int_)
 
         index = _create_ns_datetime_index(self.datetime, self.fs[event_name],
                                           nsamples)
-        sdf = _read_tev(tev_name, meta.fp_loc.values, block_size,
-                        meta.channel.values, meta.shank.values, spikes, index,
+        sdf = _read_tev(tev_name, meta.fp_loc, block_size, meta.channel,
+                        meta.shank, spikes, index,
                         columns.reorder_levels((1, 0)), clean)
         sdf.isclean = clean
         return sdf
@@ -357,7 +359,7 @@ def _create_ns_datetime_index(start, fs, nsamples):
     -------
     index : DatetimeIndex
     """
-    ns = int(1e9 / fs)
+    ns = int(1e9 // fs)
     dtstart = np.datetime64(start)
     dt = dtstart + np.arange(nsamples) * np.timedelta64(ns, 'ns')
     return DatetimeIndex(dt, freq=ns * pd.datetools.Nano(), name='time',
@@ -397,7 +399,7 @@ def _read_tev(filename, fp_locs, block_size, channel, shank, spikes,
                           spikes, index, columns, clean)
 
 
-_raw_reader = _python_read_tev_raw
+_raw_reader = _read_tev_raw
 
 
 def _read_tev_impl(filename, fp_locs, block_size, channel, shank, spikes,
@@ -411,7 +413,7 @@ def _read_tev_impl(filename, fp_locs, block_size, channel, shank, spikes,
     reshaped = _reshape_spikes(spikes.values, group_inds)
     np.save('reshaped_old.npy', reshaped)
 
-    df = SpikeDataFrame(reshaped, index, columns, dtype=float)
+    df = SpikeDataFrame(reshaped, index, columns, dtype=np.float_)
 
     with warnings.catch_warnings():
         warnings.simplefilter('ignore', FutureWarning)
