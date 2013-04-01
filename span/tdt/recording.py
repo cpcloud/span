@@ -46,6 +46,7 @@ DWARD_POINT = u'%s%s' % (F_SLASH, B_SLASH)
 EMPTY_STRING = u''
 SPACE = u' '
 NEWLINE = u'\n'
+TRI_DOWN = u'\u25bc'
 
 
 def distance_map(nshanks, electrodes_per_shank, within_shank, between_shank,
@@ -116,6 +117,11 @@ class ElectrodeMap(object):
 
         try:
             channels_per_shank, self.__nshank = map_.shape
+
+            if np.logical_xor(within_shank, between_shank):
+                raise ValueError('Shank measurements must be all or none if a '
+                                 '2D electrode array is given')
+
         except ValueError:  # passed a vector
             channels_per_shank, = map_.shape
             self.__nshank = 1
@@ -176,12 +182,45 @@ class ElectrodeMap(object):
 
     @property
     def _repr_pad(self):
+        # force padding to be at least 2
         p = len(str(self.nchannel))
 
         if p == 1:
             p += 1
 
         return p
+
+    def _build_unicode_sharps(self):
+        nshank = self.nshank
+        repr_pad = self._repr_pad
+
+        spaces = SPACE * 2
+        numspaces = repr_pad - 2
+
+        single_sharp_base = [spaces.join([SPACE + F_SLASH + SPACE * numspaces +
+                                         B_SLASH] * nshank)]
+
+        if repr_pad == 3:
+            tri_downs = [TRI_DOWN] * nshank
+            joiner = SPACE * (repr_pad + 2)
+            single_sharp_base.append(SPACE * 2 + joiner.join(tri_downs))
+        elif repr_pad != 2:
+            i = 2
+
+            while numspaces > 0:
+                numspaces -= 2
+                spaces += SPACE
+                s = SPACE * i + F_SLASH + SPACE * numspaces + B_SLASH
+                single_sharp_base.append(spaces.join([s] * nshank))
+                i += 1
+
+                if numspaces == 1:
+                    spaces += SPACE
+                    s = (len(single_sharp_base) + 1) * SPACE + TRI_DOWN
+                    single_sharp_base.append(spaces.join([s] * nshank))
+                    break
+
+        return NEWLINE.join(single_sharp_base)
 
     def _build_unicode_repr(self):
         orig = self.original
@@ -205,10 +244,11 @@ class ElectrodeMap(object):
 
         # for each row of channels fill in the channel number
         for _, row in orig.iterrows():
-            cells.append([fmt_s.format(V_BAR, channel, V_BAR, pad=repr_pad)
-                          for channel in row])
+            cells.append(SPACE.join(fmt_s.format(V_BAR, channel, V_BAR,
+                                                 pad=repr_pad)
+                                    for channel in row))
 
-        cell_s = NEWLINE.join(map(SPACE.join, cells))
+        cell_s = NEWLINE.join(cells)
 
         # build the rounded out bottom
         _sb = ([DOWN_AND_RIGHT_ARC] + ([H_BAR] * repr_pad) +
@@ -217,16 +257,23 @@ class ElectrodeMap(object):
         shank_bottom = SPACE.join([sb] * nshank)
 
         # build the sharps
-        numspaces = 3 if nshank > 1 else 1
-        sharps = SPACE + (SPACE * numspaces).join([DWARD_POINT] * nshank)
+        sharps = self._build_unicode_sharps()
+        #sharps = left_pad + (SPACE * numspaces).join([DWARD_POINT] * nshank)
 
         # make the within and between shank measurement strings
-        wthn = u'{0} within:  {1} {2}m'.format(NEWLINE, self.within_shank, MU)
-        btwn = u'between: {0} {1}m'.format(self.between_shank, MU)
+        ws, bs = self.within_shank, self.between_shank
+        meas = ws, bs
+        ses = map(str, meas)
+        lengths = map(len, ses)
+        max_s, min_s = max(lengths), min(lengths)
+        s = (u'{newline} within shank: {ws}{mum:>{pad}}{newline}'
+             u'between shank: {bs}{mum:>{pad}}')
+        meas_s = s.format(newline=NEWLINE, ws=ws, mum=MU + 'm', bs=bs,
+                          pad=max_s)
 
         # the final string
         components = (shank_row, horz_bar_row, cell_s, shank_bottom, sharps,
-                      wthn, btwn)
+                      meas_s)
         return NEWLINE.join(components)
 
     def __unicode__(self):
