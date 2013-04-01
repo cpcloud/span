@@ -35,6 +35,20 @@ from pandas import DataFrame, MultiIndex, Series, Index
 from span.utils import ndtuples, create_repeating_multi_index
 
 
+V_BAR = u'\u2502'
+H_BAR = u'\u2500'
+DOWN_AND_RIGHT_ARC = u'\u2570'
+DOWN_AND_LEFT_ARC = u'\u256f'
+MU = u'\u03bc'
+F_SLASH = u'\u2572'
+B_SLASH = u'\u2571'
+DWARD_POINT = u'%s%s' % (F_SLASH, B_SLASH)
+EMPTY_STRING = u''
+SPACE = u' '
+NEWLINE = u'\n'
+TRI_DOWN = u'\u25bc'
+
+
 def distance_map(nshanks, electrodes_per_shank, within_shank, between_shank,
                  metric='wminkowski', p=2.0):
     """Create an electrode distance map.
@@ -103,6 +117,11 @@ class ElectrodeMap(object):
 
         try:
             channels_per_shank, self.__nshank = map_.shape
+
+            if np.logical_xor(within_shank, between_shank):
+                raise ValueError('Shank measurements must be all or none if a '
+                                 '2D electrode array is given')
+
         except ValueError:  # passed a vector
             channels_per_shank, = map_.shape
             self.__nshank = 1
@@ -116,19 +135,23 @@ class ElectrodeMap(object):
 
         self.__nchannel = map_.size
 
-        self.__channel = map_.ravel(order='K')
-        self.__shank = np.repeat(np.arange(self.nshank), channels_per_shank)
+        self.__channel = Index(map_.ravel(order='K'), name='channel')
+        self.__shank = Index(np.repeat(np.arange(self.nshank),
+                                       channels_per_shank), name='shank')
         self.within_shank = within_shank
         self.between_shank = between_shank
         self.__original = np.column_stack([np.squeeze(map_.copy())])
 
+    def _get_labels(self, name):
+        return self.index.labels[self.index.names.index(name)]
+
     @property
     def channel(self):
-        return Index(self.__channel, name='channel')
+        return self._get_labels(self.__channel.name)
 
     @property
     def shank(self):
-        return Index(self.__shank, name='shank')
+        return self._get_labels(self.__shank.name)
 
     @property
     def nshank(self):
@@ -140,8 +163,15 @@ class ElectrodeMap(object):
 
     @property
     def raw(self):
-        return DataFrame(self.shank.values, index=self.channel,
-                         columns=['shank'])
+        return DataFrame(self.shank, index=self.channel, columns=['shank'])
+
+    @property
+    def index(self):
+        shank, channel = self.__shank, self.__channel
+        names = shank.name, channel.name
+        inds = zip(shank, channel)
+        inds.sort()
+        return MultiIndex.from_tuples(inds, names=names)
 
     @property
     def original(self):
@@ -150,20 +180,112 @@ class ElectrodeMap(object):
         df.columns.name = 'shank'
         return df
 
+    @property
+    def _repr_pad(self):
+        # force padding to be at least 2
+        p = len(str(self.nchannel))
+
+        if p == 1:
+            p += 1
+
+        return p
+
+    def _build_unicode_sharps(self):
+        nshank = self.nshank
+        repr_pad = self._repr_pad
+
+        spaces = SPACE * 2
+        numspaces = repr_pad - 2
+
+        single_sharp_base = [spaces.join([SPACE + F_SLASH + SPACE * numspaces +
+                                         B_SLASH] * nshank)]
+
+        if repr_pad == 3:
+            tri_downs = [TRI_DOWN] * nshank
+            joiner = SPACE * (repr_pad + 2)
+            single_sharp_base.append(SPACE * 2 + joiner.join(tri_downs))
+        elif repr_pad != 2:
+            i = 2
+
+            while numspaces > 0:
+                numspaces -= 2
+                spaces += SPACE
+                s = SPACE * i + F_SLASH + SPACE * numspaces + B_SLASH
+                single_sharp_base.append(spaces.join([s] * nshank))
+                i += 1
+
+                if numspaces == 1:
+                    spaces += SPACE
+                    s = (len(single_sharp_base) + 1) * SPACE + TRI_DOWN
+                    single_sharp_base.append(spaces.join([s] * nshank))
+                    break
+
+        return NEWLINE.join(single_sharp_base)
+
+    def _build_unicode_repr(self):
+        orig = self.original
+        columns = orig.columns
+        nshank = self.nshank
+        repr_pad = self._repr_pad
+
+        # build the shank labels that sit on top of the array
+        fmt_s = u'{0}{1:>{pad}}{2}'
+        shank_row = SPACE.join(fmt_s.format(SPACE, shank, SPACE, pad=repr_pad)
+                               for shank in columns)
+
+        # now the horizontal bars underneath the shank labels
+        fmt_s = u'{0}{1:{2}>{pad}}{3}'
+        horz_bar_row = SPACE.join(fmt_s.format(*([H_BAR] * 4), pad=repr_pad)
+                                  for shank in columns)
+
+        # build the cells with just the vertical bars
+        fmt_s = u'{0}{1:>{pad}}{2}'
+        cells = []
+
+        # for each row of channels fill in the channel number
+        for _, row in orig.iterrows():
+            cells.append(SPACE.join(fmt_s.format(V_BAR, channel, V_BAR,
+                                                 pad=repr_pad)
+                                    for channel in row))
+
+        cell_s = NEWLINE.join(cells)
+
+        # build the rounded out bottom
+        _sb = ([DOWN_AND_RIGHT_ARC] + ([H_BAR] * repr_pad) +
+               [DOWN_AND_LEFT_ARC])
+        sb = EMPTY_STRING.join(_sb)
+        shank_bottom = SPACE.join([sb] * nshank)
+
+        # build the sharps
+        sharps = self._build_unicode_sharps()
+        #sharps = left_pad + (SPACE * numspaces).join([DWARD_POINT] * nshank)
+
+        # make the within and between shank measurement strings
+        ws, bs = self.within_shank, self.between_shank
+        meas = ws, bs
+        ses = map(str, meas)
+        lengths = map(len, ses)
+        max_s, min_s = max(lengths), min(lengths)
+        s = (u'{newline} within shank: {ws}{mum:>{pad}}{newline}'
+             u'between shank: {bs}{mum:>{pad}}')
+        meas_s = s.format(newline=NEWLINE, ws=ws, mum=MU + 'm', bs=bs,
+                          pad=max_s)
+
+        # the final string
+        components = (shank_row, horz_bar_row, cell_s, shank_bottom, sharps,
+                      meas_s)
+        return NEWLINE.join(components)
+
     def __unicode__(self):
-        df = self.original
-        df += 1
-        df.index += 1
-        df.columns += 1
-        r = repr(df)
-        mu = u'\u03bc'
-        r += u'\nwthn: {0} {2}m\nbtwn: {1} {2}m'
-        return r.format(self.within_shank, self.between_shank, mu)
+        try:
+            return self._build_unicode_repr()
+        except:
+            return unicode(self.original)
 
     def __bytes__(self):
-        return unicode(self).encode('UTF-8', 'replace')
+        return unicode(self).encode('utf8', 'replace')
 
-    __repr__ = __str__ = __bytes__
+    __repr__ = __bytes__
 
     @property
     def _electrodes_per_shank(self):

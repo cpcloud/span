@@ -10,7 +10,8 @@ from pandas import Series, DataFrame, Panel, Panel4D
 from span.utils import ndtuples
 from span.utils.math import (detrend_none, detrend_mean,
                              detrend_linear, cartesian, nextpow2,
-                             samples_per_ms, compose, composemap, compose2)
+                             samples_per_ms, compose, composemap, compose2,
+                             remove_first_pc)
 
 from span.utils.tests.test_utils import rand_int_tuple
 from six.moves import map
@@ -219,3 +220,18 @@ def test_composemap():
     xnew, ynew = composemap(f, g)((x, y))
     assert_allclose(x, xnew)
     assert_allclose(y, ynew)
+
+
+class TestRemoveFirstPc(TestCase):
+    def setUp(self):
+        self.x = randn(2, 2)
+
+    def test_remove_first_pc_ndarray(self):
+        x = self.x
+        xhat = remove_first_pc(x)
+        self.assertIsInstance(xhat, np.ndarray)
+
+    def test_remove_first_pc_frame(self):
+        x = self.x
+        xhat = remove_first_pc(DataFrame(x))
+        self.assertIsInstance(xhat, DataFrame)

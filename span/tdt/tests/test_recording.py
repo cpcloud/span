@@ -5,6 +5,7 @@ from numpy.random import permutation, randint
 from numpy import ndarray
 
 from span.tdt.recording import ElectrodeMap, distance_map
+import pandas as pd
 from pandas import Series
 
 
@@ -31,7 +32,6 @@ class TestDistanceMap(unittest.TestCase):
         self.assertIsInstance(dm, ndarray)
 
 
-        # self.assertEqual(expected, dm)
 @nose.tools.nottest
 class TestElectrodeMap(unittest.TestCase):
     def tearDown(self):
@@ -43,21 +43,33 @@ class TestElectrodeMap(unittest.TestCase):
         electrode_map = ElectrodeMap(self.map_, self.within_shank,
                                      self.between_shank)
         b = electrode_map.__bytes__()
-        # self.assertEqual(expected, electrode_map.__bytes__())
+        self.assertIsInstance(b, bytes)
+        self.assertEqual(bytes(electrode_map), b)
 
     def test___init__(self):
+        # these should succeed
         self.em = ElectrodeMap(self.map_)
+        self.em = ElectrodeMap(self.map_, 50, 125)
+        self.em = ElectrodeMap(self.map_.ravel(), 60)
+
+        # these should fail
+        self.assertRaises(AssertionError, ElectrodeMap, self.map_.ravel(), 60,
+                          125)
+        self.assertRaises(AssertionError, ElectrodeMap, self.map_, None, 125)
+        self.assertRaises(AssertionError, ElectrodeMap, self.map_, 60, None)
+        self.assertRaises(AssertionError, ElectrodeMap, self.map_.ravel(),
+                          None, 125)
 
     def test___unicode__(self):
         electrode_map = ElectrodeMap(self.map_, self.within_shank,
                                      self.between_shank)
         u = electrode_map.__unicode__()
-        # self.assertEqual(expected, electrode_map.__unicode__())
+        self.assertIsInstance(u, unicode)
+        self.assertEqual(unicode(electrode_map), u)
 
     def test_channel(self):
         electrode_map = ElectrodeMap(self.map_, self.within_shank,
                                      self.between_shank)
-        # self.assertEqual(expected, electrode_map.channel)
         self.assertIsInstance(electrode_map.channel, ndarray)
 
     def test_distance_map(self):
@@ -82,13 +94,13 @@ class TestElectrodeMap(unittest.TestCase):
         electrode_map = ElectrodeMap(self.map_, self.within_shank,
                                      self.between_shank)
         orig = electrode_map.original
-        # self.assertEqual(expected, electrode_map.original)
+        self.assertIsInstance(orig, pd.DataFrame)
 
     def test_raw(self):
         electrode_map = ElectrodeMap(self.map_, self.within_shank,
                                      self.between_shank)
         r = electrode_map.raw
-        # self.assertEqual(expected, electrode_map.raw)
+        self.assertIsInstance(r, pd.DataFrame)
 
     def test_shank(self):
         electrode_map = ElectrodeMap(self.map_, self.within_shank,
@@ -104,8 +116,7 @@ class TestElectrodeMap1D(TestElectrodeMap):
         self.newshape = self.channels_per_shank, self.nshank
         self.within_shank = randint(20, 101)
         self.between_shank = 0
-        self.map_ = permutation(self.nchannel).reshape(self.newshape,
-                                                       order='F')
+        self.map_ = permutation(self.nchannel).reshape(self.newshape)
         self.metric = 'wminkowski'
         self.p = 2.0
 
@@ -118,8 +129,7 @@ class TestElectrodeMap2D(TestElectrodeMap):
         self.newshape = self.channels_per_shank, self.nshank
         self.within_shank = randint(20, 101)
         self.between_shank = randint(20, 101)
-        self.map_ = permutation(self.nchannel).reshape(self.newshape,
-                                                       order='F')
+        self.map_ = permutation(self.nchannel).reshape(self.newshape)
         self.metric = 'wminkowski'
         self.p = 2.0
 

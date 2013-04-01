@@ -89,7 +89,7 @@ def name2num(name, base=256):
         The number corresponding to TDT's numerical representation of an event
         type string.
     """
-    return np.dot(base ** np.arange(len(name)), [ord(c) for c in name])
+    return np.dot(base ** np.arange(len(name)), list(map(ord, name)))
 
 
 _ORDS = list(map(ord, _LETTERS))
