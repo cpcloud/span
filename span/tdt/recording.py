@@ -21,19 +21,19 @@
 
 
 """
-:module:`recording.py` is a module for encapsulating information about the
+:mod:`span.tdt.recording` is a module for encapsulating information about the
 electrode array used in an experiment.
 
-The single class ``ElectrodeMap`` and the module level function
-``distance_map`` are exported to allow the user to easily deal with the
+The single class :class:`ElectrodeMap` and the module level function
+:func:`distance_map` are exported to allow the user to easily deal with the
 computation of pairwise distance between electrodes given an electrode map.
-``distance_map`` is more of a low-level function used by the ``ElectrodeMap``
-class, but I chose to export it anyway for exploration purposes. A few string
-constants are also exported but can be ignored.
+:func:`distance_map` is more of a low-level function used by the
+:class:`ElectrodeMap` class, but I chose to export it anyway for exploration
+purposes. A few string constants are also exported but can be ignored.
 
 The main features of this module are:
-1. Encapsulation and visualization of electrode map structure
-2. Ability to easily compute pairwise distance between electrodes.
+   * Encapsulation and visualization of electrode map structure
+   * Ability to easily compute pairwise distance between electrodes
 
 One thing that I think might be a useful generalization is to add a database
 of electrode map structures from various vendors (NeuroNexus comes to mind).
