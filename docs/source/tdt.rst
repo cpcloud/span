@@ -180,7 +180,7 @@ Now, each chunk has a few properties, which you can explore on your own if
 you're interested. For now, we'll only concern ourselves with the ``channel``
 (``chan`` in the C ``struct``) column.
 
-The ``channel`` column gives each chunk a ... you guessed it ...  channel, and
+The ``channel`` column gives each chunk a ... you guessed it ... channel, and
 thus provides a way to map sample chunks to channels.
 
 Electrode Array Configuration
