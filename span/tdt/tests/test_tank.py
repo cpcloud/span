@@ -28,9 +28,9 @@ class TestReadTev(object):
         self.filename = os.path.join(span_data_path,
                                      'Spont_Spikes_091210_p17rat_s4_657umV')
 
-        self.tank = TdtTank(self.filename,
-                            ElectrodeMap(NeuroNexusMap.values - 1, 50, 125))
-        self.names = 'Spik', 'LFPs'
+        self.tank = TdtTank(self.filename, ElectrodeMap(NeuroNexusMap.values,
+                                                        50, 125))
+        self.names = 'Spik', 'LFPs', 'Tick'
 
     def tearDown(self):
         del self.names, self.tank, self.filename
@@ -91,7 +91,7 @@ class TestTdtTank(unittest.TestCase):
     def setUpClass(cls):
         tankname = os.path.join(os.environ['SPAN_DATA_PATH'],
                                 'Spont_Spikes_091210_p17rat_s4_657umV')
-        cls.tank = TdtTank(tankname, ElectrodeMap(NeuroNexusMap.values - 1, 50,
+        cls.tank = TdtTank(tankname, ElectrodeMap(NeuroNexusMap.values, 50,
                                                   125))
 
     @classmethod

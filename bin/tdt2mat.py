@@ -55,9 +55,9 @@ def convert_and_save(filename, file_type, electrode_map, clean, ws, bs):
 
     print '\nConverting TDT Tank to MATLAB: {0}'.format(base_filename)
 
+    # this should eventually be looked up in a database of electrode maps
     if electrode_map == 'nn4x4':
-        electrode_map = span.ElectrodeMap(span.NeuroNexusMap.values - 1, ws,
-                                          bs)
+        electrode_map = span.ElectrodeMap(span.NeuroNexusMap.values, ws, bs)
 
     tank = span.PandasTank(base_filename, electrode_map, clean)
     sp = tank.spik
