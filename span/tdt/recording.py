@@ -21,15 +21,33 @@
 
 
 """
-A module for encapsulating information about the electrode array used
-in an experiment.
+:module:`recording.py` is a module for encapsulating information about the
+electrode array used in an experiment.
+
+The single class ``ElectrodeMap`` and the module level function
+``distance_map`` are exported to allow the user to easily deal with the
+computation of pairwise distance between electrodes given an electrode map.
+``distance_map`` is more of a low-level function used by the ``ElectrodeMap``
+class, but I chose to export it anyway for exploration purposes. A few string
+constants are also exported but can be ignored.
+
+The main features of this module are:
+1. Encapsulation and visualization of electrode map structure
+2. Ability to easily compute pairwise distance between electrodes.
+
+One thing that I think might be a useful generalization is to add a database
+of electrode map structures from various vendors (NeuroNexus comes to mind).
+
+An issue that might be considered a bug at worst or an inconvenience that
+needs to be addressed is that if your electrodes are not numbered from 1 to
+:math:`n`, the labels when computing the pairwise distance will be those of an
+array that *is* numbered that way.
 """
 
 import numbers
 
 import numpy as np
 from scipy.spatial.distance import squareform, pdist
-
 from pandas import DataFrame, MultiIndex, Series, Index
 
 from span.utils import ndtuples, create_repeating_multi_index

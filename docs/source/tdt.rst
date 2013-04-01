@@ -16,12 +16,14 @@ Reading in TDT Files
 TDT File Structure
 ------------------
 There are two types of TDT files necessary to create an instance of
-:class:`span.tdt.spikedataframe.SpikeDataFrame`: one file ending in "tev" and one ending in "tsq".
+:class:`span.tdt.spikedataframe.SpikeDataFrame`: one file ending in "tev" and
+one ending in "tsq". Note that this differs slightly from TDT's definition of a
+tank.
 
 TSQ Event Headers
 -----------------
-The TSQ file is fundamentally a C ``struct`` making it almost trivial
-to work with in `NumPy`_ using a compound `dtype`_.
+The TSQ file is a C ``struct`` making it trivial to work with in `NumPy`_ using
+a compound `dtype`_.
 
 According to `Jaewon Hwang
 <http://jaewon.mine.nu/jaewon/2010/10/04/how-to-import-tdt-tank-into-matlab/>`_,
@@ -45,20 +47,16 @@ the C struct is
         float frequency;
     };
 
-
-One way to read this in C (including ugly error handling) would be:
+*but* this code **will not work** on most modern systems because ``long`` is
+implementation defined--the compiler writer defines it. I have not run across a
+compiler on a 64 bit system that defines ``sizeof(long)`` to be 32. Thus the
+most accurate version (and the one used in **span**) is
 
 .. code-block:: c
 
-    #include <stdlib.h>
     #include <stdint.h>
-    #include <string.h>
-    #include <stdio.h>
-    #include <errno.h>
-    #include <sys/stat.h>
 
-
-    typedef struct {
+    struct TsqEventHeader {
         int32_t size;
         int32_t type;
         int32_t name;
@@ -75,77 +73,19 @@ One way to read this in C (including ugly error handling) would be:
 
         int32_t format;
         float frequency;
-    } TsqEventHeader;
+    };
 
 
-    ssize_t fsize(const char* filename)
-    {
-        struct stat st;
+.. warning::
 
-        if (stat(filename, &st) == 0)
-            return st.st_size;
-
-        (void) fprintf(stderr, "Cannot determine size of %s: %s\n", filename,
-                       strerror(errno));
-
-        return -1;
-    }
+   If you're using this code on data that were created on a Windows 7
+   machine then may have to change ``int32_t`` to ``int64_t``. I have not
+   tested this code on data created on a Windows 7 machine so **use at your own
+   risk**.
 
 
-    void* file_error(const char* filename, const char* msg)
-    {
-        (void) fprintf(stderr, msg, strerror(errno));
-        return NULL;
-    }
-
-
-    TsqEventHeader* read_tsq(const char* filename)
-    {
-        FILE* f = fopen(filename, "rb");
-
-        if (f == NULL)
-            return file_error(filename, "Cannot open file %s, ERR: %s\n");
-
-
-        ssize_t header_size = sizeof(TsqEventHeader);
-        ssize_t filesize = fsize(filename);
-        ssize_t nstructs = filesize / header_size;
-
-        TsqEventHeader* header = (TsqEventHeader*) malloc(filesize);
-
-        if (header == NULL) {
-            fprintf(stderr, "Out of memory: ERR: %s\n", strerror(errno));
-
-            if (fclose(f) != 0)
-                return file_error(filename, "Cannot close file %s: %s\n");
-
-            f = NULL;
-            return NULL;
-        }
-
-        size_t bytes_read = fread(header, header_size, nstructs, f);
-
-        if (!bytes_read) {
-            free(header);
-            header = NULL;
-
-            return file_error(filename, "Read 0 bytes from file %s: %s\n");
-        }
-
-        if (fclose(f) != 0) {
-            free(header);
-            header = NULL;
-
-            return file_error(filename, "Cannot close file %s: %s\n");
-        }
-
-        f = NULL;
-
-        return header;
-    }
-
-
-Reading the TSQ file into `NumPy`_ is, fortunately, **much** easier than this.
+Reading the TSQ file into `NumPy`_ is, fortunately, very easy now that we have
+this ``struct``.
 
 
 .. code-block:: python
@@ -166,14 +106,15 @@ Reading the TSQ file into `NumPy`_ is, fortunately, **much** easier than this.
     df = DataFrame(tsq)
 
 
-``tsq`` is a `NumPy record array
-<http://docs.scipy.org/doc/numpy/user/basics.rec.html>`_. I personally
-find these very annoying. Luckily, `Wes McKinney
-<http://www.wesmckinney.com>`_ created the wonderful `pandas`_ library
-which automatically converts `NumPy`_ record arrays into a pandas
-`DataFrame`_ where each field from the record array is now a column in
-the `DataFrame`_ ``df``.
+The variable ``tsq`` in the above code snippet is a `NumPy record array
+<http://docs.scipy.org/doc/numpy/user/basics.rec.html>`_. I personally find 
+these very annoying. Luckily, `Wes McKinney <http://www.wesmckinney.com>`_
+created the wonderful `pandas`_ library which automatically converts `NumPy`_
+record arrays into a `pandas`_ `DataFrame`_ where each field from the record
+array is now a column in the `DataFrame`_ ``df``.
 
+TL;DR (too long; don't read)
+============================
 Reading in the Raw Data
 -----------------------
 Now that we've got the header data we can get what we're really
@@ -197,7 +138,6 @@ automatically for every channel. The third argument is ``blocksize``
 and the fourth argument is the output array that contains the raw
 voltage data.
 
-
 Here is the inner loop that does the work of reading in the raw data
 from the tev file.
 
@@ -209,12 +149,12 @@ from the tev file.
 You can see here that this part of the
 :py:func:`span.tdt._read_tev._read_tev_raw` function skips to the point in
 the file where the next chunk lies and placing it in the array
-``spikes``.
+``spikes``. This codes works on any kind of floating point spike data (by used
+`fused types`_ and it also runs in parallel for a slight speedup in I/O.
 
 As usual, the best way to understand what's going on is to read the
-source.
+source code.
 
--------------------
 Organizing the Data
 -------------------
 Whew! Reading in these data are tricky.
@@ -237,7 +177,6 @@ the ``channel`` (``chan`` in the C ``struct``) column.
 The ``channel`` column gives each chunk a ... you guessed it ...
 channel, and thus provides a way to map sample chunks to channels.
 
------------------------
 Electrode Configuration
 -----------------------
 I'm currently working on a flexible implementation to allow for
@@ -246,7 +185,6 @@ Stay tuned! What's currently available is in the
 :mod:`span.tdt.recording` module.
 
 
------------------
 ``span.tdt.tank``
 -----------------
 
@@ -255,7 +193,6 @@ Stay tuned! What's currently available is in the
    :members:
 
 
----------------------------
 ``span.tdt.spikedataframe``
 ---------------------------
 
