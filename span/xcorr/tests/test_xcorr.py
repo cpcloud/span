@@ -153,7 +153,7 @@ class TestMultMatXcorr(unittest.TestCase):
         X = fft(x.T, nfft)
         Xc = X.conj()
         self.n, nx = X.shape
-        self.c = np.empty((n * n, nx), X.dtype)
+        self.c = np.empty((n ** 2, nx), X.dtype)
         self.ground_truth = self.c.copy()
 
         self.X, self.Xc = X, Xc
@@ -179,7 +179,7 @@ class TestCreateRepeatingMultiIndex(unittest.TestCase):
 
     def test_create_repeating_multi_index(self):
         thr = self.spik.threshold(self.spik.std())
-        clr = self.spik.clear_refrac(thr)
+        clr = thr.clear_refrac()
         binned = clr.resample('L', how='sum')
         inds = create_repeating_multi_index(binned.columns)
         self.assertIsInstance(inds, MultiIndex)

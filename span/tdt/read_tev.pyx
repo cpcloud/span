@@ -24,7 +24,6 @@ cimport cython
 from cython cimport floating, integral
 from cython.parallel cimport prange, parallel
 
-# from numpy cimport npy_intp as ip
 ctypedef Py_ssize_t ip
 
 
@@ -78,6 +77,7 @@ cpdef int _read_tev_raw(const char* filename, integral[:] fp_locs,
 
         fclose(f)
         f = NULL
+
         free(chunk)
         chunk = NULL
 

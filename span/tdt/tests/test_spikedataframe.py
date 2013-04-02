@@ -11,7 +11,8 @@ from pandas.util.testing import assert_frame_equal
 from span.tdt.spikedataframe import SpikeDataFrame
 from span.utils import detrend_mean, detrend_linear, detrend_none
 from span.testing import (assert_all_dtypes, create_spike_df,
-                          assert_array_equal, assert_raises)
+                          assert_array_equal, assert_raises,
+                          assert_frame_equal)
 
 
 class TestSpikeDataFrame(object):
@@ -30,10 +31,9 @@ class TestSpikeDataFrame(object):
         assert_array_equal(spikes.values, self.raw)
 
     def test_init_noindex_columns(self):
-        from span.tdt.spikeglobals import ChannelIndex as columns
-        spikes = SpikeDataFrame(self.raw, columns=columns)
+        spikes = SpikeDataFrame(self.raw, columns=self.spik.columns)
         assert_array_equal(spikes.values, self.raw)
-        assert_array_equal(spikes.columns.values, columns.values)
+        assert_array_equal(spikes.columns.values, self.spik.columns.values)
 
     def test_init_with_index_nocolumns(self):
         spikes = SpikeDataFrame(self.raw, index=self.spik.index)
@@ -41,10 +41,13 @@ class TestSpikeDataFrame(object):
         assert_array_equal(spikes.index.values, self.spik.index.values)
 
     def test_init_with_index_with_columns(self):
-        from span.tdt.spikeglobals import ChannelIndex as columns
-        cols, _ = columns.swaplevel(1, 0).sortlevel('shank')
-        spikes = SpikeDataFrame(self.raw, index=self.spik.index,
-                                columns=cols)
+        spikes = SpikeDataFrame(self.raw, self.spik.index, self.spik.columns)
+        assert_array_equal(spikes.values, self.raw)
+        assert_array_equal(spikes.columns.values, self.spik.columns.values)
+        assert_array_equal(spikes.index.values, self.spik.index.values)
+
+    def test_init_with_other_frame(self):
+        spikes = SpikeDataFrame(self.spik)
         assert_frame_equal(spikes, self.spik)
 
     def test_fs(self):
@@ -52,10 +55,8 @@ class TestSpikeDataFrame(object):
         assert isinstance(fs, float)
 
     def test_nchannels(self):
-        nchans = self.spik.nchannels
-        cols = self.spik.columns
-        values = cols.levels[cols.names.index('channel')].values
-        assert nchans == values.max() + 1
+        nchannels = self.spik.nchannels
+        assert nchannels == len(self.spik.columns)
 
     def test_nsamples(self):
         nsamps = self.spik.nsamples
@@ -98,7 +99,7 @@ class TestSpikeDataFrame(object):
         thr = self.spik.threshold(3 * self.spik.std())
 
         for ms in self.mses:
-            cleared = self.spik.clear_refrac(thr, ms)
+            cleared = thr.clear_refrac(ms)
             assert_all_dtypes(cleared, np.bool_)
             assert cleared.values.sum() <= thr.values.sum()
 
@@ -129,7 +130,8 @@ class TestSpikeDataFrame(object):
 
     def xcorr_builder(self, maxlag, detrend, scale_type, level, nan_auto):
         thr = self.spik.threshold(self.spik.std())
-        clr = self.spik.clear_refrac(thr)
+        thr.clear_refrac(inplace=True)
+        clr = thr
         binned = clr.resample('L', how='sum')
         xc = self.spik.xcorr(binned, maxlag, detrend, scale_type, level,
                              nan_auto)
@@ -144,6 +146,6 @@ class TestSpikeDataFrame(object):
                       binned.shape[0] + 10, detrend, scale_type, level,
                       nan_auto)
 
-    def test_jitter(self):
-        jittered = self.spik.jitter()
+    def test_basic_jitter(self):
+        jittered = self.spik.basic_jitter()
         assert not np.array_equal(jittered, self.spik)

@@ -21,12 +21,12 @@
 
 
 """
-Examples
---------
+Example
+-------
 >>> import span
->>> tank = span.tdt.PandasTank('basename/of/some/tank/file/folder')
+>>> tank = span.TdtTank('basename/of/some/tank/file')
 >>> sp = tank.spik
->>> assert isinstance(sp, span.tdt.SpikeDataFrame)
+>>> assert isinstance(sp, span.SpikeDataFrame)
 """
 import abc
 import functools
@@ -75,8 +75,8 @@ class SpikeDataFrame(SpikeDataFrameBase):
     See the pandas DataFrame documentation for constructor details.
     """
     def __init__(self, *args, **kwargs):
-        super(SpikeDataFrame, self).__init__(*args, **kwargs)
-        self.__isclean = False
+        self.super.__init__(*args, **kwargs)
+        self.isclean = False
 
     @property
     def nchannels(self):
@@ -161,14 +161,17 @@ class SpikeDataFrame(SpikeDataFrameBase):
         assert ms >= 0 or ms is None, \
             'refractory period must be a nonnegative integer or None'
 
-        obj = self if inplace else self.copy()
-
-        if ms:
-            # get the number of samples in ms milliseconds
+        if not ms:
+            return None if inplace else self
+        else:
             ms_fs = samples_per_ms(self.fs, ms)
-            clear_refrac(obj.values, ms_fs)
 
-        return obj
+            if inplace:
+                clear_refrac(self.values, ms_fs)
+            else:
+                v = self.copy()
+                clear_refrac(v.values, ms_fs)
+                return v
 
     @classmethod
     def xcorr(cls, binned, maxlags=None, detrend=None, scale_type=None,
@@ -248,21 +251,21 @@ class SpikeDataFrame(SpikeDataFrameBase):
 
         return xc
 
-    def jitter(self, window=100, unit='ms'):
-        """Jitter samples by some window in units of `unit`.
+    def basic_jitter(self, window=100, unit='ms'):
+        """Basic jitter samples by some window in units of `unit`.
 
         Parameters
         ----------
-        window : int
+        window : int, optional
             The size of the jitter window.
-        unit : str
+        unit : str, optional
             The time units of the jitter window.
 
         Returns
         -------
         df : SpikeDataFrame
         """
-        new_index = self._jitter_index(window, unit)
+        new_index = self._basic_jitter_reindex(window, unit)
         df = self._constructor(self.values, new_index, self.columns)
 
         with warnings.catch_warnings():
@@ -271,7 +274,7 @@ class SpikeDataFrame(SpikeDataFrameBase):
 
         return df
 
-    def _jitter_index(self, window, unit):
+    def _basic_jitter_reindex(self, window, unit):
         # raw datetime ndarray
         index = self.index.values
 
@@ -292,17 +295,21 @@ class SpikeDataFrame(SpikeDataFrameBase):
 
         return DatetimeIndex(shifted, tz=LOCAL_TZ)
 
-    def dot(self, *args, **kwargs):
-        super_dot = super(SpikeDataFrame, self).dot
-        return self._constructor(super_dot(*args, **kwargs))
-
+    ## reimplement methods that pandas dataframe doesn't correctly construct
+    #  after calling
     @property
-    def isclean(self):
-        return self.__isclean
+    def super(self):
+        return super(SpikeDataFrame, self)
 
-    @isclean.setter
-    def isclean(self, isclean):
-        self.__isclean = isclean
+    def _call_super_method(self, method_name, *args, **kwargs):
+        method = getattr(self.super, method_name)
+        return self._constructor(method(*args, **kwargs))
+
+    def dot(self, *args, **kwargs):
+        return self._call_super_method('dot', *args, **kwargs)
+
+    def sort_index(self, *args, **kwargs):
+        return self._call_super_method('sort_index', *args, **kwargs)
 
 
 spike_xcorr = SpikeDataFrame.xcorr

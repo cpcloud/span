@@ -27,7 +27,6 @@ Examples
 >>> path = 'some/path/to/a/tank/file'
 >>> tank = span.tdt.PandasTank(path)
 """
-import collections
 import numbers
 import os
 import re
@@ -40,7 +39,7 @@ from pandas import DataFrame, DatetimeIndex, Series
 import numba as nb
 
 from span.tdt.spikedataframe import SpikeDataFrame
-from span.tdt.spikeglobals import Indexer, EventTypes, RawDataTypes
+from span.tdt.spikeglobals import TdtEventTypes, TdtDataTypes
 from span.utils import (thunkify, cached_property, fromtimestamp,
                         assert_nonzero_existing_file, ispower2, OrderedDict,
                         num2name, LOCAL_TZ, remove_first_pc)
@@ -106,8 +105,9 @@ class TdtTank(object):
     _header_ext = 'tsq'
     _raw_ext = 'tev'
 
-    def __init__(self, path, clean=True):
+    def __init__(self, path, electrode_map, clean=True):
         super(TdtTank, self).__init__()
+        self.electrode_map = electrode_map
 
         tank_with_ext = path + os.extsep
         tev_path = tank_with_ext + self._raw_ext
@@ -153,6 +153,7 @@ class TdtTank(object):
         diter = ((name, _try_get_na(fs_nona[name_nona == name].head(1)))
                  for name in self.names.dropna().values)
         self.fs = Series(dict(diter))
+        self.data_names = self.fs.dropna().index.values.astype(np.str_)
         self.clean = clean
 
     def __repr__(self):
@@ -202,9 +203,11 @@ class TdtTank(object):
 
         # -1s are invalid
         tsq.channel[tsq.channel == -1.0] = NA
+        ind = Series(self.electrode_map.shank, self.electrode_map.channel)
+        tsq['shank'] = ind[tsq.channel].reset_index(tsq.index, drop=True)
 
-        tsq.type = EventTypes[tsq.type].values
-        tsq.format = RawDataTypes[tsq.format].values
+        tsq.type = TdtEventTypes[tsq.type].values
+        tsq.format = TdtDataTypes[tsq.format].values
 
         tsq.timestamp[np.logical_not(tsq.timestamp)] = NA
         tsq.fs[np.logical_not(tsq.fs)] = NA
@@ -214,23 +217,18 @@ class TdtTank(object):
         stream = tsq.type == 'stream'
         tsq.size.ix[stream] -= dt.itemsize / dt['size'].itemsize
 
-        # create some new indices based on the electrode array
-        srt = Indexer.sort('channel')
-
-        with warnings.catch_warnings():
-            warnings.simplefilter('ignore', FutureWarning)
-            srt.reset_index(drop=True, inplace=True)
-
-        tsq['shank'] = srt.shank[tsq.channel].values
-
         not_null_strobe = tsq.strobe.notnull()
 
-        for key in ('channel', 'shank', 'sort_code', 'fp_loc'):
+        for key in ('channel', 'sort_code', 'fp_loc'):
             try:
                 tsq[key][not_null_strobe] = NA
             except ValueError:
                 tsq[key] = tsq[key].astype(np.float_)
                 tsq[key][not_null_strobe] = NA
+
+        with warnings.catch_warnings():
+            warnings.simplefilter('ignore', FutureWarning)
+            tsq.sort_index(axis=1, inplace=True)
 
         return tsq
 
@@ -312,9 +310,6 @@ class TdtTank(object):
         --------
         span.tdt.SpikeDataFrame
         """
-        # TODO: implement a way to use electrode maps with this
-        from span.tdt.spikeglobals import ChannelIndex as columns
-
         meta, dtype, block_size = self.tsq(event_name)
 
         nchannels = meta.channel.dropna().nunique()
@@ -330,15 +325,14 @@ class TdtTank(object):
             warnings.simplefilter('ignore', FutureWarning)
             meta.reset_index(drop=True, inplace=True)
 
-        # convert timestamps to datetime objects (vectorized)
+        # convert timestamps to datetime objects
         meta.timestamp = fromtimestamp(meta.timestamp)
         meta.fp_loc = meta.fp_loc.astype(np.int_)
 
         index = _create_ns_datetime_index(self.datetime, self.fs[event_name],
                                           nsamples)
-        sdf = _read_tev(tev_name, meta.fp_loc, block_size, meta.channel,
-                        meta.shank, spikes, index,
-                        columns.reorder_levels((1, 0)), clean)
+        sdf = _read_tev(tev_name, meta, block_size, spikes, index,
+                        self.electrode_map, clean)
         sdf.isclean = clean
         return sdf
 
@@ -346,7 +340,7 @@ class TdtTank(object):
 PandasTank = TdtTank
 
 
-def _create_ns_datetime_index(start, fs, nsamples):
+def _create_ns_datetime_index(start, fs, nsamples, name='datetime'):
     """Create a DatetimeIndex in nanoseconds
 
     Parameters
@@ -354,6 +348,7 @@ def _create_ns_datetime_index(start, fs, nsamples):
     start : datetime
     fs : float
     nsamples : int
+    name : str, optional
 
     returns
     -------
@@ -362,8 +357,8 @@ def _create_ns_datetime_index(start, fs, nsamples):
     ns = int(1e9 // fs)
     dtstart = np.datetime64(start)
     dt = dtstart + np.arange(nsamples) * np.timedelta64(ns, 'ns')
-    return DatetimeIndex(dt, freq=ns * pd.datetools.Nano(), name='time',
-                         tz=LOCAL_TZ)
+    freq = ns * pd.datetools.Nano()
+    return DatetimeIndex(dt, freq=freq, name=name, tz=LOCAL_TZ)
 
 
 def _reshape_spikes(df, group_inds):
@@ -374,56 +369,46 @@ def _reshape_spikes(df, group_inds):
     return out.transpose(shpsrt).reshape(out.size // nchannels, -1)
 
 
-def _read_tev(filename, fp_locs, block_size, channel, shank, spikes,
-              index, columns, clean):
+def _read_tev(filename, meta, block_size, spikes, index, electrode_map, clean):
     assert isinstance(filename, basestring), 'filename must be a string'
-    assert isinstance(fp_locs, (np.ndarray, collections.Sequence)), \
-        'fp_locs must be a sequence'
     assert isinstance(block_size, (numbers.Integral, np.integer)), \
         'block_size must be an integer'
     assert ispower2(block_size), 'block_size must be a power of 2'
-    assert isinstance(channel, (np.ndarray, collections.Sequence)), \
-        'channel must be a sequence'
-    assert isinstance(shank, (np.ndarray, collections.Sequence)), \
-        'shank must be a sequence'
-    assert len(channel) == len(shank), 'len(channel) != len(shank)'
     assert isinstance(spikes, DataFrame), 'spikes must be a DataFrame'
     assert spikes.shape[1] == block_size, \
         'number of columns of spikes must equal block_size'
     assert isinstance(index, pd.Index), 'index must be an instance of Index'
-    assert isinstance(columns, pd.Index), \
-        'columns must be an instance of Index'
     assert clean in (0, 1, False, True), 'clean must be a boolean or 0 or 1'
 
-    return _read_tev_impl(filename, fp_locs, block_size, channel, shank,
-                          spikes, index, columns, clean)
+    return _read_tev_impl(filename, meta, block_size, spikes, index,
+                          electrode_map, clean)
 
 
 _raw_reader = _read_tev_raw
 
 
-def _read_tev_impl(filename, fp_locs, block_size, channel, shank, spikes,
-                   index, columns, clean):
-    _raw_reader(filename, fp_locs, block_size, spikes.values)
+def _read_tev_impl(filename, meta, block_size, spikes, index, electrode_map,
+                   clean):
+    fp_loc, channel = meta.fp_loc, meta.channel
+    _raw_reader(filename, fp_loc, block_size, spikes.values)
 
     items = spikes.groupby(channel).indices.items()
     items.sort()
 
-    group_inds = np.column_stack(OrderedDict(items).itervalues())
+    d = OrderedDict(items)
+
+    group_inds = np.column_stack(d.itervalues())
     reshaped = _reshape_spikes(spikes.values, group_inds)
-    np.save('reshaped_old.npy', reshaped)
-
-    df = SpikeDataFrame(reshaped, index, columns, dtype=np.float_)
-
-    with warnings.catch_warnings():
-        warnings.simplefilter('ignore', FutureWarning)
-        df.sort_index(axis=1, inplace=True)
+    raw = reshaped.take(electrode_map.channel, axis=1)
+    df = SpikeDataFrame(raw, index, electrode_map.index, dtype=float)
 
     return remove_first_pc(df) if clean else df
 
 
 if __name__ == '__main__':
+    from span import ElectrodeMap, NeuroNexusMap
     span_data_path = os.environ['SPAN_DATA_PATH']
+    elec_map = ElectrodeMap(NeuroNexusMap.values, 50, 125)
     f = os.path.join(span_data_path, 'Spont_Spikes_091210_p17rat_s4_657umV')
-    tank = PandasTank(f)
+    tank = PandasTank(f, elec_map)
     sp = tank.spik
