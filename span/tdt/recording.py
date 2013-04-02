@@ -181,15 +181,13 @@ class ElectrodeMap(object):
 
     @property
     def raw(self):
-        return DataFrame(self.shank, index=self.channel, columns=['shank'])
+        return Series(self.shank, self.channel, name='shank')
 
     @property
     def index(self):
-        shank, channel = self.__shank, self.__channel
-        names = shank.name, channel.name
-        inds = zip(shank, channel)
-        inds.sort()
-        return MultiIndex.from_tuples(inds, names=names)
+        raw = self.raw
+        names = raw.name, self.__channel.name
+        return MultiIndex.from_arrays([raw.values, raw.index], names=names)
 
     @property
     def original(self):
