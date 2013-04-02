@@ -281,12 +281,15 @@ def remove_first_pc(x):
     return x.dot(_first_pc_cleaner_matrix(x))
 
 
-@nb.autojit
+_T = nb.template('_T')
+
+
+@nb.jit('f8(f8[:])')
 def absmax(x):
-    n, = x.shape[0]
+    n = x.shape[0]
     m = np.absolute(x[0])
 
-    for i in range(1, n):
+    for i in range(n):
         m = np.maximum(m, np.absolute(x[i]))
 
     return m
