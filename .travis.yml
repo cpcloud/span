@@ -9,13 +9,13 @@ python:
 install:
   - python setup.py -q install
 
-script: ./test.py
+script: make check
 
 before_install:
   - sudo apt-get update -qq
   - sudo apt-get install gfortran libatlas-dev libsuitesparse-dev swig \
-    python-argparse python-numpy python-scipy python-pandas cython
-  - pip install six --use-mirrors
+    python-numpy python-scipy python-pandas cython
+  - pip install -q argparse six
 
 virtualenv:
   system_site_packages: true

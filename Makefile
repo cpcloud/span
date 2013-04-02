@@ -11,8 +11,7 @@ clean:
 	python setup.py clean --all
 
 check: inplace
-	nosetests --nologcapture -s -w ./span --with-coverage --cover-package=span \
-		--cover-branches --cover-html
+	./test.py	
 
 checkfast: inplace
-	./test_fast.sh
+	./test.py -f
