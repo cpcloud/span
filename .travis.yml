@@ -7,13 +7,22 @@ python:
   - 3.3
 
 install:
-  - pip install cython
-  - pip install git+git://github.com/numpy/numpy.git
-  - pip install git+git://github.com/scipy/scipy.git
-  - pip install git+git://github.com/numba/numba.git
-  - pip install git+git://github.com/pydata/pandas.git
-  - pip install six
-  - pip install argparse
+  - wget "http://repo.continuum.io/pkgs/free/linux-64/llvm-3.2-0.tar.bz2"
+  - tar -xjf llvm-3.2-0.tar.bz2
+  - PATH+=":`pwd`/bin"
+  - export LD_LIBRARY_PATH="`pwd`/lib"
+  - export LLVM_CONFIG_PATH="`pwd`/bin/llvm-config"
+  - $LLVM_CONFIG_PATH --cflags
+  - export LLVMPY_DYNLINK=1
+  - pip -q install cython --install-option="--no-cython-compile"
+  - pip -q install git+git://github.com/numpy/numpy.git
+  - pip -q install git+git://github.com/scipy/scipy.git
+  - pip -q install git+git://github.com/pydata/pandas.git
+  - pip -q install six
+  - pip -q install argparse
+  - git clone git+git://github.com/llvmpy/llvmpy.git -q
+  - cd llvmpy; python setup.py install -q; cd ..
+  - pip -q install git+git://github.com/numba/numba.git
   - python setup.py -q install
 
 script: make check
