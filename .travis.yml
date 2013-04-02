@@ -14,8 +14,7 @@ script: make check
 
 before_install:
   - sudo apt-get update -qq
-  - sudo apt-get install gfortran libatlas-dev libsuitesparse-dev swig \
-    python-numpy python-scipy python-pandas cython
+  - sudo apt-get install gfortran libatlas-dev libsuitesparse-dev swig python-numpy python-scipy python-pandas cython
 
 virtualenv:
   system_site_packages: true
