@@ -8,14 +8,15 @@ python:
   - 3.3
 
 install:
-  - pip install -r requirements.txt --use-mirrors
   - python setup.py -q install
 
 script: ./test.py
 
 before_install:
   - sudo apt-get update -qq
-  - sudo apt-get install gfortran libatlas-dev libsuitesparse-dev swig python-argparse
+  - sudo apt-get install gfortran libatlas-dev libsuitesparse-dev swig \
+    python-argparse python-numpy python-scipy python-pandas cython
+  - pip install six --use-mirrors
 
 virtualenv:
   system_site_packages: true
