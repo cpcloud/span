@@ -1,6 +1,6 @@
 cython
-git+git://github.com/numpy/numpy.git
-git+git://github.com/scipy/scipy.git
-git+git://github.com/pydata/pandas.git
+numpy
+scipy
+numba
+pandas
 six
-git+git://github.com/numba/numba.git
