@@ -26,7 +26,6 @@ import itertools
 import operator
 import os
 import string
-from string import ascii_letters as _LETTERS
 import time
 import warnings
 
@@ -91,19 +90,50 @@ def name2num(name, base=256):
     return np.dot(base ** np.arange(len(name)), list(map(ord, name)))
 
 
-_ORDS = list(map(ord, _LETTERS))
-_MAXLEN = 4
-_BIG_ORDS = cartesian(*([_ORDS] * _MAXLEN))
+@nb.jit('i8[:](i8, i8[:], i8[:])')
+def get_name_from_num(num, r, letters):
+    out = np.empty_like(r)
+    n = letters.shape[0]
+    r0 = r[0]
+    r1 = r[1]
+    r2 = r[2]
+    r3 = r[3]
+
+    for i in range(n):
+        li = letters[i]
+        r_li = r0 * li
+
+        for j in range(n):
+            lj = letters[j]
+            r_lj = r1 * lj
+
+            for k in range(n):
+                lk = letters[k]
+                r_lk = r2 * lk
+
+                for l in range(n):
+                    ll = letters[l]
+                    r_ll = r3 * ll
+
+                    if r_li + r_lj + r_lk + r_ll == num:
+                        out[0] = li
+                        out[1] = lj
+                        out[2] = lk
+                        out[3] = ll
+                        return out
 
 
-def num2name(num, base=256, maxlen=_MAXLEN):
-    # if the number could not possibly be a name
-    if (num < _BIG_ORDS[0]).all():
+def num2name(num, base=256, maxlen=4):
+    from string import ascii_letters
+    rhs = base ** np.arange(maxlen)
+    letters = np.array(list(map(ord, ascii_letters)), dtype=np.int_)
+
+    mx, mn = letters.max(), letters.min()
+
+    if num < sum(mn * rhs) or num > sum(mx * rhs):
         return ''
 
-    rhs = base ** np.arange(maxlen)
-    out = _BIG_ORDS[_BIG_ORDS.dot(rhs) == num].ravel()
-    return ''.join(map(chr, out))
+    return ''.join(map(chr, get_name_from_num(num, rhs, letters)))
 
 
 def iscomplex(x):

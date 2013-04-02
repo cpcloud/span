@@ -185,9 +185,9 @@ class ElectrodeMap(object):
 
     @property
     def index(self):
-        raw = self.raw
-        names = raw.name, self.__channel.name
-        return MultiIndex.from_arrays([raw.values, raw.index], names=names)
+        shank, channel = self.__shank, self.__channel
+        names = shank.name, channel.name
+        return MultiIndex.from_arrays((shank, channel), names=names)
 
     @property
     def original(self):

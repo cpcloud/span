@@ -29,6 +29,7 @@ import numpy as np
 import scipy.linalg
 from pandas import Series, DataFrame, Panel, Panel4D
 from six.moves import map
+import numba as nb
 
 
 def detrend_none(x):
@@ -88,6 +89,7 @@ def detrend_mean(x, axis=0):
         return s.item() if not s.ndim else s
 
 
+@nb.autojit
 def detrend_linear(y):
     """Linearly detrend `y`.
 
@@ -153,6 +155,7 @@ def cartesian(*xs):
     return out.reshape(cols, rows).T
 
 
+@nb.autojit
 def nextpow2(n):
     """Return the next power of 2 of an array.
 
@@ -164,10 +167,10 @@ def nextpow2(n):
     -------
     ret : array_like
     """
-    f = compose(np.ceil, np.log2, np.abs, np.asanyarray)
-    return f(n).astype(int)
+    return np.ceil(np.log2(np.abs(np.asanyarray(n)))).astype(int)
 
 
+@nb.autojit
 def samples_per_ms(fs, millis):
     """Compute the number of samples in `ms` for a sample rate of `fs`
 
@@ -276,3 +279,14 @@ def _first_pc_cleaner_matrix(x):
 
 def remove_first_pc(x):
     return x.dot(_first_pc_cleaner_matrix(x))
+
+
+@nb.autojit
+def absmax(x):
+    n, = x.shape[0]
+    m = np.absolute(x[0])
+
+    for i in range(1, n):
+        m = np.maximum(m, np.absolute(x[i]))
+
+    return m
