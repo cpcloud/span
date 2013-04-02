@@ -20,7 +20,7 @@ install:
   - pip -q install git+git://github.com/pydata/pandas.git
   - pip -q install six
   - pip -q install argparse
-  - git clone git+git://github.com/llvmpy/llvmpy.git -q
+  - git clone git+git://github.com/llvmpy/llvmpy.git
   - cd llvmpy; python setup.py install -q; cd ..
   - pip -q install git+git://github.com/numba/numba.git
   - python setup.py -q install
