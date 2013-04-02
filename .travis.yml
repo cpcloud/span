@@ -7,6 +7,7 @@ python:
   - 3.3
 
 install:
+  - pip install -q argparse six
   - python setup.py -q install
 
 script: make check
@@ -15,7 +16,6 @@ before_install:
   - sudo apt-get update -qq
   - sudo apt-get install gfortran libatlas-dev libsuitesparse-dev swig \
     python-numpy python-scipy python-pandas cython
-  - pip install -q argparse six
 
 virtualenv:
   system_site_packages: true
