@@ -89,7 +89,6 @@ def detrend_mean(x, axis=0):
         return s.item() if not s.ndim else s
 
 
-@nb.autojit
 def detrend_linear(y):
     """Linearly detrend `y`.
 
@@ -155,7 +154,23 @@ def cartesian(*xs):
     return out.reshape(cols, rows).T
 
 
-@nb.autojit
+_T = nb.template('_T')
+_U = nb.template('_U')
+
+
+@nb.autojit(nb.int_(_T))
+def _nextpow2_scalar(x):
+    return int(np.ceil(np.log2(abs(x))))
+
+
+@nb.autojit(nb.void(_T[:], _U[:]))
+def _nextpow2_impl(n, out):
+    ns = n.shape[0]
+
+    for i in range(ns):
+        out[i] = _nextpow2_scalar(n[i])
+
+
 def nextpow2(n):
     """Return the next power of 2 of an array.
 
@@ -167,7 +182,11 @@ def nextpow2(n):
     -------
     ret : array_like
     """
-    return np.ceil(np.log2(np.abs(np.asanyarray(n)))).astype(int)
+    _n = np.asanyarray(n)
+    shape = _n.shape
+    out = np.empty(_n.size, np.int_)
+    _nextpow2_impl(_n.ravel(), out)
+    return out.reshape(shape)
 
 
 @nb.autojit
@@ -284,12 +303,23 @@ def remove_first_pc(x):
 _T = nb.template('_T')
 
 
-@nb.jit('f8(f8[:])')
+@nb.autojit(_T(_T[:]))
 def absmax(x):
     n = x.shape[0]
-    m = np.absolute(x[0])
+    m = abs(x[0])
 
-    for i in range(n):
-        m = np.maximum(m, np.absolute(x[i]))
+    for i in range(1, n):
+        m = max(m, abs(x[i]))
 
     return m
+
+
+@nb.autojit(nb.void(_T[:, :], _T[:], nb.b1[:, :]))
+def thresher(x, t, out):
+    m, n = x.shape
+
+    for j in range(n):
+        tj = t[j]
+
+        for i in range(m):
+            out[i, j] = abs(x[i, j]) >= tj

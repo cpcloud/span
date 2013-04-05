@@ -29,14 +29,14 @@ Example
 >>> assert isinstance(sp, span.SpikeDataFrame)
 """
 import abc
-import functools
 import numbers
 import types
 import warnings
 
 import numpy as np
 from pandas import Series, DataFrame, DatetimeIndex
-from span.utils import samples_per_ms, clear_refrac, LOCAL_TZ
+from span.utils import (samples_per_ms, clear_refrac, LOCAL_TZ,
+                        thresher as _thresher)
 from span.xcorr import xcorr as _xcorr
 import six
 
@@ -107,22 +107,24 @@ class SpikeDataFrame(SpikeDataFrameBase):
         -------
         threshed : array_like
         """
-        if np.isscalar(threshes):
-            threshes = np.repeat(threshes, self.nchannels)
+        nchannels = self.nchannels
 
-        assert threshes.size == self.nchannels, \
+        try:
+            thresh = threshes.item()
+            threshes = np.repeat(thresh, nchannels)
+        except AttributeError:
+            if np.isscalar(threshes):
+                threshes = np.repeat(threshes, nchannels)
+        except ValueError:
+            pass
+
+        assert threshes.size == nchannels, \
             'number of threshold values must be 1 (same for all channels) or '\
-            '{0}, different threshold for each channel'.format(self.nchannels)
+            '{0}, different threshold for each channel'.format(nchannels)
 
-        is_neg = np.all(threshes < 0)
-        cmpf = self.lt if is_neg else self.gt
-
-        thr = threshes.item() if threshes.size == 1 else threshes
-        threshes = Series(thr, index=self.columns)
-
-        f = functools.partial(cmpf, axis=1)
-
-        return f(threshes)
+        out = np.empty(self.shape, bool)
+        _thresher(self.values, Series(threshes).values, out)
+        return self._constructor(out, self.index, self.columns)
 
     @property
     def _constructor(self):

@@ -27,7 +27,8 @@ from span.utils.utils import (name2num, ndtuples, iscomplex,
 from span.utils.ordereddict import OrderedDict
 from span.utils.math import (detrend_none, detrend_mean, detrend_linear,
                              cartesian, nextpow2, samples_per_ms, compose,
-                             compose2, composemap, remove_first_pc, absmax)
+                             compose2, composemap, remove_first_pc, absmax,
+                             thresher)
 from span.utils.decorate import thunkify, cached_property
 
 __all__ = ('name2num', 'ndtuples', 'iscomplex', 'get_fft_funcs', 'isvector',
@@ -36,4 +37,4 @@ __all__ = ('name2num', 'ndtuples', 'iscomplex', 'get_fft_funcs', 'isvector',
            'detrend_linear', 'cartesian', 'nextpow2', 'samples_per_ms',
            'compose', 'compose2', 'composemap', 'num2name',
            'create_repeating_multi_index', 'OrderedDict', '_diag_inds_n',
-           'LOCAL_TZ', 'remove_first_pc', 'absmax')
+           'LOCAL_TZ', 'remove_first_pc', 'absmax', 'thresher')
