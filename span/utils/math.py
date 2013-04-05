@@ -26,7 +26,8 @@ import functools as fntools
 
 
 import numpy as np
-import scipy.linalg
+from numpy import nan as NA
+from scipy.linalg import svd
 from pandas import Series, DataFrame, Panel, Panel4D
 from six.moves import map
 
@@ -249,29 +250,13 @@ def composemap(*args):
     return fntools.reduce(compose2, map(fntools.partial, maps, args))
 
 
-def _cov(x):
-    try:
-        c = x.cov()
-    except AttributeError:
-        c = np.cov(x.T)
-    return c
-
-
-def _first_pc(x):
-    c = _cov(x)
-    w, v = scipy.linalg.eig(c)
-    return v[:, w.argmax()]
-
-
-def _first_pc_cleaner_matrix(x):
-    v = _first_pc(x)
-    p = np.eye(v.size) - np.outer(v, v)
+def remove_first_pc(data, sc=2.0):
+    v = svd(data, full_matrices=False, check_finite=False)[-1]
+    first_pc = v[:, 0]
 
     try:
-        return type(x)(p, x.columns, x.columns)
+        first_proj = data.values.dot(first_pc)
     except AttributeError:
-        return p
+        first_proj = data.dot(first_pc)
 
-
-def remove_first_pc(x):
-    return x.dot(_first_pc_cleaner_matrix(x))
+    data.ix[np.absolute(first_proj) > first_proj.std(ddof=1) * sc] = NA
