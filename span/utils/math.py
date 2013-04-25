@@ -221,12 +221,7 @@ def compose(*args):
     h : callable
         Composition of callables in `args`.
     """
-    f = fntools.partial(fntools.reduce, compose2)(args)
-    name_getter = operator.attrgetter('__name__')
-    sbre = re.compile(r'[()]*')
-    dotted_names = ' . '.join(map(name_getter, args))
-    f.__name__ = '({0})'.format(sbre.sub('', dotted_names))
-    return f
+    return fntools.partial(fntools.reduce, compose2)(args)
 
 
 def composemap(*args):
