@@ -60,7 +60,7 @@ DOWN_AND_LEFT_ARC = u'\u256f'
 MU = u'\u03bc'
 F_SLASH = u'\u2572'
 B_SLASH = u'\u2571'
-DWARD_POINT = u'%s%s' % (F_SLASH, B_SLASH)
+DWARD_POINT = u'{0}{1}'.format(F_SLASH, B_SLASH)
 EMPTY_STRING = u''
 SPACE = u' '
 NEWLINE = u'\n'
@@ -185,9 +185,9 @@ class ElectrodeMap(object):
 
     @property
     def index(self):
-        raw = self.raw
-        names = raw.name, self.__channel.name
-        return MultiIndex.from_arrays([raw.values, raw.index], names=names)
+        shank, channel = self.__shank, self.__channel
+        names = shank.name, channel.name
+        return MultiIndex.from_arrays((shank, channel), names=names)
 
     @property
     def original(self):
