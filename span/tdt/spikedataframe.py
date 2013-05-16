@@ -265,16 +265,22 @@ class SpikeDataFrame(SpikeDataFrameBase):
         -------
         df : SpikeDataFrame
         """
-        new_index = self._basic_jitter_reindex(window, unit)
+        new_index = self._interval_jitter_reindex(window, unit)
         df = self._constructor(self.values, new_index, self.columns)
         df.sort_index(inplace=True)
         return df
 
-    def _interval_jitter_reindex(self, window, unit):
-        # raw datetime ndarray
-        index = self.index.values
+    def jitter_channel(self, orig_index, orig_indices, index_where, channel,
+                       window, unit='ms'):
+        new_index = self._interval_jitter_reindex(index_where, window, unit)
+        orig_index.values[orig_indices] = new_index.values
+        s = Series(channel.values, index=orig_index, name=channel.name)
+        return s.sort_index()
 
+    def _interval_jitter_reindex(self, index, window, unit):
+        index = index.values
         # datetime units
+
         dt = index.dtype
 
         # start of the window-length window
@@ -285,7 +291,7 @@ class SpikeDataFrame(SpikeDataFrameBase):
         td_unit = 'timedelta64[%s]' % unit
 
         # shift from beginning of jitter window by U * window
-        rt = np.random.rand(self.nsamples) * window
+        rt = np.random.rand(index.size) * window
         rand_time = rt.astype(td_unit, copy=False)
         shifted = start + rand_time
 
