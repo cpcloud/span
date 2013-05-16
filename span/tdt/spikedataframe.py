@@ -35,6 +35,7 @@ import types
 import warnings
 
 import numpy as np
+import pandas as pd
 from pandas import Series, DataFrame, DatetimeIndex
 from span.utils import samples_per_ms, clear_refrac, LOCAL_TZ
 from span.xcorr import xcorr as _xcorr
@@ -126,7 +127,7 @@ class SpikeDataFrame(SpikeDataFrameBase):
 
     @property
     def _constructor(self):
-        return type(self)
+        return self.__class__
 
     def clear_refrac(self, ms=2, inplace=False):
         """Remove spikes from the refractory period of all channels.
@@ -162,16 +163,37 @@ class SpikeDataFrame(SpikeDataFrameBase):
             'refractory period must be a nonnegative integer or None'
 
         if not ms:
-            return None if inplace else self
-        else:
-            ms_fs = samples_per_ms(self.fs, ms)
+            if not inplace:
+                return self
+            return
 
-            if inplace:
-                clear_refrac(self.values, ms_fs)
-            else:
-                v = self.copy()
-                clear_refrac(v.values, ms_fs)
-                return v
+        ms_fs = samples_per_ms(self.fs, ms)
+        df = self.copy() if inplace else self
+        values = df.values
+        clear_refrac(values, ms_fs)
+
+        if not inplace:
+            return df
+
+    def prune_spikes(self, remove_null=True):
+        res = {}
+
+        _remove_null = lambda x: x
+
+        if remove_null:
+            _remove_null = lambda x: x & x.notnull()
+
+        res = [v[_remove_null(v)] for _, v in self.iteritems()]
+        reduc = pd.concat(res, axis=1)
+        df = self._constructor(reduc.values, reduc.index, self.columns)
+        df.sort_index(axis=0, inplace=True)
+        df.fillna(0, inplace=True)
+        b = df.astype(bool)
+        b.fillna(0, inplace=True)
+        return b
+
+    def bin(self, bin_size, how='sum', *args, **kwargs):
+        return self.resample(bin_size, how=how, *args, **kwargs)
 
     @classmethod
     def xcorr(cls, binned, maxlags=None, detrend=None, scale_type=None,
