@@ -103,9 +103,10 @@ class CorrelationAnalyzer(Analyzer):
 class IPythonAnalyzer(Analyzer):
     """Drop into an IPython shell given a filename or database id number"""
     def _run(self, args):
-        import IPython as ipy
+        from IPython import embed
         tank, spikes = self._load_data(return_tank=True)
-        ipy.embed_kernel(local_ns={'tank': tank, 'raw': tank.spikes})
+        embed()
+        return 0
 
 
 class BaseConverter(object):
@@ -191,11 +192,21 @@ class Converter(SpanCommand):
         converter.convert(spikes, args.outfile)
 
 
+def _build_neuroscope_package(spikes):
+    pass
+
+
+def _run_neuroscope(package):
+    pass
+
+
 # get the filename/id, convert to neuroscope with int16 precision, zip into
 # package, unzip and show in neuroscope
 class Viewer(SpanCommand):
     def _run(self, args):
-        pass
+        spikes = self._load_data()
+        package = _build_neuroscope_package(spikes)
+        _run_neuroscope(package)
 
 
 class Db(SpanCommand):
