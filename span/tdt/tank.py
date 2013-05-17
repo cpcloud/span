@@ -36,6 +36,7 @@ import numpy as np
 import pandas as pd
 from numpy import nan as NA
 from pandas import DataFrame, DatetimeIndex, Series
+from pandas.util.decorators import cache_readonly
 
 from span.tdt._read_tev import _read_tev_raw
 from span.tdt.spikedataframe import SpikeDataFrame
@@ -98,7 +99,7 @@ class TdtTank(object):
     _header_ext = 'tsq'
     _raw_ext = 'tev'
 
-    def __init__(self, path, electrode_map, clean=True):
+    def __init__(self, path, electrode_map, clean=False):
         super(TdtTank, self).__init__()
         self.electrode_map = electrode_map
 
@@ -128,8 +129,8 @@ class TdtTank(object):
 
         self.duration = np.timedelta64(self.end - self.start)
         unames = self.raw.name.unique()
-        raw_names = map(lambda x: NA if not x else x, map(num2name, unames))
-        self.names = Series(list(raw_names), index=unames)
+        raw_names = map(lambda x: x or NA, map(num2name, unames))
+        self.names = Series(raw_names, index=unames)
         names = self.names
 
         self.raw.name = names[self.raw.name].reset_index(drop=True)
@@ -143,8 +144,8 @@ class TdtTank(object):
 
         fs_nona = self.raw.fs.dropna()
         name_nona = self.raw.name.dropna()
-        diter = ((name, _try_get_na(fs_nona[name_nona == name].head(1)))
-                 for name in self.names.dropna().values)
+        diter = ((name, _try_get_na(fs_nona[name_nona == num].head(1)))
+                 for num, name in self.names.dropna().iteritems())
         self.fs = Series(dict(diter))
         self.data_names = self.fs.dropna().index.values.astype(np.str_)
         self.clean = clean
@@ -168,7 +169,7 @@ class TdtTank(object):
         return self.__datetime.to_pydatetime()
 
     def __getattr__(self, name):
-        mapper = super(TdtTank, self).__getattribute__('_name_mapper')
+        mapper = self._name_mapper
 
         # check to see if something similar was given
         lowered_name = name.lower()
@@ -244,7 +245,8 @@ class TdtTank(object):
         p = self.path
 
         # get the row of the metadata where its value equals the name-number
-        row = tsq.name.isin([event_name])
+        num_names = tsq.name
+        row = self.names[num_names].isin([event_name]).values
         assert row.any(), 'no event named %s in tank: %s' % (event_name, p)
 
         # get all the metadata for those events
@@ -263,7 +265,7 @@ class TdtTank(object):
     def tsq(self, event_name):
         return self._get_tsq_event(event_name)()
 
-    @cached_property
+    @property
     def raw(self):
         return self._raw_tsq()()
 

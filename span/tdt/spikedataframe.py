@@ -60,6 +60,11 @@ class SpikeDataFrameBase(DataFrame):
     def fs(self):
         pass
 
+    @property
+    def period(self):
+        """Return the period in *nanoseconds*"""
+        return 1.0 / self.fs * 1e9
+
     @abc.abstractmethod
     def threshold(self, *args, **kwargs):
         pass
@@ -111,18 +116,18 @@ class SpikeDataFrame(SpikeDataFrameBase):
         if np.isscalar(threshes):
             threshes = np.repeat(threshes, self.nchannels)
 
-        assert threshes.size == self.nchannels, \
-            'number of threshold values must be 1 (same for all channels) or '\
-            '{0}, different threshold for each channel'.format(self.nchannels)
+        if threshes.size != self.nchannels:
+            raise AssertionError('number of threshold values must be 1 '
+                                 '(same for all channels) or {0}, different '
+                                 'threshold for each '
+                                 'channel'.format(self.nchannels))
 
-        is_neg = np.all(threshes < 0)
-        cmpf = self.lt if is_neg else self.gt
+        cmpf = self.lt if np.all(threshes < 0) else self.gt
 
         thr = threshes.item() if threshes.size == 1 else threshes
         threshes = Series(thr, index=self.columns)
 
         f = functools.partial(cmpf, axis=1)
-
         return f(threshes)
 
     @property
@@ -137,14 +142,16 @@ class SpikeDataFrame(SpikeDataFrameBase):
         threshed : array_like
             Array of ones and zeros.
 
-        ms : float, optional, default 2
+        ms : real, optional, default 2
             The length of the refractory period in milliseconds.
 
         Raises
         ------
-        AssertionError
-            * If `ms` is not an instance of the ADT ``numbers.Integral``.
-            * If `ms` is less than 0 or is not ``None``.
+        TypeError
+            * If `ms` is not an instance of ``numbers.Real``.
+
+        ValueError
+            * If `ms` is less than 0.
 
         Returns
         -------
@@ -156,11 +163,12 @@ class SpikeDataFrame(SpikeDataFrameBase):
         -----
         This method DOES NOT modify the object inplace by default.
         """
-        assert isinstance(ms, (np.integer, numbers.Integral,
-                               types.NoneType)), \
-            '"ms" must be an integer or None'
-        assert ms >= 0 or ms is None, \
-            'refractory period must be a nonnegative integer or None'
+        if not isinstance(ms, numbers.Real):
+            raise TypeError('ms must be a real number')
+
+        if ms < 0:
+            raise ValueError('refractory period must be a nonnegative real '
+                             'number')
 
         if not ms:
             if not inplace:
@@ -176,6 +184,17 @@ class SpikeDataFrame(SpikeDataFrameBase):
             return df
 
     def prune_spikes(self, remove_null=True):
+        """Reduce a cleared spike array to the minimum necessary to bin and
+        compute correlations.
+
+        Parameters
+        ----------
+        remove_null : bool, optional, default True
+
+        Returns
+        -------
+        b : DataFrame
+        """
         res = {}
 
         _remove_null = lambda x: x
