@@ -8,7 +8,7 @@ from dateutil.parser import parse as _parse_date
 
 from span.spanner.db import Db, DbCreator, DbReader, DbUpdater, DbDeleter
 from span.spanner.analyzer import CorrelationAnalyzer, IPythonAnalyzer
-from span.spanner.converter import Converter
+from span.spanner.converters import Converter
 from span.spanner.viewer import Viewer
 from span.spanner.utils import _init_db
 from span.spanner.defaults import SPAN_DB
