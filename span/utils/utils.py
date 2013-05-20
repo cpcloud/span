@@ -32,7 +32,9 @@ import time
 import warnings
 
 import numpy as np
+from numpy.random import rand
 from numpy.fft import fft, ifft, rfft, irfft
+from scipy.constants import golden_ratio
 from pandas import datetime, MultiIndex
 from six.moves import map
 import pytz
@@ -40,8 +42,46 @@ import pytz
 from span.utils._clear_refrac import _clear_refrac as _clear_refrac_cython
 from span.utils.math import cartesian
 
+try:
+    from clint.textui import puts
+    from clint.textui.colored import red, blue, green, magenta, white, yellow
+    from clint.packages.colorama import Style
+except ImportError:
+    pass
+else:
+    def bold(s):
+        return '{0}{1}{2}'.format(Style.BRIGHT, s, Style.RESET_ALL)
+
 
 fromtimestamp = np.vectorize(datetime.fromtimestamp)
+
+
+def hsv_to_rgb(h, s, v):
+    hi = int(h * 6)
+    f = h * 6 - hi
+    p = v * (1 - s)
+    q = v * (1 - f * s)
+    t = v * (1 - (1 - f) * s)
+    m = {0: (v, t, p), 1: (q, v, p), 2: (p, v, t), 3: (p, q, v), 4: (t, p, v),
+         5: (v, p, q)}
+    return '#{0:0>2x}{1:0>2x}{2:0>2x}'.format(*np.int64(256 * np.array(m[hi])))
+
+
+def randcolor(h, s, v):
+    if h is None:
+        h = rand()
+    h += golden_ratio - 1
+    h %= 1
+    return hsv_to_rgb(h, s, v)
+
+
+def randcolors(ncolors, hue=None, saturation=0.99, value=0.99):
+    colors = np.empty(ncolors, dtype='|S7')
+
+    for i in xrange(ncolors):
+        colors[i] = randcolor(hue, saturation, value)
+
+    return colors
 
 
 def ndtuples(*dims):
