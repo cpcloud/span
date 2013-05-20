@@ -26,12 +26,29 @@ def _parse_artifact_ranges(s):
     return [_colon_to_slice(spl) for spl in split]
 
 
+def compute_xcorr(args):
+    filename = args.filename
+    
+    # make a tank
+    em = ElectrodeMap(NeuroNexusMap.values, args.within_shank,
+                      args.between_shank)
+    tank = TdtTank(filename, em)
+
+    # get the raw data
+    spikes = tank.spik
+
+    # get the threshes
+    threshes = linspace(args.min_threshold, args.max_threshold,
+                        args.num_thresholds)
+    # compute a few different thresholds
+
+
 def build_analyze_parser(subparsers):
     def build_correlation_parser(subparsers):
         parser = subparsers.add_parser('correlation', help='perform cross '
                                        'correlation analysis on a recording',
                                        formatter_class=argparse.ArgumentDefaultsHelpFormatter)
-        add_filename_and_id_to_parser(parser)
+        parser.add_argument('-f', '--filename', help='filename')
         cleaning = parser.add_argument_group('cleaning')
         display = parser.add_argument_group('display')
         thresholding = parser.add_argument_group('thresholding')
@@ -42,8 +59,12 @@ def build_analyze_parser(subparsers):
         display.add_argument('-d', '--display', action='store_true',
                              help='display the resulting cross correlation analysis')
         thresholding.add_argument(
-            '-t', '--threshold', type=float, required=True,
-            help='threshold in multiples of the standard deviation of the voltage data')
+            '-T', '--max-threshold', type=float, required=True,
+            help='maximum threshold in multiples of the standard deviation of the voltage data')
+        thresholding.add_argument(
+            '-t', '--min-threshold', type=float, default=1.0,
+            help='minimum threshold in multiples of the standard deviation of the voltage data')
+        thresholding.add_argument('-n', '--num-thresholds', type=int, default=50)
         thresholding.add_argument(
             '-r', '--refractory-period', type=int, default=2, help='refractory period in milliseconds')
         binning.add_argument(
@@ -62,19 +83,7 @@ def build_analyze_parser(subparsers):
             '-k', '--keep-auto', action='store_true', help='keep the autocorrelation values')
         parser.set_defaults(run=CorrelationAnalyzer().run)
 
-    def build_ipython_parser(subparsers):
-        parser = subparsers.add_parser('ipython', help='drop into an ipython '
-                                       'shell')
-        add_filename_and_id_to_parser(parser)
-        parser.add_argument('-c', '--remove-first-pc', action='store_true',
-                            help='remove the first principal component of the data. warning: this drastically slows down the analysis')
-        parser.set_defaults(run=IPythonAnalyzer().run)
 
-    parser = subparsers.add_parser('analyze', help='perform an analysis on a '
-                                   'TDT tank file')
-    subparsers = parser.add_subparsers()
-    build_correlation_parser(subparsers)
-    build_ipython_parser(subparsers)
 
 
 class DateParseAction(argparse.Action):
