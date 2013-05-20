@@ -2,30 +2,24 @@
 
 import sys
 import os
+import re
 import argparse
 import numbers
 import subprocess
 import collections
 import glob
 import tarfile
-import re
 import tempfile
-from functools import partial
+import functools
 
 import numpy as np
-from numpy.random import rand
 import pandas as pd
 
-from scipy.io import savemat
-from scipy.constants import golden as golden_ratio
+try:
+    from bottleneck import nanmax
+except ImportError:
+    from numpy import nanmax
 
-from IPython import embed
-
-from bottleneck import nanmax
-
-from clint.textui import puts
-from clint.textui.colored import red, blue, green, magenta, white
-from clint.packages.colorama import Style
 
 from lxml.builder import ElementMaker
 from lxml import etree
@@ -35,6 +29,7 @@ from dateutil.parser import parse as _parse_date
 import sh
 
 from span import TdtTank, NeuroNexusMap, ElectrodeMap
+from span.utils import green, white, red, magenta, puts, bold, blue, randcolors
 
 git = sh.git
 
@@ -47,32 +42,6 @@ SPAN_DB_EXT = os.environ.get('SPAN_DB_EXT', 'csv')
 SPAN_DB = os.path.join(SPAN_DB_PATH, '{0}{1}{2}'.format(SPAN_DB_NAME,
                                                         os.extsep,
                                                         SPAN_DB_EXT))
-
-
-def hsv_to_rgb(h, s, v):
-    hi = int(h * 6)
-    f = h * 6 - hi
-    p = v * (1 - s)
-    q = v * (1 - f * s)
-    t = v * (1 - (1 - f) * s)
-    m = {0: (v, t, p), 1: (q, v, p), 2: (p, v, t), 3: (p, q, v), 4: (t, p, v),
-         5: (v, p, q)}
-    return '#{0:0>2x}{1:0>2x}{2:0>2x}'.format(*np.int64(256 * np.array(m[hi])))
-
-
-def randcolor(h, s, v):
-    if h is None:
-        h = rand()
-    h += golden_ratio - 1
-    h %= 1
-    return hsv_to_rgb(h, s, v)
-
-
-def randcolors(ncolors, hue=None, saturation=0.99, value=0.99):
-    colors = np.empty(ncolors, dtype=object)
-    for i in xrange(ncolors):
-        colors[i] = randcolor(hue, saturation, value)
-    return colors
 
 
 def error(msg):
@@ -146,8 +115,9 @@ class SpanCommand(object):
         return meta, spikes
 
     def _get_meta(self, obj):
-        return {TdtTank: self._get_meta_from_tank,
-                int: self._get_meta_from_id}[type(obj)](obj)
+        method = {TdtTank: self._get_meta_from_tank,
+                  int: self._get_meta_from_id}[type(obj)]
+        return method(obj)
 
     def _get_meta_from_id(self, id_num):
         return self.db.iloc[id_num]
@@ -156,8 +126,11 @@ class SpanCommand(object):
         meta = self._append_to_db_and_commit(tank)
         return meta
 
+    def _get_meta_from_args(self, args):
+        pass
+
     def _append_to_db_and_commit(self, tank):
-        row = _row_from_tank(tank)
+        row = self._row_from_tank(tank)
         self._append_to_db(row)
         self._commit_to_db()
         return row
@@ -168,8 +141,19 @@ class SpanCommand(object):
     def _commit_to_db(self):
         pass
 
+    def _row_from_tank(self, tank):
+        row = _make_row(tank)
+        index = self._compute_db_index()
+        return pd.Series(row, name=index)
 
-def _row_from_tank(tank):
+    def _compute_db_index(self):
+        pass
+
+
+def _make_row(tank):
+    """
+    get the relevant data from the tank into a numpy array
+    """
     pass
 
 
@@ -178,6 +162,11 @@ class Analyzer(SpanCommand):
 
 
 def _get_from_db(dirname, rec_num, method, *args):
+    """hash the args and use that number to store the analysis results
+
+    Try to retreive the results of the analysis for the hash of these args
+    otherwise perform the analysis and store it for later use if needed.
+    """
     full_path = os.path.join(SPAN_DB_PATH, 'h5', dirname, str(rec_num) + '.h5')
     key = str(hash(args))
 
@@ -190,21 +179,19 @@ def _get_from_db(dirname, rec_num, method, *args):
     return out
 
 
-def _compute_xcorr(args):
+def _compute_xcorr(raw, rec_num, args):
     import span
     from span import spike_xcorr
 
-    rec_num = args.id
     detrend = getattr(span, 'detrend_' + args.detrend)
 
-    raw = _get_from_db('raw', rec_num)
     thr = _get_from_db('thr', rec_num, raw.threshold, args.threshold)
-    cleared = _get_from_db('clr', rec_num, partial(thr.clear_refrac,
-                                                   inplace=True),
+    cleared = _get_from_db('clr', rec_num, functools.partial(thr.clear_refrac,
+                                                             inplace=True),
                            args.refractory_period)
     binned = _get_from_db('binned', rec_num, cleared.bin, args.bin_size,
                           args.bin_method)
-    xc = _get_from_db('xcorr', rec_num, partial(spike_xcorr, binned),
+    xc = _get_from_db('xcorr', rec_num, functools.partial(spike_xcorr, binned),
                       args.max_lags, args.scale_type, detrend, args.nan_auto)
     return xc
 
@@ -215,12 +202,14 @@ def _build_plot_filename(tank):
 
 class CorrelationAnalyzer(Analyzer):
     def _run(self, args):
-        tank, spikes = self._load_data(return_tank=True)
-        xc = self._compute_xcorr(spikes, args)
+        meta, spikes = self._load_data(return_meta=True)
+        xc = _compute_xcorr(spikes, args.id, args)
+        plots = self._build_xcorr_plots(xc)
+        plot_filename = _build_plot_filename(meta)
+        self._save_plots(
 
         if args.display:
-            plot_filename = _build_plot_filename(tank)
-            self._display_xcorr(xc, plot_filename)
+            self._display_xcorr(plots)
 
     def _display_xcorr(self, xc, plot_filename):
         pass
@@ -230,8 +219,14 @@ class IPythonAnalyzer(Analyzer):
 
     """Drop into an IPython shell given a filename or database id number"""
     def _run(self, args):
-        tank, spikes = self._load_data(return_tank=True)
-        embed()
+        try:
+            from IPython import embed
+        except ImportError:
+            return error('ipython not installed, please install it with pip '
+                         'install ipython')
+        else:
+            tank, spikes = self._load_data(return_tank=True)
+            embed()
         return 0
 
 
@@ -297,6 +292,11 @@ class MATLABConverter(BaseConverter):
     store_fs = True
 
     def _convert(self, raw, outfile):
+        try:
+            from scipy.io import savemat
+        except ImportError:
+            return error('scipy not installed please install it with pip '
+                         'install scipy')
         savemat(outfile, self.split_data(raw))
 
 
@@ -318,8 +318,10 @@ def _build_anatomical_description_element(index, E):
     group = E.group
     channel = E.channel
     groups = collections.defaultdict(list)
+
     for shank, channel in index:
         groups[shank].append(E.channel(str(channel)))
+
     items = groups.items()
     items.sort(key=lambda x: x[0])
     grouplist = []
@@ -334,8 +336,10 @@ def _build_spike_detection_element(index, E):
     group = E.group
     channel = E.channel
     groups = collections.defaultdict(list)
+
     for shank, channel in index:
         groups[shank].append(E.channel(str(channel), skip='0'))
+
     items = groups.items()
     items.sort(key=lambda x: x[0])
     grouplist = []
@@ -607,10 +611,6 @@ def _pop_column_to_name(df, column):
         df.columns.name = df.pop(column).name
     except KeyError:
         df.columns.name = df.pop(df.columns[column]).name
-
-
-def bold(s):
-    return '{0}{1}{2}'.format(Style.BRIGHT, s, Style.RESET_ALL)
 
 
 def _df_prettify(df):
