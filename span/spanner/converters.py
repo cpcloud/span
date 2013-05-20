@@ -16,8 +16,8 @@ from lxml.builder import ElementMaker
 from lxml import etree
 
 from span.utils import randcolors
-from span.spanner import SpanCommand
-from span.spanner import error
+from span.spanner.command import SpanCommand
+from span.spanner.utils import error
 
 
 class BaseConverter(object):
