@@ -14,7 +14,9 @@ def _compute_xcorr(raw, rec_num, args):
 
     detrend = getattr(span, 'detrend_' + args.detrend)
 
-    thr = _get_from_db('thr', rec_num, raw.threshold, args.threshold)
+    sd = _get_from_db('sd', rec_num, raw.std)
+    thr = _get_from_db('thr', rec_num, functools.partial(operator.mul, sd),
+                       args.threshold)
     cleared = _get_from_db('clr', rec_num, functools.partial(thr.clear_refrac,
                                                              inplace=True),
                            args.refractory_period)
