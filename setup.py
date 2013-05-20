@@ -48,8 +48,8 @@ define_macros = []
 names = 'utils', 'clear_refrac', 'mult_mat_xcorr', 'read_tev'
 
 # module packages
-mod_pkgs = 'span.utils', 'span.utils', 'span.xcorr', 'span.tdt', 'span.stats'
-
+mod_pkgs = ('span.utils', 'span.utils', 'span.xcorr', 'span.tdt', 'span.stats'
+            'span.spanner')
 # prefix for *.so files
 underscore = '_'
 
@@ -93,7 +93,7 @@ if __name__ == '__main__':
           author='Phillip Cloud',
           author_email='cpcloud@gmail.com',
           packages=['span', 'span.tdt', 'span.utils', 'span.xcorr',
-                    'span.stats'],
+                    'span.stats', 'span.spanner'],
           scripts=glob.glob(os.path.join('bin', '*')),
           ext_modules=ext_modules,
           license='LICENSE.txt',
