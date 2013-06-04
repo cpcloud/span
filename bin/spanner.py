@@ -4,6 +4,7 @@ import sys
 import re
 import argparse
 import os
+import warnings
 
 import numpy as np
 import pandas as pd
@@ -100,17 +101,14 @@ def compute_xcorr(args):
     filename = args.filename
 
     # make a tank
-    print 'building tank...'
     em = ElectrodeMap(NeuroNexusMap.values, args.within_shank,
                       args.between_shank)
     tank = TdtTank(filename, em)
 
     # get the raw data
-    print 'loading raw voltage data...'
     spikes = tank.spik
 
     if args.remove_first_pc:
-        print 'removing first principal component...'
         span.remove_first_pc(spikes)
 
     # get the threshes
@@ -121,7 +119,6 @@ def compute_xcorr(args):
     sd = spikes.std()
 
     # compute the cross correlation at each threshold
-    print 'computing cross correlation for thresholds...'
     xcs = _get_xcorr_many_threshes(spikes, threshes, sd, args.bin_size,
                                    args.bin_method, args.firing_rate_threshold,
                                    args.max_lags, args.which_lag,
@@ -139,7 +136,7 @@ def compute_xcorr(args):
 
 def show_xcorr(args):
     import matplotlib as mpl
-    mpl.use('Agg')
+    mpl.use('pdf')
     import matplotlib.pyplot as plt
     from mpl_toolkits.axes_grid1 import ImageGrid
     from bottleneck import nanmax, nanmin
@@ -161,7 +158,6 @@ def show_xcorr(args):
                    vmax=vmax, vmin=vmin)
     m, n = trimmed.shape
 
-    print 'building plots...'
     ax.set_xticks(np.arange(n))
     ax.set_xticklabels(map('{0:.1f}'.format,
                            trimmed.columns.values.astype(float)))
@@ -176,9 +172,11 @@ def show_xcorr(args):
     ax.set_yticklabels(map(f, trimmed.index))
     ax.set_ylabel('shank i, channel i, shank j, channel j % of max distance',
                   fontsize=6)
-    fig.tight_layout()
-    fig.savefig('{0}{1}pdf'.format(os.path.splitext(args.filename)[0],
-                                   os.extsep), bbox_inches='tight')
+    with warnings.catch_warnings():
+        warnings.simplefilter('ignore', UserWarning)
+        fig.tight_layout()
+        fig.savefig('{0}{1}pdf'.format(os.path.splitext(args.filename)[0],
+                                       os.extsep), bbox_inches='tight')
 
 
 def build_analyze_parser(subparsers):
