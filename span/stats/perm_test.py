@@ -4,10 +4,10 @@ import numpy.random as npr
 
 from six.moves import xrange
 
-try:
-    import matplotlib.pyplot as plt
-except (RuntimeError, ImportError):
-    pass
+#try:
+    #import matplotlib.pyplot as plt
+#except (RuntimeError, ImportError):
+    #pass
 
 
 def _permute_axis(values, axis=0):
@@ -101,32 +101,32 @@ def cch_perm(xci, M=1000, alpha=0.05, plot=False, ax=None):
     b_star = bt * s + nu
 
     # plotting crap
-    try:
-        if plot:
-            if ax is None:
-                fig, (ax1, ax2) = plt.subplots(1, 2)
+    #try:
+        #if plot:
+            #if ax is None:
+                #fig, (ax1, ax2) = plt.subplots(1, 2)
 
-            lw = 2
-            xcv = xci - xcm
-            lag0 = xcv.ix[0]
+            #lw = 2
+            #xcv = xci - xcm
+            #lag0 = xcv.ix[0]
 
-            ind = a.index.values
-            lower, upper = a_star - xcm, b_star - xcm
-            ax1.fill_between(ind, lower, upper, alpha=0.3, color='k')
-            ax1.fill_between(ind, a - xcm, b - xcm, alpha=0.4, color='k')
+            #ind = a.index.values
+            #lower, upper = a_star - xcm, b_star - xcm
+            #ax1.fill_between(ind, lower, upper, alpha=0.3, color='k')
+            #ax1.fill_between(ind, a - xcm, b - xcm, alpha=0.4, color='k')
 
-            ax1.vlines(ind, 0, xcv, lw=lw)
-            ax1.set_xlabel(r'$\ell$', fontsize=15)
-            ax1.set_ylabel(r'$\gamma(\ell)$', fontsize=15)
-            ax1.set_ylim((lower.min(), upper.max()))
+            #ax1.vlines(ind, 0, xcv, lw=lw)
+            #ax1.set_xlabel(r'$\ell$', fontsize=15)
+            #ax1.set_ylabel(r'$\gamma(\ell)$', fontsize=15)
+            #ax1.set_ylim((lower.min(), upper.max()))
 
-            xcs.ix[0].hist(ax=ax2, bins=20)
-            ax2.axvline(lag0, c='r', lw=lw)
-            ax2.set_xlabel(r'$\gamma(0)$', fontsize=15)
-            ax2.set_ylabel('Count', fontsize=15)
-            fig.tight_layout()
-    except (RuntimeError, NameError):
-        pass
+            #xcs.ix[0].hist(ax=ax2, bins=20)
+            #ax2.axvline(lag0, c='r', lw=lw)
+            #ax2.set_xlabel(r'$\gamma(0)$', fontsize=15)
+            #ax2.set_ylabel('Count', fontsize=15)
+            #fig.tight_layout()
+    #except (RuntimeError, NameError):
+        #pass
 
     d = {'a': a, 'mu': xcm, 'b': b, 'nu': nu, 's': s, 'a_star': a_star,
          'b_star': b_star}

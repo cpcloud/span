@@ -100,14 +100,17 @@ def compute_xcorr(args):
     filename = args.filename
 
     # make a tank
+    print 'building tank...'
     em = ElectrodeMap(NeuroNexusMap.values, args.within_shank,
                       args.between_shank)
     tank = TdtTank(filename, em)
 
     # get the raw data
+    print 'loading raw voltage data...'
     spikes = tank.spik
 
     if args.remove_first_pc:
+        print 'removing first principal component...'
         span.remove_first_pc(spikes)
 
     # get the threshes
@@ -118,6 +121,7 @@ def compute_xcorr(args):
     sd = spikes.std()
 
     # compute the cross correlation at each threshold
+    print 'computing cross correlation for thresholds...'
     xcs = _get_xcorr_many_threshes(spikes, threshes, sd, args.bin_size,
                                    args.bin_method, args.firing_rate_threshold,
                                    args.max_lags, args.which_lag,
@@ -156,6 +160,8 @@ def show_xcorr(args):
     im = ax.imshow(trimmed.values, interpolation='none', aspect='auto',
                    vmax=vmax, vmin=vmin)
     m, n = trimmed.shape
+
+    print 'building plots...'
     ax.set_xticks(np.arange(n))
     ax.set_xticklabels(map('{0:.1f}'.format,
                            trimmed.columns.values.astype(float)))
