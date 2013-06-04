@@ -134,18 +134,17 @@ def compute_xcorr(args):
 
 
 def show_xcorr(args):
-    from mpltools import style
-    from mpltools.layout import figaspect
-    style.use('ggplot')
+    import matplotlib as mpl
+    mpl.use('Agg')
+    import matplotlib.pyplot as plt
     from mpl_toolkits.axes_grid1 import ImageGrid
-    from pylab import figure, colorbar, rcParams
     from bottleneck import nanmax, nanmin
     trimmed, age, site = compute_xcorr(args)
 
     vmax = nanmax(trimmed.values)
     vmin = nanmin(trimmed.values)
 
-    fig = figure(figsize=figaspect(1))
+    fig = plt.figure(figsize=(16, 9))
     grid = ImageGrid(fig, 111, nrows_ncols=(1, 1), direction='row',
                      axes_pad=0.05, add_all=True, label_mode='1',
                      share_all=False, cbar_location='right',
@@ -166,14 +165,14 @@ def show_xcorr(args):
     ax.cax.tick_params(labelsize=5, right=False)
     ax.set_yticks(np.arange(m))
     ax.set_xlabel('Threshold (multiples of standard deviation)', fontsize=6)
-    rcParams['text.usetex'] = True
+    mpl.rcParams['text.usetex'] = True
     f = lambda x: r'\textbf{{0}}, {1}, \textbf{{2}}, {3}, {4:.1f}'.format(*x)
     ax.set_yticklabels(map(f, trimmed.index))
     ax.set_ylabel('shank i, channel i, shank j, channel j % of max distance',
                   fontsize=6)
     fig.tight_layout()
-    fig.savefig('{0}{1}pdf'.format(args.figure_name, os.extsep),
-                bbox_inches='tight')
+    fig.savefig('{0}{1}pdf'.format(os.path.splitext(args.filename)[0],
+                                   os.extsep), bbox_inches='tight')
 
 
 def build_analyze_parser(subparsers):
