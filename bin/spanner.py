@@ -3,6 +3,7 @@
 import sys
 import re
 import argparse
+import os
 
 import numpy as np
 import pandas as pd
@@ -171,7 +172,8 @@ def show_xcorr(args):
     ax.set_ylabel('shank i, channel i, shank j, channel j % of max distance',
                   fontsize=6)
     fig.tight_layout()
-    fig.savefig('figname1.pdf', bbox_inches='tight')
+    fig.savefig('{0}{1}pdf'.format(args.figure_name, os.extsep),
+                bbox_inches='tight')
 
 
 def build_analyze_parser(subparsers):

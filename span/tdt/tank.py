@@ -385,7 +385,7 @@ _raw_reader = _read_tev_raw
 def _read_tev_impl(filename, meta, block_size, spikes, index, electrode_map,
                    clean):
     fp_loc, channel = meta.fp_loc, meta.channel
-    _raw_reader(filename, fp_loc, block_size, spikes.values)
+    _raw_reader(filename, fp_loc.values, block_size, spikes.values)
 
     items = spikes.groupby(channel).indices.items()
     items.sort()
