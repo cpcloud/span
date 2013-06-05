@@ -113,7 +113,7 @@ class Converter(SpanCommand):
             # get the name of the base directory
             base, _ = os.path.splitext(self.filename)
 
-            base_dir = os.path.join(os.curdir, os.path.basename(base))
+            base_dir = os.path.basename(base)
             outfile = '{base}{extsep}dat'.format(base=base_dir,
                                                  extsep=os.extsep)
             converter = _converters[args.format]('int', 16, tank.datetime)
@@ -305,6 +305,7 @@ def _build_neuroscope_package(spikes, converter, base, outfile, zipped_name,
         converter.convert(spikes, outfile)
         f.add(outfile)
         os.remove(outfile)
+        print base
         _make_neuroscope_xml(spikes, base, args.precision, args.voltage_range,
                              args.amplification, f)
         _make_neuroscope_nrs(spikes, base, args.start_time, args.window_size,
