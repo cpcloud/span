@@ -58,7 +58,7 @@ class SpanCommand(object):
     def _run(self, args):
         raise NotImplementedError()
 
-    def _load_data(self):
+    def _load_data(self, return_tank):
         #full_path = os.path.join(SPAN_DB_PATH, 'h5', 'raw', str(self.id) +
                                  #'.h5')
         #with pd.get_store(full_path, mode='a') as raw_store:
@@ -74,9 +74,10 @@ class SpanCommand(object):
         em = ElectrodeMap(NeuroNexusMap.values, 50, 125)
         tank = TdtTank(os.path.normpath(self.filename), em)
         spikes = tank.spik
-        meta = self._get_meta(tank)
-
-        return meta, spikes
+        if return_tank:
+            meta = self._get_meta(tank)
+            return meta, spikes
+        return spikes
 
     def _get_meta(self, obj):
         #method = {TdtTank: self._get_meta_from_tank,
