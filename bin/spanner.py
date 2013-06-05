@@ -89,6 +89,7 @@ def build_convert_parser(subparsers):
     parser.add_argument('-p', '--precision', help='the number of bits '
                         'to use for conversion', type=int, default=64,
                         choices=(8, 16, 32, 64))
+    parser.add_argument('-c', '--compression-format', default='gz')
     parser.set_defaults(run=Converter().run)
 
 
