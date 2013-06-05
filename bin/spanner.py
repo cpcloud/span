@@ -362,7 +362,7 @@ def main():
     subparsers = parser.add_subparsers(help='Subcommands for analying TDT '
                                        'tank files')
     build_analyze_parser(subparsers)
-    #build_convert_parser(subparsers)
+    build_convert_parser(subparsers)
     #build_view_parser(subparsers)
     #build_db_parser(subparsers)
     args = parser.parse_args()
