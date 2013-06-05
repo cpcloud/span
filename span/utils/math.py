@@ -20,7 +20,6 @@
 # along with this program. If not, see <http://www.gnu.org/licenses/>.
 
 import operator
-import re
 import itertools as itools
 import functools as fntools
 
