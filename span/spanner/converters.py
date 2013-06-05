@@ -50,8 +50,10 @@ class NeuroscopeConverter(BaseConverter):
     def _convert(self, raw, outfile):
         exponent = self.precision * CHAR_BIT - 1
         max_prec = 2.0 ** exponent - 1
-        const = max_prec / nanmax(np.abs(raw.values))
-        xc = raw.values * const
+        v = raw.values
+        const = max_prec / nanmax(np.abs(v))
+        xc = v * const
+        print xc
         xc.astype(self.dtype).tofile(outfile)
 
 
