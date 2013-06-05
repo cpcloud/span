@@ -52,6 +52,7 @@ class SpanCommand(object):
                          '"{0}*"'.format(self.filename))
 
     def run(self, args):
+        self.filename = args.filename
         #self._parse_filename_and_id(args)
         return self._run(args)
 
