@@ -1,6 +1,7 @@
 import os
 import collections
 import tarfile
+from contextlib import closing
 
 import numpy as np
 
@@ -299,8 +300,8 @@ def _build_neuroscope_package(spikes, converter, base, outfile, zipped_name,
                               args):
     tarfile_name = base + os.extsep + 'tar{0}{1}'.format(os.extsep,
                                                          args.compression_format)
-    with tarfile.open(tarfile_name,
-                      'w:{0}'.format(args.compression_format)) as f:
+    with closing(tarfile.open(tarfile_name,
+                 'w:{0}'.format(args.compression_format))) as f:
         converter.convert(spikes, outfile)
         f.add(outfile)
         os.remove(outfile)
