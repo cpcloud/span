@@ -85,10 +85,9 @@ def build_convert_parser(subparsers):
                         'matlab', 'numpy', 'h5'), required=True)
     parser.add_argument('-T', '--numeric-type',
                         help='the base numeric type to convert to',
-                        default='int', choices=('float', 'int', 'uint', 'f',
-                                                  'i', 'ui'))
+                        default='float', choices=('float', 'int', 'uint'))
     parser.add_argument('-p', '--precision', help='the number of bits '
-                        'to use for conversion', type=int, default=16,
+                        'to use for conversion', type=int, default=64,
                         choices=(8, 16, 32, 64))
     parser.set_defaults(run=Converter().run)
 
