@@ -8,19 +8,6 @@ from span.spanner.converters import _get_dat_from_tarfile
 from span.spanner.utils import error
 
 
-def _run_neuroscope(tarfile):
-    member = _get_dat_from_tarfile(tarfile)
-    tarfile.extractall()
-    try:
-        return subprocess.check_call(['neuroscope', os.path.join(os.curdir,
-                                                                 member.name)])
-    except OSError:
-        return error('could not find neuroscope on the system path, it is '
-                     'probably not '
-                     'installed\n\nPATH={0}'.format(os.environ.get('PATH')))
-    except subprocess.CalledProcessError as e:
-        return error(e.msg)
-
 
 class Viewer(SpanCommand):
     def _run(self, args):

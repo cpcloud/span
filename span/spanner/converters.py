@@ -1,7 +1,6 @@
 import os
 import collections
 import tarfile
-import subprocess
 
 import numpy as np
 
@@ -47,9 +46,9 @@ class BaseConverter(object):
 
 
 class NeuroscopeConverter(BaseConverter):
-
     def _convert(self, raw, outfile):
-        max_prec = float(2 ** (self.precision * CHAR_BIT - 1) - 1)
+        exponent = self.precision * CHAR_BIT - 1
+        max_prec = 2.0 ** exponent - 1
         const = max_prec / nanmax(np.abs(raw.values))
         xc = raw.values * const
         xc.astype(self.dtype).tofile(outfile)
@@ -90,16 +89,37 @@ class MATLABConverter(BaseConverter):
         savemat(outfile, self.split_data(raw))
 
 
+class IgorConverter(NeuroscopeConverter):
+    pass
+
 _converters = {'neuroscope': NeuroscopeConverter, 'matlab': MATLABConverter,
-               'h5': H5Converter, 'numpy': NumPyConverter}
+               'h5': H5Converter, 'numpy': NumPyConverter,
+               'igor': IgorConverter}
 
 
 class Converter(SpanCommand):
 
     def _run(self, args):
-        spikes = self._load_data()
-        converter = _converters[args.format](args.base_dtype, args.precision)
-        converter.convert(spikes, args.outfile)
+        if args.format != 'neuroscope':
+            spikes = self._load_data()
+            converter = _converters[args.format](args.numeric_dtype,
+                                                 args.precision)
+            converter.convert(spikes, args.outfile)
+        else:
+            # load the data
+            tank, spikes = self._load_data(return_tank=True)
+
+            # get the name of the base directory
+            base, _ = os.path.splitext(self.filename)
+
+            base_dir = os.path.join(os.curdir, os.path.basename(base))
+            outfile = '{base}{extsep}dat'.format(base=base_dir,
+                                                 extsep=os.extsep)
+            converter = _converters[args.format]('int', 16, tank.datetime)
+            args.precision = converter.precision
+            zipped_name = '{0}{1}tar{1}{2}'.format(base, os.extsep, args.format)
+            _build_neuroscope_package(spikes, converter, base, outfile,
+                                    zipped_name, args)
 
 
 def _build_anatomical_description_element(index, E):
