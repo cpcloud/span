@@ -113,13 +113,14 @@ class Converter(SpanCommand):
             # get the name of the base directory
             base, _ = os.path.splitext(self.filename)
 
-            base = os.path.basename(base)
-            outfile = '{base}{extsep}dat'.format(base=base, extsep=os.extsep)
+            basename = os.path.basename(base)
+            outfile = '{base}{extsep}dat'.format(base=basename,
+                                                 extsep=os.extsep)
             converter = _converters[args.format]('int', 16, tank.datetime)
             args.precision = converter.precision
-            zipped_name = '{0}{1}tar{1}{2}'.format(base, os.extsep,
+            zipped_name = '{0}{1}tar{1}{2}'.format(basename, os.extsep,
                                                    args.compression_format)
-            _build_neuroscope_package(spikes, converter, base, outfile,
+            _build_neuroscope_package(spikes, converter, basename, outfile,
                                       zipped_name, args)
 
 
