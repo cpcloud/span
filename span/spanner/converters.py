@@ -53,7 +53,6 @@ class NeuroscopeConverter(BaseConverter):
         v = raw.values
         const = max_prec / nanmax(np.abs(v))
         xc = v * const
-        print xc
         xc.astype(self.dtype).tofile(outfile)
 
 
@@ -122,7 +121,7 @@ class Converter(SpanCommand):
             args.precision = converter.precision
             zipped_name = '{0}{1}tar{1}{2}'.format(basename, os.extsep,
                                                    args.compression_format)
-            _build_neuroscope_package(spikes, converter, basename, outfile,
+            _build_neuroscope_package(spikes, converter, base, outfile,
                                       zipped_name, args)
 
 
@@ -308,10 +307,11 @@ def _build_neuroscope_package(spikes, converter, base, outfile, zipped_name,
         converter.convert(spikes, outfile)
         f.add(outfile)
         os.remove(outfile)
-        _make_neuroscope_xml(spikes, base, args.precision, args.voltage_range,
-                             args.amplification, f)
-        _make_neuroscope_nrs(spikes, base, args.start_time, args.window_size,
-                             f)
+        basename = os.path.basename(base)
+        _make_neuroscope_xml(spikes, basename, args.precision,
+                             args.voltage_range, args.amplification, f)
+        _make_neuroscope_nrs(spikes, basename, args.start_time,
+                             args.window_size, f)
 
 
 def _get_dat_from_tarfile(tarfile):
