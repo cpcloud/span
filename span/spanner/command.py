@@ -76,8 +76,7 @@ class SpanCommand(object):
         tank = TdtTank(os.path.normpath(self.filename), em)
         spikes = tank.spik
         if return_tank:
-            meta = self._get_meta(tank)
-            return meta, spikes
+            return tank, spikes
         return spikes
 
     def _get_meta(self, obj):
