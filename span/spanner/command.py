@@ -3,6 +3,7 @@ import glob
 import numbers
 
 import pandas as pd
+from numpy import nan
 
 from span import ElectrodeMap, TdtTank, NeuroNexusMap
 from span.utils import bold, blue, red
@@ -58,25 +59,34 @@ class SpanCommand(object):
         raise NotImplementedError()
 
     def _load_data(self):
-        full_path = os.path.join(SPAN_DB_PATH, 'h5', 'raw', str(self.id) +
-                                 '.h5')
-        with pd.get_store(full_path, mode='a') as raw_store:
-            try:
-                spikes = raw_store.get('raw')
-                meta = self._get_meta(self.id)
-            except KeyError:
-                em = ElectrodeMap(NeuroNexusMap.values, 50, 125)
-                tank = TdtTank(os.path.normpath(self.filename), em)
-                spikes = tank.spik
-                raw_store.put('raw', spikes)
-                meta = self._get_meta(tank)
+        #full_path = os.path.join(SPAN_DB_PATH, 'h5', 'raw', str(self.id) +
+                                 #'.h5')
+        #with pd.get_store(full_path, mode='a') as raw_store:
+            #try:
+                #spikes = raw_store.get('raw')
+                #meta = self._get_meta(self.id)
+            #except KeyError:
+                #em = ElectrodeMap(NeuroNexusMap.values, 50, 125)
+                #tank = TdtTank(os.path.normpath(self.filename), em)
+                #spikes = tank.spik
+                #raw_store.put('raw', spikes)
+                #meta = self._get_meta(tank)
+        em = ElectrodeMap(NeuroNexusMap.values, 50, 125)
+        tank = TdtTank(os.path.normpath(self.filename), em)
+        spikes = tank.spik
+        meta = self._get_meta(tank)
 
         return meta, spikes
 
     def _get_meta(self, obj):
-        method = {TdtTank: self._get_meta_from_tank,
-                  int: self._get_meta_from_id}[type(obj)]
-        return method(obj)
+        #method = {TdtTank: self._get_meta_from_tank,
+                  #int: self._get_meta_from_id}[type(obj)]
+        #return method(obj)
+        keys = ('path', 'name', 'age', 'site', 'time', 'date', 'start', 'end',
+                'duration')
+        d = dict((k, getattr(obj, k) if hasattr(obj, k) else nan)
+                 for k in keys)
+        return pd.Series(d)
 
     def _get_meta_from_id(self, id_num):
         return self.db.iloc[id_num]
