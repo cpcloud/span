@@ -230,6 +230,7 @@ def clear_refrac(a, window):
     If `window` is less than or equal to 0
     """
     assert isinstance(a, np.ndarray), 'a must be a numpy array'
+    assert isinstance(a.dtype.type, (np.int8, np.uint8, np.bool_))
     assert isinstance(window, (numbers.Integral, np.integer)), \
         '"window" must be an integer'
     assert window > 0, '"window" must be greater than 0'
