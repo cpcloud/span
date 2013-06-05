@@ -6,9 +6,8 @@ import argparse
 from dateutil.parser import parse as _parse_date
 
 from span.spanner.db import Db, DbCreator, DbReader, DbUpdater, DbDeleter
-from span.spanner.analyzer import CorrelationAnalyzer, IPythonAnalyzer
+from span.spanner.analyzer import CorrelationAnalyzer, IPythonAnalyzer, _parse_artifact_ranges
 from span.spanner.converters import Converter
-from span.spanner.viewer import Viewer
 from span.spanner.utils import _init_db
 from span.spanner.defaults import SPAN_DB
 
@@ -89,28 +88,20 @@ def build_convert_parser(subparsers):
     parser.add_argument('-p', '--precision', help='the number of bits '
                         'to use for conversion', type=int, default=64,
                         choices=(8, 16, 32, 64))
-    parser.add_argument('-c', '--compression-format', default='gz')
-    parser.set_defaults(run=Converter().run)
-
-
-def build_view_parser(subparsers):
-    parser = subparsers.add_parser('view', help='display the raw traces of a '
-                                   'TDT tank file in Neuroscope')
-    add_filename_and_id_to_parser(parser)
     parser.add_argument('-s', '--start-time', type=int,
                         help='where to place you in the recording when showing'
-                        ' the data')
+                        ' the data', default=1)
     parser.add_argument('-w', '--window-size', type=int,
                         help='the number of milliseconds to show in the full '
-                        'window')
+                        'window', default=1000)
     parser.add_argument('-r', '--voltage-range', type=int, default=10,
                         help='a magical parameter needed by neuroscope')
     parser.add_argument('-a', '--amplification', type=int, default=1000,
                         help='another magical parameter needed by neuroscope')
-    parser.add_argument('-t', '--format', default='gz', help='the type of '
+    parser.add_argument('-c', '--compression-format', default='gz', help='the type of '
                         'archive in which to output a neuroscope-ready data '
                         'set, default: gz', choices=('gz', 'bz2'))
-    parser.set_defaults(run=Viewer().run)
+    parser.set_defaults(run=Converter().run)
 
 
 def build_db_parser(subparsers):
@@ -196,7 +187,6 @@ def main():
                                        'tank files')
     build_analyze_parser(subparsers)
     build_convert_parser(subparsers)
-    #build_view_parser(subparsers)
     #build_db_parser(subparsers)
     args = parser.parse_args()
     return args.run(args)
