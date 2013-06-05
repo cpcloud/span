@@ -298,7 +298,7 @@ def _make_neuroscope_nrs(spikes, base, start_time, window_size, tarfile):
 def _build_neuroscope_package(spikes, converter, base, outfile, zipped_name,
                               args):
     tarfile_name = base + os.extsep + 'tar{0}{1}'.format(os.extsep,
-                                                         args.compresion_format)
+                                                         args.compression_format)
     with tarfile.open(tarfile_name,
                       'w:{0}'.format(args.compression_format)) as f:
         converter.convert(spikes, outfile)
