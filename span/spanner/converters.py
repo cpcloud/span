@@ -133,7 +133,7 @@ def _build_anatomical_description_element(index, E):
     groups = collections.defaultdict(list)
 
     for shank, channel in index:
-        groups[shank].append(E.channel(str(channel)))
+        groups[shank].append(E.channel(str(channel + 1)))
 
     items = groups.items()
     items.sort(key=lambda x: x[0])
@@ -151,7 +151,7 @@ def _build_spike_detection_element(index, E):
     groups = collections.defaultdict(list)
 
     for shank, channel in index:
-        groups[shank].append(E.channel(str(channel), skip='0'))
+        groups[shank].append(E.channel(str(channel + 1), skip='0'))
 
     items = groups.items()
     items.sort(key=lambda x: x[0])
@@ -179,7 +179,7 @@ def _build_channels_element(index, E, colors):
     elements = []
 
     for shank, channel in index:
-        c = str(channel)
+        c = str(channel + 1)
         elements.append(_build_single_channel_color(c, colors[shank]))
         elements.append(_build_single_channel_offset(c))
     return E.channels(*elements)
@@ -254,7 +254,7 @@ def _make_neuroscope_nrs(spikes, base, start_time, window_size, tarfile):
         return (
             E.channelPosition(
                 E.channel(
-                    str(channel)
+                    str(channel + 1)
                 ),
                 E.gain('10'),
                 E.offset('0')
@@ -282,7 +282,7 @@ def _make_neuroscope_nrs(spikes, base, start_time, window_size, tarfile):
                 ),
                 E.channelsSelected(),
                 E.channelsShown(
-                    *(E.channel(str(channel)) for channel in channels)
+                    *(E.channel(str(channel + 1)) for channel in channels)
                 )
             )
         )
@@ -299,8 +299,8 @@ def _make_neuroscope_nrs(spikes, base, start_time, window_size, tarfile):
 
 def _build_neuroscope_package(spikes, converter, base, outfile, zipped_name,
                               args):
-    tarfile_name = base + os.extsep + 'tar{0}{1}'.format(os.extsep,
-                                                         args.compression_format)
+    tarfile_name = (base + os.extsep +
+                    'tar{0}{1}'.format(os.extsep, args.compression_format))
     with closing(tarfile.open(tarfile_name,
                  'w:{0}'.format(args.compression_format))) as f:
         converter.convert(spikes, outfile)
@@ -322,5 +322,3 @@ def _get_dat_from_tarfile(tarfile):
     else:
         return error('no DAT file found in neuroscope package. files found '
                      'were {1}'.format(names))
-
-
