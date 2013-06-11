@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 
+import os
 import sys
 import argparse
 
@@ -11,6 +12,10 @@ from span.spanner.analyzer import (CorrelationAnalyzer, IPythonAnalyzer,
 from span.spanner.converters import Converter
 from span.spanner.utils import _init_db
 from span.spanner.defaults import SPAN_DB
+
+
+def _find_below_common_data_path(path, common_data_path):
+    pass
 
 
 def build_analyze_parser(subparsers):
@@ -204,6 +209,11 @@ def add_filename_and_id_to_parser(parser):
     group.add_argument('-i', '--id', type=int, help='alternatively you can use'
                        ' a database id number of a recording if you know it '
                        '(you can query for these using spanner db read')
+    parser.add_argument('-P', '--common-data-path',
+                        default=os.path.expanduser(os.path.join('~Adrian',
+                                                                'Data',
+                                                                'Multielectrode')),
+                        help='search in this directory for the path provided')
 
 
 def main():

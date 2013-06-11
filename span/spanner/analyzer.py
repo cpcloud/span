@@ -93,7 +93,7 @@ def compute_xcorr(args):
     # make a tank
     em = ElectrodeMap(NeuroNexusMap.values, args.within_shank,
                       args.between_shank)
-    tank = TdtTank(filename, em)
+    tank = TdtTank(_maybe_get_common_data_path(filename, COMMON_DATA_PATH), em)
 
     # get the raw data
     spikes = tank.spik
