@@ -129,7 +129,10 @@ def show_xcorr(args):
     mpl.use('Agg')
     import matplotlib.pyplot as plt
     from mpl_toolkits.axes_grid1 import ImageGrid
-    from bottleneck import nanmax, nanmin
+    try:
+        from bottleneck import nanmax, nanmin
+    except ImportError:
+        from numpy import nanmax, nanmin
     trimmed, age, site = compute_xcorr(args)
 
     vmax = nanmax(trimmed.values)
