@@ -126,7 +126,7 @@ def compute_xcorr(args):
 
 def show_xcorr(args):
     import matplotlib as mpl
-    mpl.use('pdf')
+    mpl.use('Agg')
     import matplotlib.pyplot as plt
     from mpl_toolkits.axes_grid1 import ImageGrid
     from bottleneck import nanmax, nanmin
@@ -165,8 +165,11 @@ def show_xcorr(args):
     with warnings.catch_warnings():
         warnings.simplefilter('ignore', UserWarning)
         fig.tight_layout()
-        fig.savefig('{0}{1}pdf'.format(os.path.splitext(args.filename)[0],
-                                       os.extsep), bbox_inches='tight')
+        if args.plot_filename is None:
+            plot_filename = os.path.splitext(args.filename)[0]
+        fig.savefig('{0}{1}{2}'.format(plot_filename, os.extsep,
+                                       args.plot_format, fmt=args.plot_format),
+                    bbox_inches='tight')
 
 
 class Analyzer(SpanCommand):

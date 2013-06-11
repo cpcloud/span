@@ -57,6 +57,8 @@ def build_analyze_parser(subparsers):
         xcorr.add_argument('-L', '--which-lag', type=int, default=0)
         xcorr.add_argument(
             '-k', '--keep-auto', action='store_true', help='keep the autocorrelation values')
+        xcorr.add_argument('-o', '--plot-filename', help='the name of the file to which the plot is output')
+        xcorr.add_argument('-F', '--plot-format', help='the output format of the plot', default='pdf')
         parser.set_defaults(run=CorrelationAnalyzer().run)
 
     parser = subparsers.add_parser('analyze', help='perform an analysis on a '
