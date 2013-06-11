@@ -6,7 +6,8 @@ import argparse
 from dateutil.parser import parse as _parse_date
 
 from span.spanner.db import Db, DbCreator, DbReader, DbUpdater, DbDeleter
-from span.spanner.analyzer import CorrelationAnalyzer, IPythonAnalyzer, _parse_artifact_ranges
+from span.spanner.analyzer import (CorrelationAnalyzer, IPythonAnalyzer,
+                                   _parse_artifact_ranges)
 from span.spanner.converters import Converter
 from span.spanner.utils import _init_db
 from span.spanner.defaults import SPAN_DB
@@ -16,7 +17,8 @@ def build_analyze_parser(subparsers):
     def build_correlation_parser(subparsers):
         parser = subparsers.add_parser('correlation', help='perform cross '
                                        'correlation analysis on a recording',
-                                       formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+                                       formatter_class=
+                                       argparse.ArgumentDefaultsHelpFormatter)
         parser.add_argument('-f', '--filename', help='filename')
         parser.add_argument('-i', '--id', help='id')
         cleaning = parser.add_argument_group('cleaning')
@@ -25,22 +27,33 @@ def build_analyze_parser(subparsers):
         binning = parser.add_argument_group('binning')
         xcorr = parser.add_argument_group('cross correlation')
         cleaning.add_argument('-c', '--remove-first-pc', action='store_true',
-                              help='remove the first principal component of the data. warning: this drastically slows down the analysis')
-        display.add_argument('-d', '--display', action='store_true',
-                             help='display the resulting cross correlation analysis')
+                              help='remove the first principal component of '
+                              'the data. warning: this drastically slows down '
+                              'the analysis')
+        display.add_argument('-o', '--plot-filename', help='the name of the '
+                             'file to which the plot is output')
+        display.add_argument('-F', '--plot-format', help='the output format of'
+                             ' the plot', default='pdf')
+        display.add_argument('-B', '--sort-by', help='how to sort the '
+                             'resulting y-axis', choices=('shank', 'distance'))
         thresholding.add_argument(
             '-T', '--max-threshold', type=float, default=4.0,
-            help='maximum threshold in multiples of the standard deviation of the voltage data')
+            help='maximum threshold in multiples of the standard deviation of '
+            'the voltage data')
         thresholding.add_argument(
             '-t', '--min-threshold', type=float, default=3.0,
-            help='minimum threshold in multiples of the standard deviation of the voltage data')
-        thresholding.add_argument('-n', '--num-thresholds', type=int, default=50)
+            help='minimum threshold in multiples of the standard deviation of '
+            'the voltage data')
+        thresholding.add_argument('-n', '--num-thresholds', type=int,
+                                  default=50)
         thresholding.add_argument(
-            '-r', '--refractory-period', type=int, default=2, help='refractory period in milliseconds')
+            '-r', '--refractory-period', type=int, default=2, help='refractory'
+            ' period in milliseconds')
         binning.add_argument(
             '-b', '--bin-size', default='S', help='bin size in some time unit')
         binning.add_argument(
-            '-p', '--bin-method', default='sum', help='function to use for binning spikes')
+            '-p', '--bin-method', default='sum', help='function to use for '
+            'binning spikes')
         binning.add_argument(
             '-R', '--firing-rate-threshold', type=float, default=1.0)
         xcorr.add_argument('-w', '--within-shank', type=float, default=50.0)
@@ -51,14 +64,15 @@ def build_analyze_parser(subparsers):
             help='type of scaling to use on the raw cross correlation')
         xcorr.add_argument(
             '-m', '--detrend', choices=('mean', 'linear', 'none'),
-            default='mean', help='function to use to detrend the raw cross correlation')
+            default='mean', help='function to use to detrend the raw cross '
+            'correlation')
         xcorr.add_argument('-l', '--max-lags', type=int, default=1,
-                           help='maximum number of lags of the cross correlation to return')
+                           help='maximum number of lags of the cross '
+                           'correlation to return')
         xcorr.add_argument('-L', '--which-lag', type=int, default=0)
         xcorr.add_argument(
-            '-k', '--keep-auto', action='store_true', help='keep the autocorrelation values')
-        xcorr.add_argument('-o', '--plot-filename', help='the name of the file to which the plot is output')
-        xcorr.add_argument('-F', '--plot-format', help='the output format of the plot', default='pdf')
+            '-k', '--keep-auto', action='store_true', help='keep the '
+            'autocorrelation values')
         parser.set_defaults(run=CorrelationAnalyzer().run)
 
     parser = subparsers.add_parser('analyze', help='perform an analysis on a '
@@ -100,9 +114,9 @@ def build_convert_parser(subparsers):
                         help='a magical parameter needed by neuroscope')
     parser.add_argument('-a', '--amplification', type=int, default=1000,
                         help='another magical parameter needed by neuroscope')
-    parser.add_argument('-c', '--compression-format', default='gz', help='the type of '
-                        'archive in which to output a neuroscope-ready data '
-                        'set, default: gz', choices=('gz', 'bz2'))
+    parser.add_argument('-c', '--compression-format', default='gz', help='the '
+                        'type of archive in which to output a neuroscope-ready'
+                        ' data set, default: gz', choices=('gz', 'bz2'))
     parser.set_defaults(run=Converter().run)
 
 
@@ -111,30 +125,39 @@ def build_db_parser(subparsers):
         parser.add_argument(
             '-a', '--age', type=int, help='the age of the animal')
         parser.add_argument(
-            '-t', '--animal-type', help='the kind of animal, e.g., rat, mouse, etc.')
+            '-t', '--animal-type', help='the kind of animal, e.g., rat, mouse,'
+            ' etc.')
         parser.add_argument(
-            '-r', '--artifact-ranges', action=ArtifactRangesAction, help='the ranges of the artifacts')
+            '-r', '--artifact-ranges', action=ArtifactRangesAction,
+            help='the ranges of the artifacts')
         parser.add_argument(
-            '-s', '--between-shank', type=float, help='the distance between the shanks')
+            '-s', '--between-shank', type=float,
+            help='the distance between the shanks')
         parser.add_argument(
             '-c', '--condition', help='the experimental condition, if any')
         parser.add_argument(
-            '-d', '--date', action=DateParseAction, help='the date of the recording')
+            '-d', '--date', action=DateParseAction,
+            help='the date of the recording')
         parser.add_argument(
             '-f', '--filename', help='name of the file to store')
         parser.add_argument(
-            '-i', '--id', type=int, help='force a particular id number. WARNING: this is not recommended')
-        parser.add_argument('-o', '--shank-order', choices=(
-            'lm', 'ml'), help='the ordering of the shanks relative to the MNTB')
+            '-i', '--id', type=int,
+            help='force a particular id number. WARNING: this is not '
+            'recommended')
+        parser.add_argument('-o', '--shank-order', choices=('lm', 'ml'),
+                            help='the ordering of the shanks relative to the '
+                            'MNTB')
         parser.add_argument('-p', '--probe', help='the probe number')
         parser.add_argument(
             '-l', '--site', type=int, help='the site of the recording')
         parser.add_argument('-v', '--invalid-recording', action='store_true',
-                            help='pass this argument if the recording is invalid')
+                            help='pass this argument if the recording is'
+                            'invalid')
         parser.add_argument(
             '-w', '--weight', type=float, help='the weight of the animal')
         parser.add_argument('-e', '--within-shank', type=float,
-                            help='the distance between the channels on each shank')
+                            help='the distance between the channels on each'
+                            'shank')
 
     def build_db_create_parser(subparsers):
 
