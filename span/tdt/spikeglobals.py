@@ -25,8 +25,8 @@ import pandas as pd
 
 
 NeuroNexusMap = pd.DataFrame(np.array([[1,  3,  2,  6],
-                                       [7,  4,  5,  8],
-                                       [13, 12, 10,  9],
+                                       [7,  4,  8,  5],
+                                       [13, 10, 12,  9],
                                        [14, 16, 11, 15]]).T - 1)
 
 
