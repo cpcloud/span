@@ -140,9 +140,13 @@ def show_xcorr(args):
                      axes_pad=0.05, add_all=True, label_mode='1',
                      share_all=False, cbar_location='right',
                      cbar_mode='single', cbar_size='10%', cbar_pad=0.05)
+    if args.sort_by == 'shank':
+        trimmed.sortlevel('shank i', inplace=True)
+        trimmed.sortlevel('shank j', inplace=True)
+    elif args.sort_by == 'distance':
+        trimmed.sortlevel('distance', inplace=True)
+
     ax = grid[0]
-    trimmed.sortlevel('shank i', inplace=True)
-    trimmed.sortlevel('shank j', inplace=True)
     trimmed.set_index(['distance'], append=True, inplace=True, drop=True)
     im = ax.imshow(trimmed.values, interpolation='none', aspect='auto',
                    vmax=vmax, vmin=vmin)
@@ -162,13 +166,14 @@ def show_xcorr(args):
     ax.set_yticklabels(map(f, trimmed.index))
     ax.set_ylabel('shank i, channel i, shank j, channel j % of max distance',
                   fontsize=6)
+    ax.set_title('Age: {0}, Site: {1}'.format(age, site))
+    if args.plot_filename is None:
+        plot_filename = os.path.splitext(args.filename)[0]
     with warnings.catch_warnings():
         warnings.simplefilter('ignore', UserWarning)
         fig.tight_layout()
-        if args.plot_filename is None:
-            plot_filename = os.path.splitext(args.filename)[0]
         fig.savefig('{0}{1}{2}'.format(plot_filename, os.extsep,
-                                       args.plot_format, fmt=args.plot_format),
+                                       args.plot_format), fmt=args.plot_format,
                     bbox_inches='tight')
 
 
