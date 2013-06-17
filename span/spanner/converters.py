@@ -91,8 +91,15 @@ class MATLABConverter(BaseConverter):
         savemat(outfile, self.split_data(raw))
 
 
-class IgorConverter(NeuroscopeConverter):
-    pass
+class IgorConverter(BaseConverter):
+    store_index = False
+
+    def _convert(self, raw, outfile):
+        v = raw.values
+        if self.dtype != raw.values.dtype:
+            v = v.astype(self.dtype)
+        v.tofile(outfile)
+
 
 _converters = {'neuroscope': NeuroscopeConverter, 'matlab': MATLABConverter,
                'h5': H5Converter, 'numpy': NumPyConverter,
@@ -133,7 +140,7 @@ def _build_anatomical_description_element(index, E):
     groups = collections.defaultdict(list)
 
     for shank, channel in index:
-        groups[shank].append(E.channel(str(channel + 1)))
+        groups[shank].append(E.channel(str(channel)))
 
     items = groups.items()
     items.sort(key=lambda x: x[0])
@@ -151,7 +158,7 @@ def _build_spike_detection_element(index, E):
     groups = collections.defaultdict(list)
 
     for shank, channel in index:
-        groups[shank].append(E.channel(str(channel + 1), skip='0'))
+        groups[shank].append(E.channel(str(channel), skip='0'))
 
     items = groups.items()
     items.sort(key=lambda x: x[0])
@@ -179,7 +186,7 @@ def _build_channels_element(index, E, colors):
     elements = []
 
     for shank, channel in index:
-        c = str(channel + 1)
+        c = str(channel)
         elements.append(_build_single_channel_color(c, colors[shank]))
         elements.append(_build_single_channel_offset(c))
     return E.channels(*elements)
@@ -254,7 +261,7 @@ def _make_neuroscope_nrs(spikes, base, start_time, window_size, tarfile):
         return (
             E.channelPosition(
                 E.channel(
-                    str(channel + 1)
+                    str(channel)
                 ),
                 E.gain('10'),
                 E.offset('0')
@@ -282,7 +289,7 @@ def _make_neuroscope_nrs(spikes, base, start_time, window_size, tarfile):
                 ),
                 E.channelsSelected(),
                 E.channelsShown(
-                    *(E.channel(str(channel + 1)) for channel in channels)
+                    *(E.channel(str(channel)) for channel in channels)
                 )
             )
         )
