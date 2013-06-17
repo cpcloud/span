@@ -118,6 +118,7 @@ class Converter(SpanCommand):
             basename = os.path.basename(base)
             outfile = '{base}{extsep}dat'.format(base=basename,
                                                  extsep=os.extsep)
+            print outfile
             converter.convert(spikes, outfile)
         else:
             # load the data
