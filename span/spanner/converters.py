@@ -113,7 +113,12 @@ class Converter(SpanCommand):
             tank, spikes = self._load_data(return_tank=True)
             converter = _converters[args.format](args.numeric_type,
                                                  args.precision, tank.datetime)
-            converter.convert(spikes, args.outfile)
+            base, _ = os.path.splitext(self.filename)
+
+            basename = os.path.basename(base)
+            outfile = '{base}{extsep}dat'.format(base=basename,
+                                                 extsep=os.extsep)
+            converter.convert(spikes, outfile)
         else:
             # load the data
             tank, spikes = self._load_data(return_tank=True)
