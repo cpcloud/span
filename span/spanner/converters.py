@@ -110,7 +110,7 @@ class Converter(SpanCommand):
 
     def _run(self, args):
         if args.format != 'neuroscope':
-            spikes, tank = self._load_data(return_tank=True)
+            tank, spikes = self._load_data(return_tank=True)
             converter = _converters[args.format](args.numeric_type,
                                                  args.precision, tank.datetime)
             converter.convert(spikes, args.outfile)
