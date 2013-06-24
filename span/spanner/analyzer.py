@@ -166,7 +166,7 @@ def show_xcorr(args):
     ax.set_yticks(np.arange(m))
     ax.set_xlabel('Threshold (multiples of standard deviation)', fontsize=6)
     mpl.rcParams['text.usetex'] = True
-    f = lambda x: r'\textbf{{0}}, {1}, \textbf{{2}}, {3}, {4:.1f}'.format(*x)
+    f = lambda x: r'\textbf{{{0}}}, {1}, \textbf{{{2}}}, {3}, {4:.1f}'.format(*x)
     ax.set_yticklabels(map(f, trimmed.index))
     ax.set_ylabel('shank i, channel i, shank j, channel j % of max distance',
                   fontsize=6)
