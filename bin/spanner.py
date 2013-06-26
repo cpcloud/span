@@ -122,6 +122,8 @@ def build_convert_parser(subparsers):
     parser.add_argument('-c', '--compression-format', default='gz', help='the '
                         'type of archive in which to output a neuroscope-ready'
                         ' data set, default: gz', choices=('gz', 'bz2'))
+    parser.add_argument('-R', '--order', default='C',
+                        help='memory layout of underlying array')
     parser.set_defaults(run=Converter().run)
 
 

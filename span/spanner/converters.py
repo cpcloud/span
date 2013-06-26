@@ -39,28 +39,26 @@ class BaseConverter(object):
                    np.zeros(raw.nsamples)).cumsum().astype('timedelta64[ns]')
         return locals()
 
-    def convert(self, raw, outfile):
+    def convert(self, raw, order, outfile):
         if not self.store_index:
             raw.sortlevel('channel', axis=1, inplace=True)
 
-        self._convert(raw, outfile)
+        self._convert(raw, order, outfile)
 
 
 class NeuroscopeConverter(BaseConverter):
-    def _convert(self, raw, outfile):
+    def _convert(self, raw, order, outfile):
         exponent = self.precision - 1
         max_prec = 2.0 ** exponent - 1
-        v = raw.values
-        const = max_prec / nanmax(np.abs(v))
-        xc = v * const
-        xc.astype(self.dtype).tofile(outfile)
+        v = raw.values * max_prec / nanmax(np.abs(v))
+        np.asanyarray(v, self.dtype, order).tofile(outfile)
 
 
 class H5Converter(BaseConverter):
     store_index = True
     store_fs = True
 
-    def _convert(self, raw, outfile):
+    def _convert(self, raw, order, soutfile):
         raw.to_hdf(outfile, 'raw')
 
 
@@ -68,7 +66,7 @@ class NumPyConverter(BaseConverter):
     store_index = True
     store_fs = True
 
-    def _convert(self, raw, outfile):
+    def _convert(self, raw, order, outfile):
         split = self.split_data(raw)
         values = split['values']
 
@@ -82,7 +80,7 @@ class MATLABConverter(BaseConverter):
     store_index = True
     store_fs = True
 
-    def _convert(self, raw, outfile):
+    def _convert(self, raw, order, outfile):
         try:
             from scipy.io import savemat
         except ImportError:
@@ -92,13 +90,8 @@ class MATLABConverter(BaseConverter):
 
 
 class IgorConverter(BaseConverter):
-    store_index = False
-
-    def _convert(self, raw, outfile):
-        v = raw.values
-        if self.dtype != raw.values.dtype:
-            v = v.astype(self.dtype)
-        v.tofile(outfile)
+    def _convert(self, raw, order, outfile):
+        np.asanyarray(raw.values, self.dtype, order).tofile(outfile)
 
 
 _converters = {'neuroscope': NeuroscopeConverter, 'matlab': MATLABConverter,
@@ -115,7 +108,7 @@ class Converter(SpanCommand):
                                                  args.precision, tank.datetime)
             base, _ = os.path.splitext(self.filename)
             outfile = '{base}{extsep}dat'.format(base=base, extsep=os.extsep)
-            converter.convert(spikes, outfile)
+            converter.convert(spikes, args.order, outfile)
         else:
             # load the data
             tank, spikes = self._load_data(return_tank=True)
@@ -312,7 +305,7 @@ def _build_neuroscope_package(spikes, converter, base, outfile, zipped_name,
                     'tar{0}{1}'.format(os.extsep, args.compression_format))
     with closing(tarfile.open(tarfile_name,
                  'w:{0}'.format(args.compression_format))) as f:
-        converter.convert(spikes, outfile)
+        converter.convert(spikes, args.order, outfile)
         f.add(outfile)
         os.remove(outfile)
         basename = os.path.basename(base)
