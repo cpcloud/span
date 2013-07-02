@@ -219,7 +219,7 @@ def add_filename_and_id_to_parser(parser):
                         help='search in this directory for the path provided')
 
 
-def setup_logging(filename=os.path.join(os.curdir, 'log', 'access%slog' %
+def setup_logging(filename=os.path.join(os.curdir, 'log', '%s%slog' %
                                         (datetime.datetime.now().date(),
                                          os.extsep))):
     dirname = os.path.dirname(filename)
