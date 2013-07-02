@@ -238,7 +238,7 @@ def main():
     args = parser.parse_args()
     setup_logging()
     logging.info('FILENAME: %s' % args.filename)
-    raw_args = args.get_args()
+    raw_args = args._get_args()
     logging.debug('ARGS: %s' % (raw_args or None))
     raw_kwargs = args._get_kwargs()
     if raw_kwargs:
