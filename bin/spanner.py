@@ -220,7 +220,8 @@ def add_filename_and_id_to_parser(parser):
 
 
 def setup_logging(filename=os.path.join(os.curdir, 'log', 'access%slog' %
-                                        (datetime.datetime.date(), os.extsep))):
+                                        (datetime.datetime.now().date(),
+                                         os.extsep))):
     dirname = os.path.dirname(filename)
     if not os.path.exists(dirname):
         os.mkdir(dirname)
