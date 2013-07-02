@@ -3,12 +3,13 @@
 import os
 import sys
 import argparse
+import datetime
+import logging
 
 from dateutil.parser import parse as _parse_date
 
 from span.spanner.db import Db, DbCreator, DbReader, DbUpdater, DbDeleter
-from span.spanner.analyzer import (CorrelationAnalyzer, IPythonAnalyzer,
-                                   _parse_artifact_ranges)
+from span.spanner.analyzer import CorrelationAnalyzer, _parse_artifact_ranges
 from span.spanner.converters import Converter
 from span.spanner.utils import _init_db
 from span.spanner.defaults import SPAN_DB
@@ -218,6 +219,14 @@ def add_filename_and_id_to_parser(parser):
                         help='search in this directory for the path provided')
 
 
+def setup_logging(filename=os.path.join(os.curdir, 'log', 'access%slog' %
+                                        (datetime.datetime.date(), os.extsep))):
+    dirname = os.path.dirname(filename)
+    if not os.path.exists(dirname):
+        os.mkdir(dirname)
+    logging.basicConfig(filename, level=logging.DEBUG)
+
+
 def main():
     parser = argparse.ArgumentParser(description='Analyze TDT tank files')
     subparsers = parser.add_subparsers(help='Subcommands for analying TDT '
@@ -226,6 +235,9 @@ def main():
     build_convert_parser(subparsers)
     #build_db_parser(subparsers)
     args = parser.parse_args()
+    setup_logging()
+    logging.info('FILENAME: %s' % args.filename)
+    logging.debug('ARGS: %s' % args)
     return args.run(args)
 
 
