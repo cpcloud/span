@@ -225,7 +225,7 @@ def setup_logging(filename=os.path.join(os.curdir, 'log', '%s%slog' %
     dirname = os.path.dirname(filename)
     if not os.path.exists(dirname):
         os.mkdir(dirname)
-    logging.basicConfig(filename, level=logging.DEBUG)
+    logging.basicConfig(filename=filename, level=logging.DEBUG)
 
 
 def main():
