@@ -238,7 +238,14 @@ def main():
     args = parser.parse_args()
     setup_logging()
     logging.info('FILENAME: %s' % args.filename)
-    logging.debug('ARGS: %s' % args)
+    raw_args = args.get_args()
+    logging.debug('ARGS: %s' % (raw_args or None))
+    raw_kwargs = args._get_kwargs()
+    if raw_kwargs:
+        logging.debug('KWARGS: %s' % dict((k, v) for k, v in raw_kwargs
+                                          if k != 'run')
+    else:
+        logging.debug('KWARGS: None')
     return args.run(args)
 
 
