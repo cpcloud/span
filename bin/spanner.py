@@ -243,7 +243,7 @@ def main():
     raw_kwargs = args._get_kwargs()
     if raw_kwargs:
         logging.debug('KWARGS: %s' % dict((k, v) for k, v in raw_kwargs
-                                          if k != 'run')
+                                          if k != 'run'))
     else:
         logging.debug('KWARGS: None')
     return args.run(args)
