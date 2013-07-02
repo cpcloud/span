@@ -50,7 +50,7 @@ class NeuroscopeConverter(BaseConverter):
     def _convert(self, raw, order, outfile):
         exponent = self.precision - 1
         max_prec = 2.0 ** exponent - 1
-        v = raw.values * max_prec / nanmax(np.abs(v))
+        v = raw.values * max_prec / nanmax(np.abs(raw.values))
         np.asanyarray(v, self.dtype, order).tofile(outfile)
 
 
