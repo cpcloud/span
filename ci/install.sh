@@ -23,13 +23,13 @@ pip install -I -U setuptools
 pip install wheel
 
 # comment this line to disable the fetching of wheel files
-PIP_ARGS+=" -I --use-wheel --find-links=http://cache27diy-cpycloud.rhcloud.com/${TRAVIS_PYTHON_VERSION}/"
+PIP_ARGS+=" -I --use-wheel --find-links=http://cache27diy-cpycloud.rhcloud.com/span/${TRAVIS_PYTHON_VERSION}/"
 
 # Force virtualenv to accpet system_site_packages
 rm -f $VIRTUAL_ENV/lib/python$TRAVIS_PYTHON_VERSION/no-global-site-packages.txt
 
 time pip install $PIP_ARGS -r ci/requirements-${TRAVIS_PYTHON_VERSION}.txt
 
-time python setup.py build_ext install
+time python setup.py install
 
 true
