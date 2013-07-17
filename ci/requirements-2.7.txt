@@ -6,5 +6,5 @@ bottleneck==0.6.0
 numexpr==2.1
 scipy==0.10.0
 beautifulsoup4==4.2.1
-git://github.com/pydata/pandas.git
+git+git://github.com/pydata/pandas.git
 clint
