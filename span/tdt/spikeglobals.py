@@ -20,17 +20,18 @@
 # along with this program. If not, see <http://www.gnu.org/licenses/>.
 
 
-import numpy as np
-import pandas as pd
+from numpy import array
+from pandas import Series, DataFrame
 
 
-NeuroNexusMap = pd.DataFrame(np.array([[1,  3,  2,  6],
-                                       [7,  4,  8,  5],
-                                       [13, 10, 12,  9],
-                                       [14, 16, 11, 15]]).T - 1)
+RawNeuroNexus = array([[1,  3,  2,  6],
+                       [7,  4,  8,  5],
+                       [13, 10, 12,  9],
+                       [14, 16, 11, 15]]).T - 1
+NeuroNexusMap = DataFrame(RawNeuroNexus)
 
 
-TdtEventTypes = pd.Series({
+TdtEventTypes = Series({
     0x0: 'unknown',
     0x101: 'strobe_on',
     0x102: 'strobe_off',
@@ -42,7 +43,7 @@ TdtEventTypes = pd.Series({
 }, name='TDT Event Types')
 
 
-TdtDataTypes = pd.Series({
+TdtDataTypes = Series({
     0: 'float32',
     1: 'int32',
     2: 'int16',
