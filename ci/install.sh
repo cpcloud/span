@@ -30,6 +30,7 @@ rm -f $VIRTUAL_ENV/lib/python$TRAVIS_PYTHON_VERSION/no-global-site-packages.txt
 
 time pip install $PIP_ARGS -r ci/requirements-${TRAVIS_PYTHON_VERSION}.txt
 
+time python setup.py build_ext --inplace
 time python setup.py install
 
 true
