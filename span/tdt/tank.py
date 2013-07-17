@@ -30,28 +30,20 @@ Examples
 import numbers
 import os
 import re
-import warnings
 
 import numpy as np
 import pandas as pd
 from numpy import nan as NA
 from pandas import DataFrame, DatetimeIndex, Series
-from pandas.util.decorators import cache_readonly
+from pandas.core import common as com
+from pandas.core.base import StringMixin
 
 from span.tdt._read_tev import _read_tev_raw
 from span.tdt.spikedataframe import SpikeDataFrame
 from span.tdt.spikeglobals import TdtEventTypes, TdtDataTypes
-from span.utils import (thunkify, cached_property, fromtimestamp,
-                        assert_nonzero_existing_file, ispower2, OrderedDict,
-                        num2name, LOCAL_TZ, remove_first_pc)
-
-
-def _python_read_tev_raw(filename, fp_locs, block_size, spikes):
-    dt = spikes.dtype
-    with open(filename, 'rb') as f:
-        for i, loc in enumerate(fp_locs):
-            f.seek(loc)
-            spikes[i] = np.fromfile(f, dt, block_size)
+from span.utils import (thunkify, fromtimestamp, assert_nonzero_existing_file,
+                        ispower2, OrderedDict, num2name, LOCAL_TZ,
+                        remove_first_pc)
 
 
 def _first_int_group(regex, name):
@@ -61,7 +53,7 @@ def _first_int_group(regex, name):
         return None
 
 
-class TdtTank(object):
+class TdtTank(StringMixin):
     """Base class encapsulating methods for reading a TDT Tank.
 
     Parameters
@@ -150,15 +142,15 @@ class TdtTank(object):
         self.data_names = self.fs.dropna().index.values.astype(np.str_)
         self.clean = clean
 
-    def __repr__(self):
-        objr = repr(self.__class__)
+    def __unicode__(self):
+        objr = com.pprint_thing(self.__class__)
         params = dict(age=self.age, name=self.name, site=self.site, obj=objr,
                       fs=self.fs.to_dict(), datetime=str(self.datetime),
                       duration=self.duration / np.timedelta64(1, 'm'))
         fmt = ('{obj}\nname:     {name}\ndatetime: {datetime}\nage:      '
                'P{age}\nsite:     {site}\nfs:       {fs}\n'
                'duration: {duration:.2f} min')
-        return fmt.format(**params)
+        return com.pprint_thing(fmt.format(**params))
 
     @property
     def values(self):
@@ -197,7 +189,7 @@ class TdtTank(object):
 
         # -1s are invalid
         tsq.channel[tsq.channel == -1.0] = NA
-        ind = Series(self.electrode_map.shank, self.electrode_map.channel)
+        ind = self.electrode_map.raw
         tsq['shank'] = ind[tsq.channel].reset_index(tsq.index, drop=True)
 
         tsq.type = TdtEventTypes[tsq.type].values
@@ -217,12 +209,10 @@ class TdtTank(object):
             try:
                 tsq[key][not_null_strobe] = NA
             except ValueError:
-                tsq[key] = tsq[key].astype(float)
+                tsq[key] = tsq[key].astype(np.float64)
                 tsq[key][not_null_strobe] = NA
 
-        with warnings.catch_warnings():
-            warnings.simplefilter('ignore', FutureWarning)
-            tsq.sort_index(axis=1, inplace=True)
+        tsq.sort_index(axis=1, inplace=True)
 
         return tsq
 
@@ -314,11 +304,8 @@ class TdtTank(object):
         # raw ndarray for data
         spikes = DataFrame(np.empty((nblocks, block_size), dtype=dtype))
 
-        tev_name = self.path + os.extsep + self._raw_ext
-
-        with warnings.catch_warnings():
-            warnings.simplefilter('ignore', FutureWarning)
-            meta.reset_index(drop=True, inplace=True)
+        # realign
+        meta.reset_index(drop=True, inplace=True)
 
         # convert timestamps to datetime objects
         meta.timestamp = fromtimestamp(meta.timestamp)
@@ -326,6 +313,7 @@ class TdtTank(object):
 
         index = _create_ns_datetime_index(self.datetime, self.fs[event_name],
                                           nsamples)
+        tev_name = self.path + os.extsep + self._raw_ext
         sdf = _read_tev(tev_name, meta, block_size, spikes, index,
                         self.electrode_map, clean)
         sdf.isclean = clean
