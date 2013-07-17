@@ -32,11 +32,9 @@ import abc
 import functools
 import numbers
 import types
-import warnings
 
 import numpy as np
-import pandas as pd
-from pandas import Series, DataFrame, DatetimeIndex
+from pandas import Series, DataFrame, DatetimeIndex, concat
 from span.utils import samples_per_ms, clear_refrac, LOCAL_TZ
 from span.xcorr import xcorr as _xcorr
 import six
@@ -66,11 +64,11 @@ class SpikeDataFrameBase(DataFrame):
         return 1.0 / self.fs * 1e9
 
     @abc.abstractmethod
-    def threshold(self, *args, **kwargs):
+    def threshold(self, threshes):
         pass
 
     @abc.abstractmethod
-    def clear_refrac(self, *args, **kwargs):
+    def clear_refrac(self, ms, inplace):
         pass
 
 
@@ -81,7 +79,7 @@ class SpikeDataFrame(SpikeDataFrameBase):
     See the pandas DataFrame documentation for constructor details.
     """
     def __init__(self, *args, **kwargs):
-        self.super.__init__(*args, **kwargs)
+        super(SpikeDataFrame, self).__init__(*args, **kwargs)
         self.isclean = False
 
     @property
@@ -94,7 +92,10 @@ class SpikeDataFrame(SpikeDataFrameBase):
 
     @property
     def fs(self):
-        return 1e9 / self.index.freq.n
+        if self.index.freq is not None:
+            return 1e9 / self.index.freq.n
+        return 1e9 / (self.index.values[1] -
+                      self.index.values[0]).astype('m8[ns]').astype(int)
 
     def threshold(self, threshes):
         """Threshold spikes.
@@ -117,10 +118,10 @@ class SpikeDataFrame(SpikeDataFrameBase):
             threshes = np.repeat(threshes, self.nchannels)
 
         if threshes.size != self.nchannels:
-            raise AssertionError('number of threshold values must be 1 '
-                                 '(same for all channels) or {0}, different '
-                                 'threshold for each '
-                                 'channel'.format(self.nchannels))
+            raise ValueError('number of threshold values must be 1 '
+                             '(same for all channels) or {0}, different '
+                             'threshold for each '
+                             'channel'.format(self.nchannels))
 
         cmpf = self.lt if np.all(threshes < 0) else self.gt
 
@@ -129,10 +130,6 @@ class SpikeDataFrame(SpikeDataFrameBase):
 
         f = functools.partial(cmpf, axis=1)
         return f(threshes)
-
-    @property
-    def _constructor(self):
-        return self.__class__
 
     def clear_refrac(self, ms=2, inplace=False):
         """Remove spikes from the refractory period of all channels.
@@ -203,11 +200,11 @@ class SpikeDataFrame(SpikeDataFrameBase):
             _remove_null = lambda x: x & x.notnull()
 
         res = [v[_remove_null(v)] for _, v in self.iteritems()]
-        reduc = pd.concat(res, axis=1)
+        reduc = concat(res, axis=1)
         df = self._constructor(reduc.values, reduc.index, self.columns)
         df.sort_index(axis=0, inplace=True)
         df.fillna(0, inplace=True)
-        b = df.astype(bool)
+        b = df.astype(np.bool_)
         b.fillna(0, inplace=True)
         return b
 
@@ -286,9 +283,7 @@ class SpikeDataFrame(SpikeDataFrameBase):
             selector = lambda x: x[chi_ind] == x[chj_ind]
             xc.ix[0, xc0.select(selector).index] = np.nan
 
-        with warnings.catch_warnings():
-            warnings.simplefilter('ignore', FutureWarning)
-            xc.sortlevel(level=sortlevel, axis=1, inplace=True)
+        xc.sortlevel(level=sortlevel, axis=1, inplace=True)
 
         return xc
 
@@ -340,12 +335,9 @@ class SpikeDataFrame(SpikeDataFrameBase):
 
     ## reimplement methods that pandas dataframe doesn't correctly construct
     #  after calling
-    @property
-    def super(self):
-        return super(SpikeDataFrame, self)
 
     def _call_super_method(self, method_name, *args, **kwargs):
-        method = getattr(self.super, method_name)
+        method = getattr(super(SpikeDataFrame, self), method_name)
         return self._constructor(method(*args, **kwargs))
 
     def dot(self, *args, **kwargs):
