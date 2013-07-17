@@ -1,0 +1,8 @@
+python-dateutil==2.1
+pytz==2013b
+numpy==1.7.1
+cython==0.19.1
+bottleneck==0.6.0
+numexpr==2.1
+scipy==0.10.0
+beautifulsoup4==4.2.1
