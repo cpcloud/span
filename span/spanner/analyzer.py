@@ -47,9 +47,10 @@ def get_xcorr_multi_thresh(sp, threshes, sd, distance_map, binsize='S',
                                firing_rate_threshold=firing_rate_threshold,
                                refractory_period=refractory_period,
                                nan_auto=nan_auto, detrend=detrend,
-                               scale_type=scale_type) for thresh in threshes] +
-                    [distance_map], axis=1)
+                               scale_type=scale_type) for thresh in threshes],
+                    axis=1)
     dname = distance_map.name
+    xcs[dname] = distance_map
     xcs.sort(dname, inplace=True)
     subset = xcs.columns[xcs.columns != dname]
     xcs = xcs.dropna(axis=0, how='all', subset=subset)
