@@ -79,6 +79,29 @@ def concat_xcorrs(xcs, scale_max_dist):
     return xc_all.dropna(axis=0, how='all', subset=subset)
 
 
+def tank_to_prec(tank, **fields):
+    from pandas import Series
+    d = {'date': tank.date,
+         'filename': tank.path,
+         'age': tank.age,
+         'weight': fields.get('weight', None),
+         'probe': fields.get('probe', None),
+         'within_shank': tank.electrode_map.within_shank,
+         'between_shank': tank.electrode_map.between_shank,
+         'order': fields.get('order', None),
+         'site': tank.site,
+         'condition': fields.get('condition', None),
+         'animal_type': fields.get('animal_type', None),
+         'filebase': tank.path,
+         'basename': tank.name,
+         'duration': tank.duration,
+         'start': tank.start,
+         'end': tank.end}
+    d.update(fields)
+    prec = Series(d, name='prec')
+    return prec
+
+
 def compute_xcorr_with_args(args):
     filename = args.filename
     h5name = '{0}{1}h5'.format(filename, os.extsep)
@@ -92,6 +115,8 @@ def compute_xcorr_with_args(args):
     xcs_name = 'xcs_{name}'.format(name=name)
     em = ElectrodeMap(NeuroNexusMap.values, args.within_shank,
                       args.between_shank)
+    # make a tank
+    tank = TdtTank(filename, em, clean=args.remove_first_pc)
 
     try:
         xcs = pd.read_hdf(h5name, xcs_name)
@@ -101,8 +126,6 @@ def compute_xcorr_with_args(args):
             spikes.columns = pd.MultiIndex.from_tuples(spikes.columns,
                                                     names=['shank', 'channel'])
         except KeyError:
-            # make a tank
-            tank = TdtTank(filename, em, clean=args.remove_first_pc)
 
             # get the raw data
             spikes = tank.spik
@@ -125,12 +148,18 @@ def compute_xcorr_with_args(args):
                                      not args.keep_auto, args.detrend,
                                      args.scale_type)
         xcs.to_hdf(h5name, xcs_name)
+
+    try:
+        prec = pd.read_hdf(h5name, 'prec')
+    except KeyError:
+        prec = tank_to_prec(tank)
+        prec.to_hdf(h5name, 'prec')
+
     # concat all xcorrs
     xcs_df = concat_xcorrs(xcs, args.scale_max_dist)
 
     # remove the data that is useless
     trimmed = trim_sans_distance(xcs_df)
-
     return trimmed, tank.age, tank.site
 
 
