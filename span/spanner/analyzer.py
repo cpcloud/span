@@ -26,7 +26,7 @@ def _parse_artifact_ranges(s):
 
 def get_xcorr(sp, threshold, sd, binsize='S', how='sum',
               firing_rate_threshold=1.0, refractory_period=2, nan_auto=True,
-              detrend='mean', scale_type='normalize'):
+              detrend='mean', scale_type='normalize', which_lag=0):
     thr = sp.threshold(threshold * sd)
     thr.clear_refrac(refractory_period, inplace=True)
 
@@ -35,20 +35,20 @@ def get_xcorr(sp, threshold, sd, binsize='S', how='sum',
 
     xc = thr.xcorr(binned, detrend=getattr(span, 'detrend_' + detrend),
                    scale_type=scale_type, nan_auto=nan_auto)
-    return xc
+    return xc.loc[which_lag]
 
 
 def get_xcorr_multi_thresh(sp, threshes, sd, distance_map, binsize='S',
                            how='sum', firing_rate_threshold=1.0,
                            refractory_period=2, nan_auto=True, detrend='mean',
-                           scale_type='normalize'):
+                           scale_type='normalize', which_lag=0):
     xcs = pd.concat([get_xcorr(sp, threshold=thresh, sd=sd, binsize=binsize,
                                how=how,
                                firing_rate_threshold=firing_rate_threshold,
                                refractory_period=refractory_period,
                                nan_auto=nan_auto, detrend=detrend,
-                               scale_type=scale_type) for thresh in threshes],
-                    axis=1)
+                               scale_type=scale_type, which_lag=0) for thresh
+                     in threshes], axis=1)
     dname = distance_map.name
     xcs[dname] = distance_map
     xcs.sort(dname, inplace=True)
