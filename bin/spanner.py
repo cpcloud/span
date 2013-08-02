@@ -49,15 +49,15 @@ def build_analyze_parser(subparsers):
                              help='scale the distance on the y-axis relative'
                              ' to the max distance', action='store_true')
         thresholding.add_argument(
-            '-T', '--max-threshold', type=float, default=4.0,
+            '-T', '--max-threshold', type=float, default=7.0,
             help='maximum threshold in multiples of the standard deviation of '
             'the voltage data')
         thresholding.add_argument(
-            '-t', '--min-threshold', type=float, default=3.0,
+            '-t', '--min-threshold', type=float, default=0.0,
             help='minimum threshold in multiples of the standard deviation of '
             'the voltage data')
         thresholding.add_argument('-n', '--num-thresholds', type=int,
-                                  default=50)
+                                  default=40)
         thresholding.add_argument(
             '-r', '--refractory-period', type=int, default=2, help='refractory'
             ' period in milliseconds')
