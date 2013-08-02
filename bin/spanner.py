@@ -36,12 +36,18 @@ def build_analyze_parser(subparsers):
                               help='remove the first principal component of '
                               'the data. warning: this drastically slows down '
                               'the analysis')
+        cleaning.add_argument('-S', '--store-h5', action='store_true',
+                              help='store the raw data in HDF5 format for '
+                              'later use')
         display.add_argument('-o', '--plot-filename', help='the name of the '
                              'file to which the plot is output')
         display.add_argument('-F', '--plot-format', help='the output format of'
                              ' the plot', default='pdf')
         display.add_argument('-B', '--sort-by', help='how to sort the '
                              'resulting y-axis', choices=('shank', 'distance'))
+        display.add_argument('-D', '--scale-max-dist',
+                             help='scale the distance on the y-axis relative'
+                             ' to the max distance', action='store_true')
         thresholding.add_argument(
             '-T', '--max-threshold', type=float, default=4.0,
             help='maximum threshold in multiples of the standard deviation of '

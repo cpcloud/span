@@ -259,7 +259,7 @@ class TdtTank(StringMixin):
     def raw(self):
         return self._raw_tsq()()
 
-    def _tev(self, event_name, clean=True):
+    def _tev(self, event_name, clean):
         """Return the data from a particular event.
 
         Parameters
@@ -319,8 +319,53 @@ class TdtTank(StringMixin):
         sdf.isclean = clean
         return sdf
 
+    def __hash__(self):
+        return hash(self.datetime)
+
+    def __eq__(self, other):
+        if not isinstance(other, self.__class__):
+            raise TypeError("cannot compare objects of type {0!r} with objects"
+                            " of type {1!r} can only compare objects of the"
+                            " same type as "
+                            "{0!r}".format(self.__class__, other.__class__))
+        return hash(self) == hash(other)
+
+    def __ne__(self, other):
+        return not self == other
+
+    def to_hdf(self, event_name='Spik', **fields):
+        filename = '{0}_{1:x}{2}h5'.format(self.name, hash(str(hash(self) +
+                                                              hash(event_name))),
+                                          os.extsep)
+        tev = getattr(self, event_name.lower())
+        tsq = self.tsq(event_name)
+        DataFrame(tev).to_hdf(filename, 'sp', append=True)
+        tsq.to_hdf(filename, 'tsq', append=True)
+        sd = tev.std()
+        sd.to_hdf(filename, 'sd')
+        d = {'date': self.date,
+             'filename': self.path,
+             'age': self.age,
+             'weight': None,
+             'probe': None,
+             'within_shank': self.electrode_map.within_shank,
+             'between_shank': self.electrode_map.between_shank,
+             'order': None,
+             'site': self.site,
+             'condition': None,
+             'animal_type': None,
+             'filebase': self.path,
+             'basename': self.name,
+             'duration': self.duration,
+             'start': self.start,
+             'end': self.end}
+        d.update(fields)
+        prec = Series(d, name='prec')
+        prec.to_hdf(filename, prec.name)
+
 
 PandasTank = TdtTank
+Tank = PandasTank
 
 
 def _create_ns_datetime_index(start, fs, nsamples, name='datetime'):
@@ -361,7 +406,6 @@ def _read_tev(filename, meta, block_size, spikes, index, electrode_map, clean):
     assert spikes.shape[1] == block_size, \
         'number of columns of spikes must equal block_size'
     assert isinstance(index, pd.Index), 'index must be an instance of Index'
-    assert clean in (0, 1, False, True), 'clean must be a boolean or 0 or 1'
 
     return _read_tev_impl(filename, meta, block_size, spikes, index,
                           electrode_map, clean)
@@ -384,8 +428,9 @@ def _read_tev_impl(filename, meta, block_size, spikes, index, electrode_map,
     reshaped = _reshape_spikes(spikes.values, group_inds)
     raw = reshaped.take(electrode_map.channel, axis=1)
     df = SpikeDataFrame(raw, index, electrode_map.index, dtype=float)
-
-    return remove_first_pc(df) if clean else df
+    if clean:
+        remove_first_pc(df)
+    return df
 
 
 if __name__ == '__main__':
