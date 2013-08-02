@@ -90,6 +90,8 @@ def compute_xcorr_with_args(args):
                               args.refractory_period, args.detrend,
                               args.scale_type)))
     xcs_name = 'xcs_{name}'.format(name=name)
+    em = ElectrodeMap(NeuroNexusMap.values, args.within_shank,
+                      args.between_shank)
 
     try:
         xcs = pd.read_hdf(h5name, xcs_name)
@@ -100,8 +102,6 @@ def compute_xcorr_with_args(args):
                                                     names=['shank', 'channel'])
         except KeyError:
             # make a tank
-            em = ElectrodeMap(NeuroNexusMap.values, args.within_shank,
-                              args.between_shank)
             tank = TdtTank(filename, em, clean=args.remove_first_pc)
 
             # get the raw data
