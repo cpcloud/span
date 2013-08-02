@@ -25,30 +25,26 @@ def _parse_artifact_ranges(s):
 
 
 def get_xcorr(sp, threshold, sd, binsize='S', how='sum',
-              firing_rate_threshold=1.0, maxlags=1, which_lag=0,
-              refractory_period=2, nan_auto=True, detrend='mean',
-              scale_type='normalize'):
+              firing_rate_threshold=1.0, refractory_period=2, nan_auto=True,
+              detrend='mean', scale_type='normalize'):
     thr = sp.threshold(threshold * sd)
     thr.clear_refrac(refractory_period, inplace=True)
 
     binned = thr.resample(binsize, how=how)
     binned.loc[:, binned.mean() < firing_rate_threshold] = np.nan
 
-    xc = thr.xcorr(binned, maxlags=maxlags, detrend=getattr(span, 'detrend_' +
-                                                            detrend),
-                   scale_type=scale_type, nan_auto=nan_auto).ix[which_lag]
-    xc.name = threshold
+    xc = thr.xcorr(binned, detrend=getattr(span, 'detrend_' + detrend),
+                   scale_type=scale_type, nan_auto=nan_auto)
     return xc
 
 
 def get_xcorr_multi_thresh(sp, threshes, sd, distance_map, binsize='S',
-                           how='sum', firing_rate_threshold=1.0, maxlags=1,
-                           which_lag=0, refractory_period=2, nan_auto=True,
-                           detrend='mean', scale_type='normalize'):
+                           how='sum', firing_rate_threshold=1.0,
+                           refractory_period=2, nan_auto=True, detrend='mean',
+                           scale_type='normalize'):
     xcs = pd.concat([get_xcorr(sp, threshold=thresh, sd=sd, binsize=binsize,
                                how=how,
                                firing_rate_threshold=firing_rate_threshold,
-                               maxlags=maxlags, which_lag=which_lag,
                                refractory_period=refractory_period,
                                nan_auto=nan_auto, detrend=detrend,
                                scale_type=scale_type) for thresh in threshes] +
@@ -148,7 +144,6 @@ def compute_xcorr_with_args(args):
                                      not args.keep_auto, args.detrend,
                                      args.scale_type)
         xcs.to_hdf(h5name, xcs_name)
-
     try:
         prec = pd.read_hdf(h5name, 'prec')
     except KeyError:

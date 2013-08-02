@@ -78,9 +78,6 @@ def build_analyze_parser(subparsers):
             '-m', '--detrend', choices=('mean', 'linear', 'none'),
             default='mean', help='function to use to detrend the raw cross '
             'correlation')
-        xcorr.add_argument('-l', '--max-lags', type=int, default=1,
-                           help='maximum number of lags of the cross '
-                           'correlation to return')
         xcorr.add_argument('-L', '--which-lag', type=int, default=0)
         xcorr.add_argument(
             '-k', '--keep-auto', action='store_true', help='keep the '
