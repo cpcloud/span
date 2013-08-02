@@ -223,10 +223,12 @@ def plot_xcorrs(trimmed, tick_labelsize=8, titlesize=15, xlabelsize=10,
     ax.set_title(title, fontsize=titlesize)
 
 
+
 def show_xcorr(args):
     import matplotlib as mpl
     mpl.use('Agg')
     trimmed, age, site = compute_xcorr_with_args(args)
+    trimmed = trimmed.set_index(['distance'], append=True, drop=True)
 
     ax, im = frame_image(trimmed)
     fig = ax.get_figure()
@@ -237,7 +239,6 @@ def show_xcorr(args):
     elif args.sort_by == 'distance':
         trimmed.sortlevel('distance', inplace=True)
 
-    trimmed = trimmed.set_index(['distance'], append=True, drop=True)
     m, n = trimmed.shape
 
     ax.set_xticks(np.arange(n))
