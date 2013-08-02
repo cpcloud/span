@@ -237,7 +237,7 @@ def show_xcorr(args):
     elif args.sort_by == 'distance':
         trimmed.sortlevel('distance', inplace=True)
 
-    trimmed.set_index(['distance'], append=True, inplace=True, drop=True)
+    trimmed = trimmed.set_index(['distance'], append=True, drop=True)
     m, n = trimmed.shape
 
     ax.set_xticks(np.arange(n))
