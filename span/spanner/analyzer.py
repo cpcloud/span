@@ -35,7 +35,9 @@ def get_xcorr(sp, threshold, sd, binsize='S', how='sum',
 
     xc = thr.xcorr(binned, detrend=getattr(span, 'detrend_' + detrend),
                    scale_type=scale_type, nan_auto=nan_auto)
-    return xc.loc[which_lag]
+    s = xc.loc[which_lag]
+    s.name = threshold
+    return s
 
 
 def get_xcorr_multi_thresh(sp, threshes, sd, distance_map, binsize='S',
