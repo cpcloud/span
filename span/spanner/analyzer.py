@@ -138,11 +138,13 @@ def compute_xcorr_with_args(args):
 
         # compute the cross correlation at each threshold
         xcs = get_xcorr_multi_thresh(spikes, threshes, sd, em.distance_map(),
-                                     args.bin_size, args.bin_method,
-                                     args.firing_rate_threshold, args.max_lags,
-                                     args.which_lag, args.refractory_period,
-                                     not args.keep_auto, args.detrend,
-                                     args.scale_type)
+                                     binsize=args.bin_size,
+                                     how=args.bin_method,
+                                     firing_rate_threshold=args.firing_rate_threshold,
+                                     refractory_period=args.refractory_period,
+                                     nan_auto=not args.keep_auto,
+                                     detrend=args.detrend,
+                                     scale_type=args.scale_type)
         xcs.to_hdf(h5name, xcs_name)
     try:
         prec = pd.read_hdf(h5name, 'prec')
