@@ -173,7 +173,7 @@ class SpikeDataFrame(SpikeDataFrameBase):
             return
 
         ms_fs = samples_per_ms(self.fs, ms)
-        df = self.copy() if inplace else self
+        df = self.copy() if not inplace else self
         values = df.values
         clear_refrac(values, ms_fs)
 

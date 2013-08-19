@@ -30,7 +30,10 @@ try:
 except ImportError:
     raise ImportError('NumPy is not installed on your system')
 
-from distutils.core import setup
+try:
+    from setuptools import setup
+except ImportError:
+    from distutils.core import setup
 
 from Cython.Distutils import build_ext
 from Cython.Distutils.extension import Extension

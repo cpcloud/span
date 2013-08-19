@@ -12,6 +12,27 @@ from span.spanner.command import SpanCommand
 from span.spanner.utils import error
 
 
+def _get_max_within_shank(xcs):
+    shank_i, shank_j = map(xcs.index.get_level_values, ('shank i', 'shank j'))
+    eq_shanks = shank_i == shank_j
+    return xcs.distance[eq_shanks].max(), eq_shanks
+
+
+def split_xcorrs(xcs):
+    max_within_shank, eq_shanks = _get_max_within_shank(xcs)
+    dist_index = xcs.distance <= max_within_shank
+    shanks_equal = xcs[dist_index & eq_shanks]
+    shanks_not_equal = xcs[~eq_shanks]
+    return shanks_equal, shanks_not_equal
+
+
+def split_xcorrs_index(xcs):
+    w, b = split_xcorrs(xcs)
+    w.set_index(['distance'], append=True, inplace=True)
+    b.set_index(['distance'], append=True, inplace=True)
+    return w.index.append(b.index)
+
+
 def _colon_to_slice(c):
     splitter = re.compile(r'\s*:\s*')
     start, stop = splitter.split(c)
@@ -68,7 +89,7 @@ def trim_sans_distance(xcs_df, dist_key='distance'):
                          subset=subset).dropna(axis=1, how='all')
 
 
-def concat_xcorrs(xcs, scale_max_dist):
+def concat_xcorrs(xcs, scale_max_dist=False):
     xc_all = xcs.copy()
     if scale_max_dist:
         xc_all.distance /= xc_all.distance.max()
@@ -168,6 +189,19 @@ try:
 except ImportError:
     from numpy import nanmax, nanmin
 
+def _try_1f(value):
+    try:
+        return '{0:.1f}'.format(float(value))
+    except ValueError:
+        return value
+
+
+def _get_xticklabels(threshes, formatter=_try_1f):
+    strs = pd.Series(map(str, threshes))
+    radix = strs.str.split('.').str.get(0).duplicated()
+    strs[radix] = ''
+    return map(formatter, strs)
+
 
 def frame_image(df, figsize=(16, 9), interpolation='none', cbar_mode='single',
                 cbar_size='10%', cbar_pad=0.05, cbar_location='right',
@@ -190,10 +224,27 @@ def frame_image(df, figsize=(16, 9), interpolation='none', cbar_mode='single',
     return ax, im
 
 
+def _color_yticks(xcs, color):
+    colored = r'\textbf{{{0}}}, {1}, \textbf{{{2}}}, {3}, {4:.1f}'
+    try:
+        index = split_xcorrs_index(xcs.reset_index('distance'))
+        res = map(lambda x: colored.format(*x), index.values)
+        print(res)
+        return res
+    except IndexError:
+        v = xcs.index.values
+
+        try:
+            return map(lambda x: '{0:.1f}'.format(float(x)), v)
+        except TypeError:
+            return map('{0}'.format, v)
+
+
 def plot_xcorrs(trimmed, tick_labelsize=8, titlesize=15, xlabelsize=10,
                 ylabelsize=10, cbar_labelsize=8, title='',
                 xlabel='Threshold (multiples of standard deviation)',
-                ylabel='', figsize=(16, 9), usetex=True):
+                ylabel='', figsize=(16, 9), usetex=True,
+                split_color='blue'):
     import matplotlib as mpl
     mpl.rc('text', usetex=usetex)
 
@@ -205,23 +256,18 @@ def plot_xcorrs(trimmed, tick_labelsize=8, titlesize=15, xlabelsize=10,
     m, n = trimmed.shape
 
     ax.set_xticks(np.arange(n))
-    ax.set_xticklabels(map('{0:.1f}'.format,
-                           trimmed.columns.values.astype(float)))
+    tlbls = _get_xticklabels(trimmed.columns.values.astype(float))
+    ax.set_xticklabels(tlbls)
     ax.tick_params(labelsize=tick_labelsize, left=False, top=False, right=False,
                    bottom=False)
     ax.cax.colorbar(im)
     ax.cax.tick_params(labelsize=cbar_labelsize, right=False)
     ax.set_yticks(np.arange(m))
     ax.set_xlabel(xlabel, fontsize=xlabelsize)
-    f = lambda x: r'\textbf{{{0}}}, {1}, \textbf{{{2}}}, {3}, {4:.1f}'.format(*x)
 
-    try:
-        ax.set_yticklabels(map(f, trimmed.index))
-    except TypeError:
-        ax.set_yticklabels(map('{0:.1f}'.format, trimmed.index))
+    ax.set_yticklabels(_color_yticks(trimmed, split_color))
     ax.set_ylabel(ylabel, fontsize=ylabelsize)
     ax.set_title(title, fontsize=titlesize)
-
 
 
 def show_xcorr(args):
