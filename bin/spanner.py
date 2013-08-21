@@ -234,7 +234,7 @@ def setup_logging(filename=None):
         os.mkdir(dirname)
     logging.basicConfig(filename=filename, level=logging.DEBUG, filemode='a',
                         format='%(asctime)s %(message)s',
-                        datefmt='%m/%d/%Y %I:%M:%S %p')
+                        datefmt='%m/%d/%Y-%R:%S.%f')
 
 
 def main():
@@ -247,20 +247,20 @@ def main():
 
     args = parser.parse_args()
     setup_logging()
-    logging.debug('ID: %s' % hash(os.path.basename(args.filename)))
+    logging.debug('ID %s' % hash(os.path.basename(args.filename)))
 
     raw_args = args._get_args()
     for arg in raw_args:
-        logging.debug('ARGS: %s' % arg)
+        logging.debug('ARGS "%s"' % arg)
 
     raw_kwargs = args._get_kwargs()
     for k, v in ifilter(lambda (k, v): k != 'run', raw_kwargs):
-        logging.debug('KWARGS: {0}={1}'.format(k, v))
+        logging.debug('KWARGS {0}="{1}"'.format(k, v))
 
     try:
         return args.run(args)
     except Exception as e:
-        logging.debug("ERROR: %s" % e)
+        logging.debug('ERROR "%s"' % e)
 
 
 if __name__ == '__main__':
