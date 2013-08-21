@@ -5,6 +5,7 @@ import sys
 import argparse
 import datetime
 import logging
+import inspect
 
 from dateutil.parser import parse as _parse_date
 
@@ -222,15 +223,10 @@ def add_filename_and_id_to_parser(parser):
                         help='search in this directory for the path provided')
 
 
-def _get_module_name(obj):
-    import inspect
-    return inspect.getmodule(obj).__name__
-
-
 def setup_logging(filename=None):
     if filename is None:
         filename = os.path.expanduser(os.path.join('~', '.log', '%s%slog' %
-                                                   (_get_module_name(main),
+                                                   (inspect.getmodulename(__file__),
                                                     os.extsep)))
 
     dirname = os.path.dirname(filename)
