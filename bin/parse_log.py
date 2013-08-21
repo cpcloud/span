@@ -1,12 +1,15 @@
 #!/usr/bin/env python
 
+from pandas import read_csv
 
-def parse_log(filename, sep='|', value_splitter='='):
-    df = read_csv(filename, sep=sep)
-    split_value_names = df.value.str.split(value_splitter)
-    value_names = split_value_names.str[0]
-    values = split_value_names.str[1]
-    filenames = values[value_names == 'filename']
+
+def parse_log(filename, sep=r'\||='):
+    df = read_csv(filename, sep=sep, names=['date', 'kind', 'param_name',
+                                            'param_value'])
+    kind = df.kind.str.lower()
+    mask = (df.param_name == 'filename') & (kind == 'error')
+    bad_files = df[mask].drop_duplicates()
+    return bad_files
 
 
 

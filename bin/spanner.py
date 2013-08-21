@@ -257,7 +257,7 @@ def main():
 
     raw_kwargs = args._get_kwargs()
     for k, v in ifilter(lambda (k, v): k != 'run', raw_kwargs):
-        logging.debug('KWARGS|%s=%r' % (k, com.pprint_thing(v)))
+        logging.debug('KWARGS|%s|%r' % (k, com.pprint_thing(v)))
 
     try:
         return args.run(args)
