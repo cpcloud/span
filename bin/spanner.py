@@ -253,7 +253,7 @@ def main():
         logging.debug('ARGS: %s' % arg)
 
     raw_kwargs = args._get_kwargs()
-    for k, v in ifilter(lambda (k, v): k != 'run', raw_kwargs.items()):
+    for k, v in ifilter(lambda (k, v): k != 'run', raw_kwargs):
         logging.debug('KWARGS: {0} = {1}'.format(k, v))
 
     try:
