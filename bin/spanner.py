@@ -261,7 +261,6 @@ def main():
         return args.run(args)
     except Exception as e:
         logging.debug("ERROR: %s" % e)
-        raise
 
 
 if __name__ == '__main__':
