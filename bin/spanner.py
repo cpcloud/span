@@ -7,6 +7,8 @@ import logging
 import inspect
 from itertools import ifilter
 
+import pandas.common as com
+
 from dateutil.parser import parse as _parse_date
 
 from span.spanner.db import Db, DbCreator, DbReader, DbUpdater, DbDeleter
@@ -233,8 +235,8 @@ def setup_logging(filename=None):
     if not os.path.exists(dirname):
         os.mkdir(dirname)
     logging.basicConfig(filename=filename, level=logging.DEBUG, filemode='a',
-                        format='%(asctime)s %(message)s',
-                        datefmt='%m/%d/%Y-%R:%S.%f')
+                        format='%(asctime)s|%(message)s',
+                        datefmt='%m/%d/%Y-%R:%S')
 
 
 def main():
@@ -247,20 +249,20 @@ def main():
 
     args = parser.parse_args()
     setup_logging()
-    logging.debug('ID %s' % hash(os.path.basename(args.filename)))
+    logging.debug('ID|%s' % hash(os.path.basename(args.filename)))
 
     raw_args = args._get_args()
     for arg in raw_args:
-        logging.debug('ARGS "%s"' % arg)
+        logging.debug('ARGS|%r' % arg)
 
     raw_kwargs = args._get_kwargs()
     for k, v in ifilter(lambda (k, v): k != 'run', raw_kwargs):
-        logging.debug('KWARGS {0}="{1}"'.format(k, v))
+        logging.debug('KWARGS|%s=%r' % (k, com.pprint_thing(v)))
 
     try:
         return args.run(args)
     except Exception as e:
-        logging.debug('ERROR "%s"' % e)
+        logging.debug('ERROR|%r' % e)
 
 
 if __name__ == '__main__':
