@@ -247,6 +247,7 @@ def main():
 
     args = parser.parse_args()
     setup_logging()
+    logging.debug('ID: %s' % hash(os.path.basename(args.filename)))
 
     raw_args = args._get_args()
     for arg in raw_args:
@@ -254,7 +255,7 @@ def main():
 
     raw_kwargs = args._get_kwargs()
     for k, v in ifilter(lambda (k, v): k != 'run', raw_kwargs):
-        logging.debug('KWARGS: {0} = {1}'.format(k, v))
+        logging.debug('KWARGS: {0}={1}'.format(k, v))
 
     try:
         return args.run(args)
