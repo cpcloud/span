@@ -7,7 +7,7 @@ import logging
 import inspect
 from itertools import ifilter
 
-import pandas.common as com
+import pandas.core.common as com
 
 from dateutil.parser import parse as _parse_date
 
