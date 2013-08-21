@@ -3,9 +3,9 @@
 import os
 import sys
 import argparse
-import datetime
 import logging
 import inspect
+from itertools import ifilter
 
 from dateutil.parser import parse as _parse_date
 
@@ -244,17 +244,18 @@ def main():
     build_analyze_parser(subparsers)
     build_convert_parser(subparsers)
     #build_db_parser(subparsers)
+
     args = parser.parse_args()
     setup_logging()
-    logging.info('FILENAME: %s' % args.filename)
+
     raw_args = args._get_args()
-    logging.debug('ARGS: %s' % (raw_args or None))
+    for arg in raw_args:
+        logging.debug('ARGS: %s' % arg)
+
     raw_kwargs = args._get_kwargs()
-    if raw_kwargs:
-        logging.debug('KWARGS: %s' % dict((k, v) for k, v in raw_kwargs
-                                          if k != 'run'))
-    else:
-        logging.debug('KWARGS: None')
+    for k, v in ifilter(lambda (k, v): k != 'run', raw_kwargs.items()):
+        logging.debug('KWARGS: {0} = {1}'.format(k, v))
+
     try:
         return args.run(args)
     except Exception as e:
