@@ -222,10 +222,17 @@ def add_filename_and_id_to_parser(parser):
                         help='search in this directory for the path provided')
 
 
-def setup_logging(filename=os.path.expanduser(os.path.join('~', '.log',
-                                                           '%s%slog' %
-                                                           (__name__,
-                                                            os.extsep)))):
+def _get_module_name(obj):
+    import inspect
+    return inspect.getmodule(obj).__name__
+
+
+def setup_logging(filename=None):
+    if filename is None:
+        filename = os.path.expanduser(os.path.join('~', '.log', '%s%slog' %
+                                                   (_get_module_name(main),
+                                                    os.extsep)))
+
     dirname = os.path.dirname(filename)
     if not os.path.exists(dirname):
         os.mkdir(dirname)
