@@ -222,13 +222,16 @@ def add_filename_and_id_to_parser(parser):
                         help='search in this directory for the path provided')
 
 
-def setup_logging(filename=os.path.join(os.curdir, 'log', '%s%slog' %
-                                        (datetime.datetime.now().date(),
-                                         os.extsep))):
+def setup_logging(filename=os.path.expanduser(os.path.join('~', '.log',
+                                                           '%s%slog' %
+                                                           (__name__,
+                                                            os.extsep)))):
     dirname = os.path.dirname(filename)
     if not os.path.exists(dirname):
         os.mkdir(dirname)
-    logging.basicConfig(filename=filename, level=logging.DEBUG)
+    logging.basicConfig(filename=filename, level=logging.DEBUG, filemode='a',
+                        format='%(asctime)s %(message)s',
+                        datefmt='%m/%d/%Y %I:%M:%S %p')
 
 
 def main():
@@ -249,7 +252,11 @@ def main():
                                           if k != 'run'))
     else:
         logging.debug('KWARGS: None')
-    return args.run(args)
+    try:
+        return args.run(args)
+    except Exception as e:
+        logging.debug("ERROR: %s" % e)
+        raise
 
 
 if __name__ == '__main__':
