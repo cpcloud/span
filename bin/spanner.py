@@ -31,6 +31,9 @@ def build_analyze_parser(subparsers):
                                        argparse.ArgumentDefaultsHelpFormatter)
         parser.add_argument('-f', '--filename', help='filename')
         parser.add_argument('-i', '--id', help='id')
+        parser.add_argument('-K', '--fail-fast', help='raise an exception '
+                            'instead of just writing to a log file',
+                            action='store_true')
         cleaning = parser.add_argument_group('cleaning')
         display = parser.add_argument_group('display')
         thresholding = parser.add_argument_group('thresholding')
@@ -266,7 +269,8 @@ def main():
             return args.run(args)
     except Exception as e:
         logging.debug('ERROR|%r' % e)
-        raise
+        if args.fail_fast:
+            raise
 
 
 if __name__ == '__main__':
