@@ -207,7 +207,7 @@ def compute_xcorr_with_args(args):
 
     # remove the data that is useless
     trimmed = trim_sans_distance(xcs_df)
-    return trimmed, tank.age, tank.site
+    return trimmed, tank.age, tank.site, tank.date
 
 
 try:
