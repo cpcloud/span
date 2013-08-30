@@ -255,7 +255,6 @@ def _color_yticks(xcs, color):
     try:
         index = split_xcorrs_index(xcs.reset_index('distance'))
         res = map(lambda x: colored.format(*x), index.values)
-        print(res)
         return res
     except IndexError:
         v = xcs.index.values
@@ -316,13 +315,12 @@ def show_xcorr(args):
     agg = agg.drop_duplicates().dropna(how='all', axis=0,
                                        subset=cols[cols != 'distance'])
     fig, _ = plot_xcorrs(agg, title='Age: P{0}, Site: {1}, Date: '
-                         '{2}'.format(age, site, date), tick_labelsize=5,
-                         usetex=False)
+                         '{2}'.format(age, site, date), tick_labelsize=5)
 
     plot_filename = args.plot_filename or os.path.splitext(args.filename)[0]
 
     with warnings.catch_warnings():
-        warnings.simplefilter('ignore', UserWarning)
+        warnings.simplefilter('ignore', Warning)
         fig.tight_layout()
         fig.autofmt_xdate()
         fmt = args.plot_format
