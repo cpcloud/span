@@ -10,6 +10,7 @@ from span import ElectrodeMap, NeuroNexusMap, TdtTank, SpikeDataFrame
 
 from span.spanner.command import SpanCommand
 from span.spanner.utils import error
+from span.utils import bold, green, puts
 
 
 def _is_proper_spike_frame(df):
@@ -161,27 +162,28 @@ def compute_xcorr_with_args(args):
 
     try:
         xcs = pd.read_hdf(h5name, xcs_name)
-        print('loaded cleaned xcs data')
+        puts(bold(green('loaded cleaned xcs data')))
     except KeyError:
         try:
             spikes = _frame_to_spike_frame(pd.read_hdf(h5name, 'sp'))
-            print('read spikes from h5 file, shape: {0}'.format(spikes.shape))
+            puts(bold(green('read spikes from h5 file, shape: '
+                            '{0}'.format(spikes.shape))))
         except KeyError:
             # get the raw data
             spikes = _frame_to_spike_frame(tank.spik)
 
             if args.store_h5:
                 pd.DataFrame(spikes).to_hdf(h5name, 'sp', append=True)
-                print('wrote h5 file')
+                puts(bold(green('wrote h5 file')))
 
         # get the threshes
         try:
             sd = pd.read_hdf(h5name, 'sd')
-            print('loaded sd from h5')
+            puts(bold(green('loaded sd from h5')))
         except KeyError:
             sd = spikes.std()
             sd.to_hdf(h5name, 'sd')
-            print('wrote sd to h5')
+            puts(bold(green('wrote sd to h5')))
 
         # compute the cross correlation at each threshold
         xcs = get_xcorr_multi_thresh(spikes, threshes, sd, em.distance_map(),
@@ -326,8 +328,8 @@ def show_xcorr(args):
     ax.set_ylabel('shank i, channel i, shank j, channel j % of max distance',
                   fontsize=6)
     ax.set_title('Age: {0}, Site: {1}'.format(age, site))
-    if args.plot_filename is None:
-        plot_filename = os.path.splitext(args.filename)[0]
+    plot_filename = args.plot_filename or os.path.splitext(args.filename)[0]
+
     with warnings.catch_warnings():
         warnings.simplefilter('ignore', UserWarning)
         fig.tight_layout()
