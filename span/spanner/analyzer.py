@@ -315,7 +315,7 @@ def show_xcorr(args):
     cols = agg.columns
     agg = agg.drop_duplicates().dropna(how='all', axis=0,
                                        subset=cols[cols != 'distance'])
-    fig, _ = plot_xcorrs(agg, title='Age: {0}, Site: {1}, Date: '
+    fig, _ = plot_xcorrs(agg, title='Age: P{0}, Site: {1}, Date: '
                          '{2}'.format(age, site, date), tick_labelsize=5,
                          usetex=False)
 
