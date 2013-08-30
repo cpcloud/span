@@ -12,6 +12,27 @@ from span.spanner.command import SpanCommand
 from span.spanner.utils import error
 
 
+def _is_proper_spike_frame(df):
+    return (isinstance(df, SpikeDataFrame) and
+            isinstance(df.columns, pd.MultiIndex) and
+            isinstance(df.index, pd.DatetimeIndex) and
+            df.columns.names == ['shank', 'channel'])
+
+
+def _frame_to_spike_frame(df, names=None):
+    if _is_proper_spike_frame(df):
+        return df
+    columns = df.columns.copy()
+    names = names or columns.names or ['shank', 'channel']
+
+    if not isinstance(columns, pd.MultiIndex):
+        columns = pd.MultiIndex.from_tuples(columns, names=names)
+    else:
+        columns.names = names
+
+    return SpikeDataFrame(df.values, index=df.index, columns=columns)
+
+
 def _get_max_within_shank(xcs):
     shank_i, shank_j = map(xcs.index.get_level_values, ('shank i', 'shank j'))
     eq_shanks = shank_i == shank_j
@@ -140,25 +161,27 @@ def compute_xcorr_with_args(args):
 
     try:
         xcs = pd.read_hdf(h5name, xcs_name)
+        print('loaded cleaned xcs data')
     except KeyError:
         try:
-            spikes = SpikeDataFrame(pd.read_hdf(h5name, 'sp'))
-            spikes.columns = pd.MultiIndex.from_tuples(spikes.columns,
-                                                    names=['shank', 'channel'])
+            spikes = _frame_to_spike_frame(pd.read_hdf(h5name, 'sp'))
+            print('read spikes from h5 file')
         except KeyError:
-
             # get the raw data
-            spikes = tank.spik
+            spikes = _frame_to_spike_frame(tank.spik)
 
             if args.store_h5:
                 pd.DataFrame(spikes).to_hdf(h5name, 'sp', append=True)
+                print('wrote h5 file')
 
         # get the threshes
         try:
             sd = pd.read_hdf(h5name, 'sd')
+            print('loaded sd from h5')
         except KeyError:
             sd = spikes.std()
             sd.to_hdf(h5name, 'sd')
+            print('wrote sd to h5')
 
         # compute the cross correlation at each threshold
         xcs = get_xcorr_multi_thresh(spikes, threshes, sd, em.distance_map(),
@@ -170,6 +193,7 @@ def compute_xcorr_with_args(args):
                                      detrend=args.detrend,
                                      scale_type=args.scale_type)
         xcs.to_hdf(h5name, xcs_name)
+
     try:
         prec = pd.read_hdf(h5name, 'prec')
     except KeyError:
