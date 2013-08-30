@@ -5,6 +5,7 @@ import sys
 import argparse
 import logging
 import inspect
+import warnings
 from itertools import ifilter
 
 import pandas.core.common as com
@@ -260,7 +261,9 @@ def main():
         logging.debug('KWARGS|%s|%r' % (k, com.pprint_thing(v)))
 
     try:
-        return args.run(args)
+        with warnings.catch_warnings():
+            warnings.simplefilter('ignore', Warning)
+            return args.run(args)
     except Exception as e:
         logging.debug('ERROR|%r' % e)
         raise
