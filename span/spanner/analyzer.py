@@ -10,7 +10,7 @@ from span import ElectrodeMap, NeuroNexusMap, TdtTank, SpikeDataFrame
 
 from span.spanner.command import SpanCommand
 from span.spanner.utils import error
-from span.utils import bold, green, puts
+from span.utils import bold, green, puts, blue, red
 
 
 def _is_proper_spike_frame(df):
@@ -162,28 +162,28 @@ def compute_xcorr_with_args(args):
 
     try:
         xcs = pd.read_hdf(h5name, xcs_name)
-        puts(bold(green('loaded cleaned xcs data')))
+        puts(bold(green('read cleaned xcs data')))
     except KeyError:
         try:
             spikes = _frame_to_spike_frame(pd.read_hdf(h5name, 'sp'))
-            puts(bold(green('read spikes from h5 file, shape: '
-                            '{0}'.format(spikes.shape))))
+            puts(bold(blue('read spikes from h5 file, shape: '
+                           '{0}'.format(spikes.shape))))
         except KeyError:
             # get the raw data
             spikes = _frame_to_spike_frame(tank.spik)
 
             if args.store_h5:
                 pd.DataFrame(spikes).to_hdf(h5name, 'sp', append=True)
-                puts(bold(green('wrote h5 file')))
+                puts(bold(red('wrote spikes to h5 file')))
 
         # get the threshes
         try:
             sd = pd.read_hdf(h5name, 'sd')
-            puts(bold(green('loaded sd from h5')))
+            puts(bold(blue('loaded sd from h5')))
         except KeyError:
             sd = spikes.std()
             sd.to_hdf(h5name, 'sd')
-            puts(bold(green('wrote sd to h5')))
+            puts(bold(red('wrote sd to h5')))
 
         # compute the cross correlation at each threshold
         xcs = get_xcorr_multi_thresh(spikes, threshes, sd, em.distance_map(),
@@ -195,9 +195,11 @@ def compute_xcorr_with_args(args):
                                      detrend=args.detrend,
                                      scale_type=args.scale_type)
         xcs.to_hdf(h5name, xcs_name)
+        puts(bold(red("wrote xcs to h5 file")))
 
     try:
         prec = pd.read_hdf(h5name, 'prec')
+        puts(bold(green('read prec data from h5 file')))
     except KeyError:
         prec = tank_to_prec(tank)
         prec.to_hdf(h5name, 'prec')
