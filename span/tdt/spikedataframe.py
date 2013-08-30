@@ -128,8 +128,8 @@ class SpikeDataFrame(SpikeDataFrameBase):
         thr = threshes.item() if threshes.size == 1 else threshes
         threshes = Series(thr, index=self.columns)
 
-        f = functools.partial(cmpf, axis=1)
-        return f(threshes)
+        return self._constructor(cmpf(threshes, axis=1), index=self.index,
+                                 columns=self.columns)
 
     def clear_refrac(self, ms=2, inplace=False):
         """Remove spikes from the refractory period of all channels.

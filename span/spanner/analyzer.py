@@ -165,7 +165,7 @@ def compute_xcorr_with_args(args):
     except KeyError:
         try:
             spikes = _frame_to_spike_frame(pd.read_hdf(h5name, 'sp'))
-            print('read spikes from h5 file')
+            print('read spikes from h5 file, shape: {0}'.format(spikes.shape))
         except KeyError:
             # get the raw data
             spikes = _frame_to_spike_frame(tank.spik)
