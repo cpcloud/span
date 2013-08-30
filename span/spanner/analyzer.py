@@ -247,7 +247,7 @@ def frame_image(df, figsize=(16, 9), interpolation='none', cbar_mode='single',
     ax = grid[0]
     im = ax.imshow(values, interpolation=interpolation, aspect=aspect,
                    vmax=vmax, vmin=vmin)
-    return ax, im
+    return fig, ax, im
 
 
 def _color_yticks(xcs, color):
@@ -277,15 +277,15 @@ def plot_xcorrs(trimmed, tick_labelsize=8, titlesize=15, xlabelsize=10,
     if 'distance' not in trimmed.index.names:
         trimmed = trimmed.set_index(['distance'], drop=True, append=True)
 
-    ax, im = frame_image(trimmed, figsize=figsize)
+    fig, ax, im = frame_image(trimmed, figsize=figsize)
 
     m, n = trimmed.shape
 
     ax.set_xticks(np.arange(n))
     tlbls = _get_xticklabels(trimmed.columns.values.astype(float))
     ax.set_xticklabels(tlbls)
-    ax.tick_params(labelsize=tick_labelsize, left=False, top=False, right=False,
-                   bottom=False)
+    ax.tick_params(labelsize=tick_labelsize, left=False, top=False,
+                   right=False, bottom=False)
     ax.cax.colorbar(im)
     ax.cax.tick_params(labelsize=cbar_labelsize, right=False)
     ax.set_yticks(np.arange(m))
@@ -294,48 +294,39 @@ def plot_xcorrs(trimmed, tick_labelsize=8, titlesize=15, xlabelsize=10,
     ax.set_yticklabels(_color_yticks(trimmed, split_color))
     ax.set_ylabel(ylabel, fontsize=ylabelsize)
     ax.set_title(title, fontsize=titlesize)
+    return fig, ax
+
+
+def analyze(xcs, scale_dist=False):
+    xcs_concat = concat_xcorrs(xcs, scale_dist)
+    xcs_ind = xcs_concat.set_index(['distance'], drop=True, append=True)
+    gb_dist = xcs_ind.groupby(level='distance', axis=0)
+    mdist = gb_dist.mean()
+    return mdist, xcs_concat
 
 
 def show_xcorr(args):
     import matplotlib as mpl
     mpl.use('Agg')
-    trimmed, age, site = compute_xcorr_with_args(args)
-    trimmed = trimmed.set_index(['distance'], append=True, drop=True)
+    trimmed, age, site, date = compute_xcorr_with_args(args)
+    _, xcs_concat = analyze(trimmed)
+    w, b = split_xcorrs(xcs_concat)
+    agg = pd.concat([w, b])
+    cols = agg.columns
+    agg = agg.drop_duplicates().dropna(how='all', axis=0,
+                                       subset=cols[cols != 'distance'])
+    fig, _ = plot_xcorrs(agg, title='Age: {0}, Site: {1}, Date: '
+                         '{2}'.format(age, site, date))
 
-    ax, im = frame_image(trimmed)
-    fig = ax.get_figure()
-
-    if args.sort_by == 'shank':
-        trimmed.sortlevel('shank i', inplace=True)
-        trimmed.sortlevel('shank j', inplace=True)
-    elif args.sort_by == 'distance':
-        trimmed.sortlevel('distance', inplace=True)
-
-    m, n = trimmed.shape
-
-    ax.set_xticks(np.arange(n))
-    ax.set_xticklabels(map('{0:.1f}'.format,
-                           trimmed.columns.values.astype(float)))
-    ax.tick_params(labelsize=3, left=False, top=False, right=False,
-                   bottom=False)
-    ax.cax.colorbar(im)
-    ax.cax.tick_params(labelsize=5, right=False)
-    ax.set_yticks(np.arange(m))
-    ax.set_xlabel('Threshold (multiples of standard deviation)', fontsize=6)
-    mpl.rcParams['text.usetex'] = True
-    f = lambda x: r'\textbf{{{0}}}, {1}, \textbf{{{2}}}, {3}, {4:.1f}'.format(*x)
-    ax.set_yticklabels(map(f, trimmed.index))
-    ax.set_ylabel('shank i, channel i, shank j, channel j % of max distance',
-                  fontsize=6)
-    ax.set_title('Age: {0}, Site: {1}'.format(age, site))
     plot_filename = args.plot_filename or os.path.splitext(args.filename)[0]
 
     with warnings.catch_warnings():
         warnings.simplefilter('ignore', UserWarning)
         fig.tight_layout()
-        fig.savefig('{0}{1}{2}'.format(plot_filename, os.extsep,
-                                       args.plot_format), fmt=args.plot_format,
-                    bbox_inches='tight')
+        fig.autofmt_xdate()
+        fmt = args.plot_format
+        fn = '{0}{1}{2}'.format(plot_filename, os.extsep, fmt)
+        fig.savefig(fn, fmt=fmt, bbox_inches='tight')
 
 
 class Analyzer(SpanCommand):
