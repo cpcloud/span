@@ -23,7 +23,7 @@ def _frame_to_spike_frame(df, names=None):
     if _is_proper_spike_frame(df):
         return df
     columns = df.columns.copy()
-    names = names if name is not None else ['shank', 'channel']
+    names = names if names is not None else ['shank', 'channel']
 
     if not isinstance(columns, pd.MultiIndex):
         columns = pd.MultiIndex.from_tuples(columns, names=names)
